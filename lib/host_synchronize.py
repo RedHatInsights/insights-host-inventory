@@ -4,9 +4,7 @@ from confluent_kafka.error import ProduceError
 from app.logging import get_logger
 from app.models import Host
 from app.queue.events import EventType
-from app.queue.events import build_event
-from app.queue.events import extract_system_profile_fields_for_headers
-from app.queue.events import message_headers
+from app.queue.events import build_event_and_headers
 from app.serialization import serialize_group_without_host_count
 from app.serialization import serialize_host
 from app.serialization import serialize_staleness_to_dict
@@ -65,15 +63,10 @@ def _synchronize_hosts_for_org(org_hosts_query, custom_staleness_dict, event_pro
                 staleness = get_sys_default_staleness(config)
 
             serialized_host = serialize_host(host, staleness=staleness)
-            event = build_event(EventType.updated, serialized_host)
-            host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
-            headers = message_headers(
+            event, headers = build_event_and_headers(
                 EventType.updated,
-                str(host.insights_id),
-                host.reporter,
-                host_type,
-                os_name,
-                bootc_booted,
+                host,
+                serialized_host=serialized_host,
             )
             events_to_produce.append((event, headers, str(host.id)))
 

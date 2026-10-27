@@ -125,13 +125,6 @@ objects:
           name: ${UNLEASH_SECRET_NAME}
           key: CLIENT_ACCESS_TOKEN
           optional: true
-    # Common RBAC PSK secret reference
-    rbacPsks: &rbacPsks
-      valueFrom:
-        secretKeyRef:
-          key: psks.json
-          name: rbac-psks
-          optional: false
     # Common Kessel auth secret reference
     kesselClientId: &kesselClientId
       valueFrom:
@@ -180,6 +173,7 @@ objects:
       - kessel-inventory
       - kessel-relations
       - kessel-kafkaconnect
+      - kessel-inventory-consumer
     deployments:
     - name: service
       replicas: ${{REPLICAS_SVC}}
@@ -215,8 +209,6 @@ objects:
             value: inventory
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - <<: *rbacPsks
-            name: RBAC_PSKS
           - name: BYPASS_RBAC
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
@@ -447,8 +439,6 @@ objects:
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
-          - <<: *rbacPsks
-            name: RBAC_PSKS
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
           - name: KESSEL_AUTH_CLIENT_ID
@@ -590,8 +580,6 @@ objects:
             value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
           - name: HOSTS_TABLE_NUM_PARTITIONS
             value: ${HOSTS_TABLE_NUM_PARTITIONS}
-          - <<: *rbacPsks
-            name: RBAC_PSKS
           - name: KESSEL_AUTH_CLIENT_ID
             <<: *kesselClientId
           - name: KESSEL_AUTH_CLIENT_SECRET
@@ -854,8 +842,6 @@ objects:
             value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: CONSUMER_MQ_BROKER
             value: ${CONSUMER_MQ_BROKER}
-          - <<: *rbacPsks
-            name: RBAC_PSKS
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
           - name: BYPASS_KESSEL
@@ -998,8 +984,6 @@ objects:
             value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: CONSUMER_MQ_BROKER
             value: ${CONSUMER_MQ_BROKER}
-          - <<: *rbacPsks
-            name: RBAC_PSKS
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
           - name: BYPASS_KESSEL
@@ -1321,8 +1305,6 @@ objects:
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: HOST_DELETE_CHUNK_SIZE
             value: ${HOST_DELETE_CHUNK_SIZE}
-          - <<: *rbacPsks
-            name: RBAC_PSKS
         resources:
           limits:
             cpu: ${CPU_LIMIT_REAPER}
@@ -2539,15 +2521,6 @@ objects:
           WHERE "ungrouped" IS FALSE
           GROUP BY "groups"."id"
           ORDER BY "host_count" DESC;
-- apiVersion: v1
-  kind: Secret
-  metadata:
-    name: rbac-psks
-  data:
-    psks.json: >-
-      ewogICJhZHZpc29yIjogewogICAgImFsdC1zZWNyZXQiOiAiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEiCiAgfSwKICAiYXBwcm92YWwiOiB7CiAgICAiYWx0LXNlY3JldCI6ICIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMiIKICB9LAogICJub3RpZmljYXRpb25zIjogewogICAgImFsdC1zZWNyZXQiOiAiMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMiCiAgfSwKICAiaW52ZW50b3J5IjogewogICAgInNlY3JldCI6ICI0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQiCiAgfQp9
-  type: Opaque
-
 parameters:
 # =================================================================================
 # I. Core Application Configuration

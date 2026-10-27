@@ -835,6 +835,8 @@ def get_hosts_to_export(
     host_filter: dict | None = None,
     export_fields: list[str] | None = None,
     app_data_fields: dict[str, list[str]] | None = None,
+    order_by: str | None = None,
+    order_how: str | None = None,
 ) -> Iterator[dict]:
     """Query hosts for export, optionally filtered by a saved view's configuration.
 
@@ -848,6 +850,10 @@ def get_hosts_to_export(
             When omitted, uses the legacy hosts-table field set (includes static
             system-profile fields such as os_release and cloud_provider).
         app_data_fields: Map of app_name -> [field_names] for app-data columns to fetch.
+        order_by: Field name (or ``app:field``) to sort the export by. Mirrors the sort
+            the table applies so the export matches on-screen order. When omitted, rows
+            come out in DB scan order.
+        order_how: Sort direction ("ASC" or "DESC").
 
     Profile columns are selected with an explicit LEFT JOIN on the hosts scan and
     serialized from the flat row.
@@ -921,6 +927,33 @@ def get_hosts_to_export(
                 and_(Host.id == model_class.host_id, Host.org_id == model_class.org_id),
             )
     base_query = base_query.filter(*q_filters)
+
+    if order_by:
+        # LEFT JOIN the app-data table when sorting by an app field, mirroring
+        # get_host_list_for_views so the export order matches the table.
+        resolved_sort = resolve_app_sort(order_by)
+        if resolved_sort:
+            app_sort_model, _ = resolved_sort
+            if not _is_table_already_joined(base_query, app_sort_model):
+                base_query = base_query.outerjoin(
+                    app_sort_model,
+                    and_(Host.id == app_sort_model.host_id, Host.org_id == app_sort_model.org_id),
+                )
+        elif order_by in ORDER_BY_STATIC_PROFILE_FIELDS and not _is_table_already_joined(
+            base_query, HostStaticSystemProfile
+        ):
+            # operating_system sorts on HostStaticSystemProfile; join it (if an exported
+            # static field hasn't already) so the ORDER BY expression doesn't introduce
+            # an unjoined FROM source that multiplies rows.
+            base_query = base_query.outerjoin(
+                HostStaticSystemProfile,
+                and_(
+                    Host.id == HostStaticSystemProfile.host_id,
+                    Host.org_id == HostStaticSystemProfile.org_id,
+                ),
+            )
+        base_query = base_query.order_by(*params_to_order_by(order_by, order_how, allow_app_fields=True))
+
     if batch_size > 0:
         base_query = base_query.yield_per(batch_size)
 

@@ -734,6 +734,14 @@ def random_uuid():
     return str(uuid.uuid4())
 
 
+def build_group_payload(name=None, host_ids=None):
+    """Build a POST /groups body using IDs of hosts already in Inventory."""
+    return {
+        "name": f"test-group-{random_uuid()}" if name is None else name,
+        "host_ids": list(host_ids) if host_ids is not None else [],
+    }
+
+
 IS_EDGE = os.environ.get("IS_EDGE", False)
 USE_RANDOMNESS = os.environ.get("USE_RANDOMNESS", "True").lower() == "true"
 

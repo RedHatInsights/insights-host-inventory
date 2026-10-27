@@ -222,6 +222,11 @@ requirements)
 * `rbac_dependent` - Tests that require RBAC to be running
 * `service_account` - Tests that require service accounts
 * `longrun` - Tests that might run for a long time
+* `pipeline_1`, `pipeline_2` - Split of the tests between 2 testing pipelines that run in parallel.
+These markers are not set on the tests directly, they are added automatically based on the test's
+path. Tests from the paths listed in `PIPELINE_2_PATHS` in
+[tests/conftest.py](iqe_host_inventory/tests/conftest.py) get `pipeline_2`, all other tests get
+`pipeline_1`.
 
 ## Updating Rest service
 

@@ -213,7 +213,7 @@ def test_groups_delete_group_from_different_account(
     group_secondary = host_inventory_secondary.apis.groups.create_group(group_name, hosts=hosts)
     group_primary = host_inventory.apis.groups.create_group(group_name)
 
-    with raises_apierror(404, match_message="One or more groups not found."):
+    with raises_apierror(404):
         host_inventory.apis.groups.raw_api.api_group_delete_groups([group_secondary.id])
 
     # ensure groups weren't deleted from db

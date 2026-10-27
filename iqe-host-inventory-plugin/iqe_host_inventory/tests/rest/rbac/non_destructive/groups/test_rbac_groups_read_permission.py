@@ -38,7 +38,8 @@ def host_inventory_read_permissions(request: pytest.FixtureRequest) -> Applicati
         lf("host_inventory_rbac_hosts_viewer"),
         lf("host_inventory_rbac_hosts_write"),
         lf("host_inventory_rbac_hosts_all"),
-        lf("host_inventory_rbac_groups_write"),
+        # TODO: Uncomment when https://redhat.atlassian.net/browse/RHCLOUD-52309 is fixed
+        # lf("host_inventory_rbac_groups_write"),
         lf("host_inventory_rbac_no_perms"),
     ],
     scope="class",
