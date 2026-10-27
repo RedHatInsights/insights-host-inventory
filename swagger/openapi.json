@@ -372,6 +372,11 @@
             "BearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/branchId"
+          }
+        ],
         "requestBody": {
           "description": "Data required to create a check-in record for a host.",
           "required": true,
