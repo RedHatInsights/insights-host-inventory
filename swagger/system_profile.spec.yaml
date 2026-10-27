@@ -4,16 +4,8 @@ $schema: http://json-schema.org/draft-04/schema#
 $defs:
   NestedObject:
     type: object
-    description: An arbitrary object that does not allow empty string keys.
-    # openapi spec does not support propertyNames, we will use a custom validator
-    # to validate x-propertyNames as propertyNames
-    x-propertyNames:
-      minLength: 1
-    additionalProperties:
-      oneOf:
-        - "$ref": "#/$defs/NestedObject"
-        - not:
-            type: object
+    description: An arbitrary object that allows any additional properties.
+    additionalProperties: true
   DiskDevice:
     description: Representation of one mounted device
     type: object
