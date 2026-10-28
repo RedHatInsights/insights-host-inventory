@@ -29,6 +29,7 @@ from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.models import HostStaticSystemProfile
 from app.models import LimitedHost
 from app.models import db
 from app.serialization import build_system_profile_from_normalized
@@ -37,6 +38,8 @@ from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from app.staleness_states import HostStalenessStatesDbFilters
 from lib import metrics
+from lib.feature_flags import FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID
+from lib.feature_flags import get_flag_value
 
 __all__ = (
     "AddHostResult",
@@ -82,12 +85,22 @@ def add_host(
 
     matched_host = None
     canonical_facts = serialize_canonical_facts(input_host, include_none=False)
+    dedup_ignore_insights_id = get_flag_value(FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID, identity.org_id)
     if existing_hosts:
         # First, try to match the host in memory - from the provided list of existing hosts
-        matched_host = find_existing_host(identity, canonical_facts, existing_hosts)
+        matched_host = find_existing_host(
+            identity,
+            canonical_facts,
+            existing_hosts,
+            nomatch_insights_id=dedup_ignore_insights_id,
+        )
     if matched_host is None:
         # If the list of existing hosts was not provided, or the match was not found, try querying DB
-        matched_host = find_existing_host(identity, canonical_facts)
+        matched_host = find_existing_host(
+            identity,
+            canonical_facts,
+            nomatch_insights_id=dedup_ignore_insights_id,
+        )
 
     group = get_or_create_ungrouped_hosts_group_for_identity(identity)
     input_host.groups = [
@@ -142,7 +155,10 @@ def extract_immutable_and_id_facts(canonical_facts: dict[str, Any]) -> tuple[dic
 
 @metrics.host_dedup_processing_time.time()
 def find_existing_host(
-    identity: Identity, canonical_facts: dict[str, Any], from_hosts: list[Host] | None = None
+    identity: Identity,
+    canonical_facts: dict[str, Any],
+    from_hosts: list[Host] | None = None,
+    nomatch_insights_id: bool = False,
 ) -> Host | None:
     logger.debug(f"find_existing_host({identity}, {canonical_facts}, {from_hosts})")
     immutable_facts, id_facts = extract_immutable_and_id_facts(canonical_facts)
@@ -165,6 +181,12 @@ def find_existing_host(
         if compound_fact := COMPOUND_ID_FACTS_MAP.get(target_key):  # noqa: SIM102
             if compound_fact_value := canonical_facts.get(compound_fact):
                 target_facts[compound_fact] = compound_fact_value
+
+        # A stored subscription manager ID may be missing, but it must not disagree.
+        # This still matches a host known only by insights ID, and rejects a clone
+        # whose subscription manager ID is different.
+        if nomatch_insights_id and target_key == "insights_id" and "subscription_manager_id" in canonical_facts:
+            target_facts["subscription_manager_id"] = canonical_facts["subscription_manager_id"]
 
         if existing_host := _find_host_by_multiple_facts_in_db_or_in_memory(identity, target_facts, from_hosts):
             return existing_host
@@ -370,7 +392,11 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
         existing_host = find_existing_host_by_id(identity, input_host.id)
     else:
         input_host_canonical_facts = serialize_canonical_facts(input_host, include_none=False)
-        existing_host = find_existing_host(identity, input_host_canonical_facts)
+        existing_host = find_existing_host(
+            identity,
+            input_host_canonical_facts,
+            nomatch_insights_id=get_flag_value(FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID, identity.org_id),
+        )
 
     if existing_host:
         logger.debug("Updating system profile on an existing host")
@@ -543,3 +569,22 @@ def host_exists(host_id, org_id, session=None):
     """Return True when a specific host row still exists in the database."""
     session = session or db.session
     return session.query(Host.id).filter(Host.id == host_id, Host.org_id == org_id).first() is not None
+
+
+def insights_id_owner_has_multiple_hosts(org_id: str, insights_id: str, owner_id: str) -> bool:
+    """True when more than one visible host shares this insights ID and owner.
+
+    The system-client cache stores a single host for that pair. A second host
+    must not replace that entry, or GET /hosts returns only the cached one.
+    """
+    query = (
+        db.session.query(Host.id)
+        .join(Host.static_system_profile)
+        .filter(
+            Host.org_id == org_id,
+            Host.insights_id == insights_id,
+            HostStaticSystemProfile.org_id == org_id,
+            HostStaticSystemProfile.owner_id == owner_id,
+        )
+    )
+    return len(find_non_culled_hosts(query, org_id).limit(2).all()) > 1

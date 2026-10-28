@@ -185,9 +185,14 @@ def delete_cached_system_keys(insights_id=None, org_id=None, owner_id=None):
         delete_keys(f"insights_id=*_org={org_id}", wildcard=True)
 
 
-def set_cached_system(system_key, host, config):
+def set_cached_system(system_key, host, config=None):
     global CACHE_CONFIG
     global CACHE
+
+    if config is None:
+        from app.common import inventory_config
+
+        config = inventory_config()
 
     if not CACHE:
         logger.info("Cache is unset when attampting to set value.")
@@ -196,6 +201,20 @@ def set_cached_system(system_key, host, config):
         CACHE.set(key=system_key, value=host, timeout=config.cache_insights_client_system_timeout_sec)
     except Exception as exec:
         logger.exception("Cache deletion failed", exc_info=exec)
+
+
+def delete_cached_system(system_key: str) -> None:
+    """Remove one system-client cache entry.
+
+    Generation bumps only take effect when Redis is the cache backend. This
+    deletes the current key so an in-process cache does not keep serving it.
+    """
+    if not CACHE or not system_key:
+        return
+    try:
+        CACHE.delete(system_key)
+    except Exception as exc:
+        logger.exception("Failed to delete system cache key", exc_info=exc)
 
 
 # --- Staleness cache ---

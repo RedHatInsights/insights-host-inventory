@@ -43,6 +43,7 @@ from app.queue.host_mq import OperationResult
 from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import _sanitize_json_object_for_postgres
+from app.queue.host_mq import cache_ingested_system
 from app.queue.host_mq import write_add_update_event_message
 from app.queue.host_mq import write_delete_event_message
 from app.utils import Tag
@@ -2817,6 +2818,7 @@ def test_write_add_update_event_message(mocker):
     )
     mock_set_cached_system = mocker.patch("app.queue.host_mq.set_cached_system")
     mock_host_exists = mocker.patch("app.queue.host_mq.host_exists", return_value=True)
+    mocker.patch("app.queue.host_mq.insights_id_owner_has_multiple_hosts", return_value=False)
 
     serialized_group = {
         "id": str(generate_uuid()),
@@ -3439,3 +3441,34 @@ def test_write_delete_event_message_without_owner_id_skips_cache_invalidation(mo
     mock_event_producer.write_event.assert_called_once()
     mock_delete_cache.assert_not_called()
     mock_success_logger.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("created", "flag_enabled", "insights_id", "owner_id", "expect_invalidate"),
+    (
+        (True, True, "11111111-1111-1111-1111-111111111111", "owner-id", True),
+        (True, False, "11111111-1111-1111-1111-111111111111", "owner-id", False),
+        (False, True, "11111111-1111-1111-1111-111111111111", "owner-id", False),
+        (True, True, None, "owner-id", False),
+        (True, True, "11111111-1111-1111-1111-111111111111", None, False),
+    ),
+)
+def test_created_host_invalidates_only_owner_system_cache(
+    mocker, created, flag_enabled, insights_id, owner_id, expect_invalidate
+):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=flag_enabled)
+    mocker.patch("app.queue.host_mq.system_cache_has_multiple_hosts", return_value=False)
+    mock_delete_cache = mocker.patch("app.queue.host_mq.delete_cached_system_keys")
+    mocker.patch("app.queue.host_mq.set_cached_system")
+
+    cache_ingested_system(
+        {"org_id": "org-id", "system_profile": {"owner_id": owner_id} if owner_id else {}},
+        insights_id,
+        created=created,
+        groups=[],
+    )
+
+    if expect_invalidate:
+        mock_delete_cache.assert_called_once_with(insights_id=insights_id, org_id="org-id", owner_id=owner_id)
+    else:
+        mock_delete_cache.assert_not_called()
