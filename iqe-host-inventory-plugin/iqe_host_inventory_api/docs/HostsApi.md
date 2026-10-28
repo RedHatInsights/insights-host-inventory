@@ -381,7 +381,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_host_get_host_exists**
-> HostIdOut api_host_get_host_exists(insights_id=insights_id)
+> HostIdOut api_host_get_host_exists(insights_id=insights_id, branch_id=branch_id)
 
 Find one host by insights_id, if it exists
 
@@ -418,10 +418,11 @@ with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api.HostsApi(api_client)
     insights_id = "insights_id_example"  # str | Filter by insights_id (optional)
+    branch_id = "branch_id_example"  # str | Filter by branch_id (optional)
 
     try:
         # Find one host by insights_id, if it exists
-        api_response = api_instance.api_host_get_host_exists(insights_id=insights_id)
+        api_response = api_instance.api_host_get_host_exists(insights_id=insights_id, branch_id=branch_id)
         pprint(api_response)
     except ApiException as e:
         print("Exception when calling HostsApi->api_host_get_host_exists: %s\n" % e)
@@ -432,6 +433,7 @@ with iqe_host_inventory_api.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **insights_id** | [**str**](.md)| Filter by insights_id | [optional]
+ **branch_id** | **str**| Filter by branch_id | [optional]
 
 ### Return type
 
@@ -849,7 +851,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_host_host_checkin**
-> HostOut api_host_host_checkin(create_check_in)
+> HostOut api_host_host_checkin(create_check_in, branch_id=branch_id)
 
 Update staleness timestamps for a host matching the provided facts
 
@@ -891,10 +893,11 @@ with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     create_check_in = (
         iqe_host_inventory_api.CreateCheckIn()
     )  # CreateCheckIn | Data required to create a check-in record for a host.
+    branch_id = "branch_id_example"  # str | Filter by branch_id (optional)
 
     try:
         # Update staleness timestamps for a host matching the provided facts
-        api_response = api_instance.api_host_host_checkin(create_check_in)
+        api_response = api_instance.api_host_host_checkin(create_check_in, branch_id=branch_id)
         pprint(api_response)
     except ApiException as e:
         print("Exception when calling HostsApi->api_host_host_checkin: %s\n" % e)
@@ -934,10 +937,11 @@ with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     create_check_in = (
         iqe_host_inventory_api.CreateCheckIn()
     )  # CreateCheckIn | Data required to create a check-in record for a host.
+    branch_id = "branch_id_example"  # str | Filter by branch_id (optional)
 
     try:
         # Update staleness timestamps for a host matching the provided facts
-        api_response = api_instance.api_host_host_checkin(create_check_in)
+        api_response = api_instance.api_host_host_checkin(create_check_in, branch_id=branch_id)
         pprint(api_response)
     except ApiException as e:
         print("Exception when calling HostsApi->api_host_host_checkin: %s\n" % e)
@@ -948,6 +952,7 @@ with iqe_host_inventory_api.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **create_check_in** | [**CreateCheckIn**](CreateCheckIn.md)| Data required to create a check-in record for a host. |
+ **branch_id** | **str**| Filter by branch_id | [optional]
 
 ### Return type
 

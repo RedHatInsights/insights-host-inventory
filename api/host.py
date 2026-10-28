@@ -588,7 +588,11 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @api_operation
 @access(KesselResourceTypes.HOST.update)
 @metrics.api_request_time.time()
-def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API endpoints, not needed for host checkins
+def host_checkin(
+    body,
+    branch_id=None,  # noqa: ARG001
+    rbac_filter=None,  # noqa: ARG001, required for all API endpoints, not needed for host checkins
+):
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(
