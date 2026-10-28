@@ -1,10 +1,10 @@
 # Spec: RHINENG-17582
 
 ## Summary
-Let's investigate further.
+When the `hbi.create_last_check_in_update_per_reporter_staleness` feature flag is enabled, deleting custom staleness settings triggers asynchronous `per_reporter_staleness` updates on all hosts in the org. If a user then immediately deletes a host (or performs another staleness operation), a PostgreSQL deadlock can occur between the background staleness update and the new request, resulting in an unhandled `OperationalError` that surfaces as an HTTP 500.
 
 ## Root Cause
-Let's investigate further.
+Deleting a custom staleness record causes a cascade of host updates (`per_reporter_staleness` column). These updates acquire `ShareLock`s on host rows. If a concurrent request (e.g., `DELETE /hosts/<id>`) tries to delete one of those same host rows, PostgreSQL detects a deadlock between the two transactions and raises `psycopg2.errors.DeadlockDetected`. The staleness API endpoints (`delete_staleness`, `create_staleness`, `update_staleness`) do not catch `OperationalError`, so the exception propagates as an unhandled 500 error.
 
 ## Plan
 
