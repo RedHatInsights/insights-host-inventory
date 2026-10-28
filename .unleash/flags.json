@@ -128,6 +128,22 @@
             ],
             "variants": [],
             "createdAt": "2026-07-21T00:00:00.000Z"
+        },
+        {
+            "name": "hbi.api.dedup-ignore-insights-id",
+            "description": "When enabled, dedup logic will ignore insights_id when subscription_manager_id is provided.",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2026-10-26T00:00:00.000Z"
         }
     ],
     "strategies": [

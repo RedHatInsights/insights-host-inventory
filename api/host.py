@@ -57,6 +57,8 @@ from app.serialization import serialize_host_with_params
 from app.serialization import serialize_uuid
 from app.utils import Tag
 from app.utils import check_all_ids_found
+from lib.feature_flags import FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID
+from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
@@ -593,7 +595,11 @@ def host_checkin(
 ):
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
-    existing_host = find_existing_host(current_identity, canonical_facts)
+    existing_host = find_existing_host(
+        current_identity,
+        canonical_facts,
+        nomatch_insights_id=get_flag_value(FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID, current_identity.org_id),
+    )
     staleness = get_staleness_obj(current_identity.org_id)
     if existing_host:
         existing_host._update_last_check_in_date()
