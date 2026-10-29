@@ -71,6 +71,9 @@ class HostFilters(BaseModel):
     known_exploit: StrictStr | None = Field(
         default=None, description="Filter by Vulnerability known exploit status."
     )
+    security_rule: StrictStr | None = Field(
+        default=None, description="Filter by Vulnerability security rule status."
+    )
     __properties: ClassVar[list[str]] = [
         "hostname_or_id",
         "staleness",
@@ -86,6 +89,7 @@ class HostFilters(BaseModel):
         "incident_status",
         "cve_severity",
         "known_exploit",
+        "security_rule",
     ]
 
     @field_validator("staleness")
@@ -160,6 +164,16 @@ class HostFilters(BaseModel):
             raise ValueError("must be one of ('has_known_exploit', 'no_known_exploit')")
         return value
 
+    @field_validator("security_rule")
+    def security_rule_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in {"present", "not_present"}:
+            raise ValueError("must be one of ('present', 'not_present')")
+        return value
+
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
@@ -231,5 +245,6 @@ class HostFilters(BaseModel):
             "incident_status": obj.get("incident_status"),
             "cve_severity": obj.get("cve_severity"),
             "known_exploit": obj.get("known_exploit"),
+            "security_rule": obj.get("security_rule"),
         })
         return _obj

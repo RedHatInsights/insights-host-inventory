@@ -139,6 +139,7 @@ paths:
         - $ref: '#/components/parameters/incidentStatusParam'
         - $ref: '#/components/parameters/cveSeverityParam'
         - $ref: '#/components/parameters/knownExploitParam'
+        - $ref: '#/components/parameters/securityRuleParam'
       responses:
         '200':
           description: Successfully read host views.
@@ -1802,6 +1803,20 @@ components:
         enum:
           - has_known_exploit
           - no_known_exploit
+    securityRuleParam:
+      in: query
+      name: security_rule
+      required: false
+      description: >-
+        Filters hosts by Vulnerability security rule status. Mutually exclusive:
+        only one value may be provided. "present" returns hosts with
+        cves_with_security_rules > 0. "not_present" returns hosts with
+        cves_with_security_rules = 0 (excludes hosts with no Vulnerability data).
+      schema:
+        type: string
+        enum:
+          - present
+          - not_present
     hostViewCombinedFilterParam:
       in: query
       name: filter
@@ -3440,6 +3455,12 @@ components:
           enum:
             - has_known_exploit
             - no_known_exploit
+        security_rule:
+          description: Filter by Vulnerability security rule status.
+          type: string
+          enum:
+            - present
+            - not_present
       additionalProperties: false
     ViewIn:
       title: View Create Payload
