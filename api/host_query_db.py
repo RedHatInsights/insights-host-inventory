@@ -116,6 +116,7 @@ def _get_host_list_using_filters(
     fields: dict | None,
     allow_app_fields: bool = False,
     include_count: bool = True,
+    include_tags: bool = False,
 ) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
     """
     Internal function to get filtered, ordered, and paginated host list.
@@ -130,6 +131,7 @@ def _get_host_list_using_filters(
         fields: Requested fields dict (for system_profile handling)
         allow_app_fields: If True, supports app:field sorting (e.g., "vulnerability:critical_cves")
         include_count: If True, query and return total count. Otherwise, skip counting and return 0.
+        include_tags: If True, load hosts.tags and include "tags" in additional_fields.
 
     Returns:
         Tuple of (items, count, additional_fields, system_profile_fields)
@@ -139,6 +141,8 @@ def _get_host_list_using_filters(
     is_sp_requested = bool(sp_fields_map)
 
     additional_fields = ("system_profile",) if is_sp_requested else ()
+    if include_tags:
+        additional_fields = (*additional_fields, "tags")
     system_profile_fields = list(sp_fields_map.keys()) if is_sp_requested else []
 
     if is_sp_requested:
@@ -159,9 +163,10 @@ def _get_host_list_using_filters(
         else:
             base_query = base_query.options(noload(Host.dynamic_system_profile))
     else:
-        base_query = _find_hosts_entities_query(
-            query=query_base, columns=DEFAULT_COLUMNS.copy(), order_by=param_order_by
-        )
+        columns = DEFAULT_COLUMNS.copy()
+        if include_tags:
+            columns.append(Host.tags)
+        base_query = _find_hosts_entities_query(query=query_base, columns=columns, order_by=param_order_by)
 
     filtered_query = base_query.filter(*all_filters)
 
@@ -351,6 +356,7 @@ def get_host_list_for_views(
         options.order_how,
         fields=options.fields,
         allow_app_fields=True,
+        include_tags=True,
     )
     return items, count, additional_fields, system_profile_fields
 

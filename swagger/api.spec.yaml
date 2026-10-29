@@ -103,8 +103,8 @@ paths:
       summary: "Read aggregated host and application data"
       description: >-
         Read a combined view of hosts with optional application data such as Advisor,
-        Vulnerability, Compliance, Patch, and others. Application joins are opt-in and
-        controlled through the fields parameter.<br /><br />
+        Vulnerability, Compliance, Patch, and others. Each result includes the host's
+        tags. Application joins are opt-in and controlled through the fields parameter.<br /><br />
         Required permissions: inventory:hosts:read. App data is filtered by per-service
         permissions — services the user lacks read access for are omitted from app_data
         and listed in denied_services. Sorting or filtering by a denied service returns 403.

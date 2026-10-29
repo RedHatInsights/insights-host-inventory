@@ -8,6 +8,7 @@ import pytest
 
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_view_url
+from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.db_utils import db_create_host_app_data
 
@@ -3010,3 +3011,59 @@ class TestCombinedCveSeverityAndKnownExploitFilters:
         assert str(host_both.id) in result_ids
         assert str(host_critical_only.id) not in result_ids
         assert str(host_exploit_only.id) not in result_ids
+
+
+_HOST_TAGS = {
+    "insights-client": {"env": ["prod", "stage"]},
+    "null": {"owner": ["alice"]},
+    "satellite": {"present": []},
+}
+
+_SERIALIZED_HOST_TAGS = [
+    {"namespace": "insights-client", "key": "env", "value": "prod"},
+    {"namespace": "insights-client", "key": "env", "value": "stage"},
+    {"namespace": None, "key": "owner", "value": "alice"},
+    {"namespace": "satellite", "key": "present", "value": None},
+]
+
+
+def _tag_sort_key(tag: dict) -> tuple:
+    return (tag["namespace"] or "", tag["key"], tag["value"] or "")
+
+
+class TestHostViewTags:
+    """Tags are included on hosts-view rows and omitted from the hosts list."""
+
+    @pytest.mark.parametrize("query", [None, "?fields[system_profile]=arch"])
+    def test_hosts_view_includes_structured_tags(self, api_get, db_create_host, query):
+        """Each hosts-view row includes the StructuredTag array, on both query paths."""
+        host = db_create_host(extra_data={"tags": _HOST_TAGS})
+
+        url = build_host_view_url(query=query)
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        assert str(result["id"]) == str(host.id)
+        # JSONB object keys are unordered; values within a key stay in array order.
+        assert sorted(result["tags"], key=_tag_sort_key) == sorted(_SERIALIZED_HOST_TAGS, key=_tag_sort_key)
+        env_values = [tag["value"] for tag in result["tags"] if tag["key"] == "env"]
+        assert env_values == ["prod", "stage"]
+
+    def test_hosts_view_includes_empty_tags(self, api_get, db_create_host):
+        """A host with no tags returns an empty tags array."""
+        db_create_host()
+
+        response_status, response_data = api_get(build_host_view_url())
+
+        assert_response_status(response_status, 200)
+        assert response_data["results"][0]["tags"] == []
+
+    def test_hosts_list_omits_tags(self, api_get, db_create_host):
+        """GET /hosts does not include tags."""
+        db_create_host(extra_data={"tags": _HOST_TAGS})
+
+        response_status, response_data = api_get(build_hosts_url())
+
+        assert_response_status(response_status, 200)
+        assert "tags" not in response_data["results"][0]
