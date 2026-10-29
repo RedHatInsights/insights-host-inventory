@@ -135,7 +135,7 @@ __Function__ `get_group_list()`<br/>
 
 ### Tests
 
-__Existing:__ `tests/test_api_groups_get.py` (13 tests)
+__Existing:__ `tests/api/groups/test_groups_get.py` (13 tests)
 - Coverage: Basic GET /groups endpoint, pagination, filtering, RBAC permissions
 - RBAC v2 tests: `tests/test_rbac_v2.py` (8 tests covering workspace integration)
 
@@ -182,7 +182,7 @@ __Function:__ `get_groups_by_id()`<br/>
 
 ### Tests
 
-**Existing:** `tests/test_api_groups_get.py` (database tests only)<br/>
+**Existing:** `tests/api/groups/test_groups_get.py` (database tests only)<br/>
 **Needed:** RBAC v2 integration tests when blocker resolved<br/>
 
 ### Next Steps
@@ -241,11 +241,11 @@ __Function:__ `get_groups_by_id()`<br/>
 
 ### Tests
 
-**Existing:** `tests/test_api_host_group.py`<br/>
+**Existing:** `tests/api/hosts/test_hosts_group.py`<br/>
 - 16 tests covering add hosts functionality<br/>
 - Tests RBAC permissions, validation, edge cases<br/>
 
-**Needed:** New tests in `tests/test_api_host_group.py`<br/>
+**Needed:** New tests in `tests/api/hosts/test_hosts_group.py`<br/>
 1. `test_add_hosts_with_rbac_v2_workspace_validation()`<br/>
    - Mock `get_rbac_workspace_by_id()` to return workspace<br/>
    - Verify hosts added successfully<br/>
@@ -301,7 +301,7 @@ __Function:__ `get_groups_by_id()`<br/>
 
 ### Tests
 
-**Existing:** Not explicitly counted (part of `tests/test_api_host_group.py`)<br/>
+**Existing:** Not explicitly counted (part of `tests/api/hosts/test_hosts_group.py`)<br/>
 
 **Needed:** New tests<br/>
 1. `test_remove_hosts_with_rbac_v2_workspace_validation()`<br/>
@@ -384,7 +384,7 @@ __Function:__ `get_groups_by_id()`<br/>
 
 #### Phase 4: Tests
 
-**File:** `tests/test_api_host_group.py` (new tests)<br/>
+**File:** `tests/api/hosts/test_hosts_group.py` (new tests)<br/>
 
 **Needed Tests:**<br/>
 1. `test_get_hosts_in_group_basic()
@@ -484,11 +484,11 @@ __Function:__ `get_groups_by_id()`<br/>
 
 | Test File | Count | Coverage |
 |-----------|-------|----------|
-| `tests/test_api_groups_get.py` | 13 | GET /groups endpoint |
-| `tests/test_api_groups_create.py` | ~10 | POST /groups endpoint |
-| `tests/test_api_groups_update.py` | ~8 | PATCH /groups endpoint |
-| `tests/test_api_groups_delete.py` | ~6 | DELETE /groups endpoint |
-| `tests/test_api_host_group.py` | 16+ | POST/DELETE hosts to/from groups |
+| `tests/api/groups/test_groups_get.py` | 13 | GET /groups endpoint |
+| `tests/api/groups/test_groups_create.py` | ~10 | POST /groups endpoint |
+| `tests/api/groups/test_groups_update.py` | ~8 | PATCH /groups endpoint |
+| `tests/api/groups/test_groups_delete.py` | ~6 | DELETE /groups endpoint |
+| `tests/api/hosts/test_hosts_group.py` | 16+ | POST/DELETE hosts to/from groups |
 | `tests/test_rbac_v2.py` | 8 | RBAC v2 integration layer |
 
 ### Tests Needed

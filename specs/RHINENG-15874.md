@@ -10,7 +10,7 @@ The `SQLDump.dump_sql` method calls `self.write_method` 5 times to output the qu
 
 - `tests/helpers/sql_dump.py` (modify): In the `dump_sql` method, build a single formatted string containing the query header, formatted SQL, parameters header, JSON parameters, and footer — then call `self.write_method` exactly once with that combined string.
 
-- `tests/test_sql_dump.py` (modify): Add a test that creates a `SQLDump` with a mock `write_method`, invokes `dump_sql` with a mock `clauseelement` (whose `.compile()` returns a mock with a `.params` dict and whose `str()` returns a SQL string), and asserts that `write_method` is called exactly once and the single argument contains the query, parameters, and delimiters.
+- `tests/lib/test_sql_dump.py` (modify): Add a test that creates a `SQLDump` with a mock `write_method`, invokes `dump_sql` with a mock `clauseelement` (whose `.compile()` returns a mock with a `.params` dict and whose `str()` returns a SQL string), and asserts that `write_method` is called exactly once and the single argument contains the query, parameters, and delimiters.
 
 ## Constraints
 - The combined string content must match the original multi-call output so existing consumers see the same formatting.

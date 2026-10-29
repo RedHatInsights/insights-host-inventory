@@ -10,7 +10,7 @@ In `app/utils.py` line 289, the `Tag.from_string` static method uses a regex pat
 
 - `app/utils.py` (modify): In the `Tag.from_string` regex on line 289, change the value capture group from `[^=/]+` to `[^=]+` so that '/' characters are permitted in tag values.
 
-- `tests/test_unit.py` (modify): Add a new test function (e.g. `test_slash_in_value_tag_from_string`) near the existing `test_all_parts_tag_from_string` test, asserting that `Tag.from_string('NS/key=my/value')` equals `Tag('NS', 'key', 'my/value')`.
+- `tests/unit/test_unit.py` (modify): Add a new test function (e.g. `test_slash_in_value_tag_from_string`) near the existing `test_all_parts_tag_from_string` test, asserting that `Tag.from_string('NS/key=my/value')` equals `Tag('NS', 'key', 'my/value')`.
 
 ## Constraints
 - The '/' character must remain excluded from the namespace capture group (`[^=/]+`) since it delimits namespace from key
