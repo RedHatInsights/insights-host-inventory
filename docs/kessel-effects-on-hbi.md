@@ -233,7 +233,7 @@ The instrumentation does not attach request or response payloads, subject refere
 resource IDs, credentials, raw error messages, error detail payloads, or consistency
 and pagination tokens to spans. Use the trace ID to correlate with existing Kessel
 debug and error logs when full response details are needed. Automated span verification
-is covered by `tests/test_kessel_telemetry.py` using a local gRPC server and an
+is covered by `tests/telemetry/test_kessel_telemetry.py` using a local gRPC server and an
 in-memory exporter, including trace propagation, response diagnostics, and streaming
 pagination.
 

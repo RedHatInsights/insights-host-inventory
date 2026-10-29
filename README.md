@@ -372,9 +372,9 @@ Or run individual tests:
 
 ```bash
 # To run all tests in a specific file:
-pytest tests/test_api_auth.py
+pytest tests/api/auth/test_auth.py
 # To run a specific test
-pytest tests/test_api_auth.py::test_validate_valid_identity
+pytest tests/api/auth/test_auth.py::test_validate_valid_identity
 ```
 
 - Note: Ensure DB-related environment variables are set before running tests.

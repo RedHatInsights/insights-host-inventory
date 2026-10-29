@@ -22,6 +22,8 @@ from app.models import Staleness
 from app.models import db
 from jobs.generate_stale_host_notifications import run as run_stale_host_notification
 from jobs.host_reaper import run as host_reaper_run
+from tests.culling.test_custom_staleness import CUSTOM_STALENESS_HOST_BECAME_STALE
+from tests.culling.test_custom_staleness import CUSTOM_STALENESS_NO_HOSTS_TO_DELETE
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.mq_utils import assert_stale_notification_is_valid
@@ -29,8 +31,6 @@ from tests.helpers.mq_utils import assert_system_registered_notification_is_vali
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
-from tests.test_custom_staleness import CUSTOM_STALENESS_HOST_BECAME_STALE
-from tests.test_custom_staleness import CUSTOM_STALENESS_NO_HOSTS_TO_DELETE
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
