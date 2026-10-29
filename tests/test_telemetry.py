@@ -1,13 +1,17 @@
 """Tests for OpenTelemetry helpers in app.telemetry."""
 
 import importlib
+from http import HTTPStatus
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import connexion
 import pytest
+from connexion.exceptions import ProblemException
+from flask import abort
 from opentelemetry import trace
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from starlette.exceptions import HTTPException
 
 from app.telemetry import _outbound_request_hook
 
@@ -138,6 +142,102 @@ def test_connexion_request_span_records_response_status(monkeypatch, otel_provid
         assert spans[0].attributes["http.status_code"] == status_code
         expected_status = trace.StatusCode.ERROR if status_code >= 500 else trace.StatusCode.UNSET
         assert spans[0].status.status_code == expected_status
+    finally:
+        FlaskInstrumentor().uninstrument_app(app.app)
+
+
+@pytest.mark.parametrize("status_code", [400, 401, 403, 404, 429, 500, 503])
+@pytest.mark.parametrize("error_type", ["abort", "problem"])
+def test_connexion_request_span_records_raised_http_status(monkeypatch, otel_provider, status_code, error_type):
+    import app.telemetry as telemetry_mod
+
+    monkeypatch.setattr(telemetry_mod, "OTEL_ENABLED", True)
+    monkeypatch.setattr(telemetry_mod, "OTEL_HTTP_INBOUND_ENABLED", True)
+    _, exporter = otel_provider(set_global=True)
+    app = connexion.FlaskApp(__name__)
+
+    @app.route("/abort")
+    def abort_route():
+        if error_type == "problem":
+            raise ProblemException(
+                status=status_code, title=HTTPStatus(status_code).phrase, detail="Expected HTTP error"
+            )
+        abort(status_code, description="Expected HTTP error")
+
+    telemetry_mod.instrument_flask_app(app)
+    try:
+        with app.test_client() as client:
+            response = client.get("/abort")
+
+        assert response.status_code == status_code
+        assert response.headers["content-type"] == "application/problem+json"
+        assert response.json() == {
+            "type": "about:blank",
+            "title": HTTPStatus(status_code).phrase,
+            "detail": "Expected HTTP error",
+            "status": status_code,
+        }
+        spans = exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].kind == trace.SpanKind.SERVER
+        assert spans[0].attributes["http.status_code"] == status_code
+        expected_status = trace.StatusCode.ERROR if status_code >= 500 else trace.StatusCode.UNSET
+        assert spans[0].status.status_code == expected_status
+        assert bool(spans[0].events) is (status_code >= 500)
+    finally:
+        FlaskInstrumentor().uninstrument_app(app.app)
+
+
+def test_connexion_http_exception_preserves_response_headers(monkeypatch, otel_provider):
+    import app.telemetry as telemetry_mod
+
+    monkeypatch.setattr(telemetry_mod, "OTEL_ENABLED", True)
+    monkeypatch.setattr(telemetry_mod, "OTEL_HTTP_INBOUND_ENABLED", True)
+    _, exporter = otel_provider(set_global=True)
+    app = connexion.FlaskApp(__name__)
+
+    @app.route("/unavailable")
+    def unavailable():
+        raise HTTPException(503, detail="Try again later", headers={"Retry-After": "30"})
+
+    telemetry_mod.instrument_flask_app(app)
+    try:
+        with app.test_client() as client:
+            response = client.get("/unavailable")
+
+        assert response.status_code == 503
+        assert response.headers["retry-after"] == "30"
+        assert response.json()["detail"] == "Try again later"
+        spans = exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].attributes["http.status_code"] == 503
+        assert spans[0].status.status_code == trace.StatusCode.ERROR
+    finally:
+        FlaskInstrumentor().uninstrument_app(app.app)
+
+
+def test_connexion_unhandled_exception_remains_an_error(monkeypatch, otel_provider):
+    import app.telemetry as telemetry_mod
+
+    monkeypatch.setattr(telemetry_mod, "OTEL_ENABLED", True)
+    monkeypatch.setattr(telemetry_mod, "OTEL_HTTP_INBOUND_ENABLED", True)
+    _, exporter = otel_provider(set_global=True)
+    app = connexion.FlaskApp(__name__)
+
+    @app.route("/unexpected")
+    def unexpected():
+        raise ValueError("Unexpected failure")
+
+    telemetry_mod.instrument_flask_app(app)
+    try:
+        with app.test_client(raise_server_exceptions=False) as client:
+            response = client.get("/unexpected")
+
+        assert response.status_code == 500
+        spans = exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].status.status_code == trace.StatusCode.ERROR
+        assert any(event.attributes["exception.type"] == "ValueError" for event in spans[0].events)
     finally:
         FlaskInstrumentor().uninstrument_app(app.app)
 

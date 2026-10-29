@@ -263,7 +263,10 @@ def instrument_flask_app(connexion_app):
     if not OTEL_ENABLED or not OTEL_HTTP_INBOUND_ENABLED:
         return
 
+    from opentelemetry import trace
     from opentelemetry.instrumentation.flask import FlaskInstrumentor
+
+    from lib.flask_telemetry import HTTPTracerProvider
 
     def instrument_wsgi_app(wsgi_app):
         flask_app = connexion_app.app
@@ -277,6 +280,7 @@ def instrument_flask_app(connexion_app):
             excluded_urls=r"/health(?:\?.*)?$,/metrics(?:\?.*)?$,/version(?:\?.*)?$",
             request_hook=_request_hook,
             response_hook=_response_hook,
+            tracer_provider=HTTPTracerProvider(trace.get_tracer_provider()),
         )
         return flask_app.wsgi_app
 
