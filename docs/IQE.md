@@ -77,11 +77,11 @@ ENV_FOR_DYNACONF=stage_proxy uv --project iqe-host-inventory-plugin run \
 ```bash
 # Smoke tests only
 ENV_FOR_DYNACONF=stage_proxy uv --project iqe-host-inventory-plugin run \
-    iqe tests plugin host_inventory -m 'backend and smoke and not ephemeral'
+    iqe tests plugin host_inventory -m 'smoke and not ephemeral'
 
 # All backend tests (takes ~1 hour)
 ENV_FOR_DYNACONF=stage_proxy uv --project iqe-host-inventory-plugin run \
-    iqe tests plugin host_inventory -m 'backend and not ephemeral'
+    iqe tests plugin host_inventory -m 'not ephemeral'
 ```
 
 ### Environment Options

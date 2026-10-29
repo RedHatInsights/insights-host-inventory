@@ -406,7 +406,7 @@ The IQE smoke tests are automatically run as part of the PR check pipeline. When
 4. Deploys a CJI (ClowdJobInvocation) pod with `--debug-pod` option
 5. Copies the local IQE plugin from `iqe-host-inventory-plugin/` to the CJI pod
 6. Installs the plugin in editable mode inside the pod
-7. Runs IQE smoke tests (tests marked with `backend and smoke`) with your local changes
+7. Runs IQE smoke tests (tests marked with `smoke`) with your local changes
 8. Collects test artifacts
 
 This ensures that every PR is tested with the exact IQE test code in the repository, not the version from Nexus. The local IQE plugin deployment is controlled by the `IQE_INSTALL_LOCAL_PLUGIN` environment variable set in `pr_check_common.sh`.
@@ -748,9 +748,10 @@ The engineer who approved the MR is then **responsible for monitoring of the rol
 Once that happens,
 contact [@team-inventory-dev](https://redhat.enterprise.slack.com/admin/user_groups/S04F8720GKG) and
 request the image to be re-tested in the production environment.
-The new image will also be tested automatically when
-the [Full Prod Check pipeline](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/backend/job/-prod-basic/)
-is run (twice daily).
+The new image will also be tested automatically by the Prod
+[testing pipelines](iqe-host-inventory-plugin/README.md#testing-pipelines) (twice daily). Their
+results are on the
+[Inventory Ibutsu dashboard](https://ibutsu.insights.corp.redhat.com/project/3915c900-85fc-1222-833c-10d51af56f2e/dashboard/7dd36006-01ce-4976-b7b9-a2ef62c613ae).
 
 ### 5. Monitoring of deployment
 
