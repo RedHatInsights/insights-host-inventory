@@ -43,6 +43,7 @@ from app.queue.host_mq import OperationResult
 from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import _sanitize_json_object_for_postgres
+from app.queue.host_mq import cache_ingested_system
 from app.queue.host_mq import write_add_update_event_message
 from app.queue.host_mq import write_delete_event_message
 from app.utils import Tag
@@ -55,6 +56,7 @@ from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
 from tests.helpers.mq_utils import generate_kessel_workspace_message
 from tests.helpers.mq_utils import wrap_message
+from tests.helpers.outbox_utils import capture_outbox_calls
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import SATELLITE_IDENTITY
@@ -2209,6 +2211,85 @@ def test_batch_mq_do_dedup_in_db(
     assert db_hosts[0].subscription_manager_id == msg_host2["subscription_manager_id"]
 
 
+def _change_irrelevant_outbox_fields(host_data: dict) -> dict:
+    return {
+        **host_data,
+        "display_name": generate_random_string(),
+        "fqdn": generate_random_string(),
+        "reporter": "puptoo",
+        "facts": [{"namespace": "some_namespace", "facts": {"key": "value"}}],
+        "tags": [{"namespace": "some_namespace", "key": "key", "value": "value"}],
+        "system_profile": {"arch": "x86_64", "number_of_cpus": 4},
+    }
+
+
+def _change_case_of_outbox_fields(host_data: dict) -> dict:
+    return {
+        **host_data,
+        "insights_id": host_data["insights_id"].upper(),
+        "subscription_manager_id": host_data["subscription_manager_id"].upper(),
+        "satellite_id": host_data["satellite_id"].upper(),
+    }
+
+
+@pytest.mark.parametrize(
+    "build_update_data",
+    (
+        pytest.param(lambda host_data: host_data, id="identical payload"),
+        pytest.param(_change_irrelevant_outbox_fields, id="irrelevant fields changed"),
+        pytest.param(_change_case_of_outbox_fields, id="changed case only"),
+    ),
+)
+def test_mq_update_host_without_relevant_changes_no_outbox(
+    mocker: MockerFixture,
+    event_producer: EventProducer,
+    flask_app: FlaskApp,
+    db_get_host: Callable[[str], Host | None],
+    build_update_data: Callable[[dict], dict],
+):
+    """
+    Re-reporting an existing host via MQ must not write an outbox entry (replicate the host to Kessel),
+    unless one of the replicated fields (insights_id, subscription_manager_id, satellite_id,
+    ansible_host) or the host's workspace changed.
+    """
+    host_data = minimal_host(
+        insights_id=generate_uuid(),
+        subscription_manager_id=generate_uuid(),
+        satellite_id=generate_uuid(),
+        ansible_host=generate_random_string(),
+        fqdn=generate_random_string(),
+    ).data()
+
+    def process_message_in_batch(message_data: dict) -> None:
+        msg = json.dumps(wrap_message(message_data, "add_host", get_platform_metadata()))
+        fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage(message=msg)]]})
+        consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, mocker.Mock())
+        consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+
+    with capture_outbox_calls("lib.outbox_repository.write_event_to_outbox") as outbox_calls:
+        process_message_in_batch(host_data)
+
+    # Sanity check - creating the host is replicated, so the outbox calls are being captured
+    assert len(outbox_calls) == 1
+    assert outbox_calls[0]["event_type"] == EventType.created
+    host_id = str(outbox_calls[0]["host_id"])
+    created_host = db_get_host(host_id)
+    assert created_host is not None
+    original_last_check_in = created_host.last_check_in
+
+    with capture_outbox_calls("lib.outbox_repository.write_event_to_outbox") as outbox_calls:
+        process_message_in_batch(build_update_data(host_data))
+
+    assert outbox_calls == []
+
+    # Make sure the second message really updated the existing host instead of being skipped.
+    # The MQ consumer commits in its own session, so drop the host cached in the test session first.
+    db.session.expire_all()
+    updated_host = db_get_host(host_id)
+    assert updated_host is not None
+    assert updated_host.last_check_in > original_last_check_in
+
+
 def test_batch_mq_header_request_id_updates(mocker, flask_app):
     # Verifies that when messages are sent as part of the same batch,
     # the request_id used in the header is updated correctly.
@@ -2817,6 +2898,7 @@ def test_write_add_update_event_message(mocker):
     )
     mock_set_cached_system = mocker.patch("app.queue.host_mq.set_cached_system")
     mock_host_exists = mocker.patch("app.queue.host_mq.host_exists", return_value=True)
+    mocker.patch("app.queue.host_mq.insights_id_owner_has_multiple_hosts", return_value=False)
 
     serialized_group = {
         "id": str(generate_uuid()),
@@ -3439,3 +3521,34 @@ def test_write_delete_event_message_without_owner_id_skips_cache_invalidation(mo
     mock_event_producer.write_event.assert_called_once()
     mock_delete_cache.assert_not_called()
     mock_success_logger.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("created", "flag_enabled", "insights_id", "owner_id", "expect_invalidate"),
+    (
+        (True, True, "11111111-1111-1111-1111-111111111111", "owner-id", True),
+        (True, False, "11111111-1111-1111-1111-111111111111", "owner-id", False),
+        (False, True, "11111111-1111-1111-1111-111111111111", "owner-id", False),
+        (True, True, None, "owner-id", False),
+        (True, True, "11111111-1111-1111-1111-111111111111", None, False),
+    ),
+)
+def test_created_host_invalidates_only_owner_system_cache(
+    mocker, created, flag_enabled, insights_id, owner_id, expect_invalidate
+):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=flag_enabled)
+    mocker.patch("app.queue.host_mq.system_cache_has_multiple_hosts", return_value=False)
+    mock_delete_cache = mocker.patch("app.queue.host_mq.delete_cached_system_keys")
+    mocker.patch("app.queue.host_mq.set_cached_system")
+
+    cache_ingested_system(
+        {"org_id": "org-id", "system_profile": {"owner_id": owner_id} if owner_id else {}},
+        insights_id,
+        created=created,
+        groups=[],
+    )
+
+    if expect_invalidate:
+        mock_delete_cache.assert_called_once_with(insights_id=insights_id, org_id="org-id", owner_id=owner_id)
+    else:
+        mock_delete_cache.assert_not_called()

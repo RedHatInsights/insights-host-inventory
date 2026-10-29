@@ -3010,3 +3010,148 @@ class TestCombinedCveSeverityAndKnownExploitFilters:
         assert str(host_both.id) in result_ids
         assert str(host_critical_only.id) not in result_ids
         assert str(host_exploit_only.id) not in result_ids
+
+
+class TestSecurityRuleFilter:
+    """Tests for the security_rule query parameter."""
+
+    def test_present_filter(self, api_get, db_create_host):
+        """security_rule=present returns only hosts with cves_with_security_rules > 0."""
+        host_with = db_create_host(extra_data={"display_name": "host-rules"})
+        host_without = db_create_host(extra_data={"display_name": "host-no-rules"})
+        host_no_data = db_create_host(extra_data={"display_name": "host-no-vuln"})
+
+        db_create_host_app_data(host_with.id, host_with.org_id, "vulnerability", cves_with_security_rules=3)
+        db_create_host_app_data(host_without.id, host_without.org_id, "vulnerability", cves_with_security_rules=0)
+
+        url = build_host_view_url(query="?security_rule=present")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_with.id) in result_ids
+        assert str(host_without.id) not in result_ids
+        assert str(host_no_data.id) not in result_ids
+
+    def test_not_present_filter(self, api_get, db_create_host):
+        """security_rule=not_present returns only hosts with cves_with_security_rules = 0."""
+        host_with = db_create_host(extra_data={"display_name": "host-rules"})
+        host_without = db_create_host(extra_data={"display_name": "host-no-rules"})
+        host_no_data = db_create_host(extra_data={"display_name": "host-no-vuln"})
+
+        db_create_host_app_data(host_with.id, host_with.org_id, "vulnerability", cves_with_security_rules=3)
+        db_create_host_app_data(host_without.id, host_without.org_id, "vulnerability", cves_with_security_rules=0)
+
+        url = build_host_view_url(query="?security_rule=not_present")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_without.id) in result_ids
+        assert str(host_with.id) not in result_ids
+        assert str(host_no_data.id) not in result_ids
+
+    def test_null_excluded_from_not_present(self, api_get, db_create_host):
+        """Hosts with no vulnerability data (NULL) are excluded from not_present."""
+        host_zero = db_create_host(extra_data={"display_name": "host-zero"})
+        host_null = db_create_host(extra_data={"display_name": "host-null"})
+
+        db_create_host_app_data(host_zero.id, host_zero.org_id, "vulnerability", cves_with_security_rules=0)
+
+        url = build_host_view_url(query="?security_rule=not_present")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_zero.id) in result_ids
+        assert str(host_null.id) not in result_ids
+
+    def test_invalid_security_rule_returns_400(self, api_get, db_create_host):
+        """Invalid security_rule value returns 400."""
+        db_create_host()
+        url = build_host_view_url(query="?security_rule=maybe")
+        response_status, _ = api_get(url)
+        assert_response_status(response_status, 400)
+
+
+class TestCombinedSecurityRuleWithOtherVulnFilters:
+    """Tests for using security_rule with cve_severity and known_exploit (AND logic)."""
+
+    def test_security_rule_and_severity_combined(self, api_get, db_create_host):
+        """Both filters are ANDed: host must have critical_cves > 0 AND cves_with_security_rules > 0."""
+        host_both = db_create_host(extra_data={"display_name": "host-both"})
+        host_critical_only = db_create_host(extra_data={"display_name": "host-critical-only"})
+        host_rule_only = db_create_host(extra_data={"display_name": "host-rule-only"})
+
+        db_create_host_app_data(
+            host_both.id, host_both.org_id, "vulnerability", critical_cves=2, cves_with_security_rules=1
+        )
+        db_create_host_app_data(
+            host_critical_only.id,
+            host_critical_only.org_id,
+            "vulnerability",
+            critical_cves=3,
+            cves_with_security_rules=0,
+        )
+        db_create_host_app_data(
+            host_rule_only.id, host_rule_only.org_id, "vulnerability", critical_cves=0, cves_with_security_rules=2
+        )
+
+        url = build_host_view_url(query="?cve_severity=critical&security_rule=present")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_both.id) in result_ids
+        assert str(host_critical_only.id) not in result_ids
+        assert str(host_rule_only.id) not in result_ids
+
+    def test_all_three_vuln_filters_combined(self, api_get, db_create_host):
+        """All three vulnerability filters ANDed: each control host fails exactly one predicate."""
+        host_all = db_create_host(extra_data={"display_name": "host-all"})
+        host_no_rule = db_create_host(extra_data={"display_name": "host-no-rule"})
+        host_no_exploit = db_create_host(extra_data={"display_name": "host-no-exploit"})
+        host_no_critical = db_create_host(extra_data={"display_name": "host-no-critical"})
+
+        db_create_host_app_data(
+            host_all.id,
+            host_all.org_id,
+            "vulnerability",
+            critical_cves=1,
+            cves_with_known_exploits=2,
+            cves_with_security_rules=1,
+        )
+        db_create_host_app_data(
+            host_no_rule.id,
+            host_no_rule.org_id,
+            "vulnerability",
+            critical_cves=1,
+            cves_with_known_exploits=2,
+            cves_with_security_rules=0,
+        )
+        db_create_host_app_data(
+            host_no_exploit.id,
+            host_no_exploit.org_id,
+            "vulnerability",
+            critical_cves=3,
+            cves_with_known_exploits=0,
+            cves_with_security_rules=1,
+        )
+        db_create_host_app_data(
+            host_no_critical.id,
+            host_no_critical.org_id,
+            "vulnerability",
+            critical_cves=0,
+            cves_with_known_exploits=4,
+            cves_with_security_rules=2,
+        )
+
+        url = build_host_view_url(query="?cve_severity=critical&known_exploit=has_known_exploit&security_rule=present")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_all.id) in result_ids
+        assert str(host_no_rule.id) not in result_ids
+        assert str(host_no_exploit.id) not in result_ids
+        assert str(host_no_critical.id) not in result_ids

@@ -33,6 +33,7 @@ VALID_RECOMMENDATION_SEVERITIES = ("critical", "important", "moderate", "low")
 VALID_INCIDENT_STATUSES = ("incident", "no_incident")
 VALID_CVE_SEVERITIES = ("critical", "important", "moderate", "low")
 VALID_KNOWN_EXPLOIT_STATUSES = ("has_known_exploit", "no_known_exploit")
+VALID_SECURITY_RULE_STATUSES = ("present", "not_present")
 
 
 class HostFiltersSchema(MarshmallowSchema):
@@ -66,6 +67,10 @@ class HostFiltersSchema(MarshmallowSchema):
     )
     known_exploit = fields.Str(
         validate=marshmallow_validate.OneOf(VALID_KNOWN_EXPLOIT_STATUSES),
+        required=False,
+    )
+    security_rule = fields.Str(
+        validate=marshmallow_validate.OneOf(VALID_SECURITY_RULE_STATUSES),
         required=False,
     )
 

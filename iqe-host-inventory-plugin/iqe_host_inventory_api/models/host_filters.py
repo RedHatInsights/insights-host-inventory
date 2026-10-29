@@ -44,6 +44,7 @@ class HostFilters:
         "incident_status": "str",
         "cve_severity": "list[str]",
         "known_exploit": "str",
+        "security_rule": "str",
     }
 
     attribute_map = {
@@ -61,6 +62,7 @@ class HostFilters:
         "incident_status": "incident_status",
         "cve_severity": "cve_severity",
         "known_exploit": "known_exploit",
+        "security_rule": "security_rule",
     }
 
     def __init__(
@@ -79,6 +81,7 @@ class HostFilters:
         incident_status=None,
         cve_severity=None,
         known_exploit=None,
+        security_rule=None,
         local_vars_configuration=None,
     ):
         """HostFilters - a model defined in OpenAPI"""
@@ -100,6 +103,7 @@ class HostFilters:
         self._incident_status = None
         self._cve_severity = None
         self._known_exploit = None
+        self._security_rule = None
         self.discriminator = None
 
         if hostname_or_id is not None:
@@ -130,6 +134,8 @@ class HostFilters:
             self.cve_severity = cve_severity
         if known_exploit is not None:
             self.known_exploit = known_exploit
+        if security_rule is not None:
+            self.security_rule = security_rule
 
     @property
     def hostname_or_id(self):
@@ -506,6 +512,36 @@ class HostFilters:
             )
 
         self._known_exploit = known_exploit
+
+    @property
+    def security_rule(self):
+        """Gets the security_rule of this HostFilters.
+
+        Filter by Vulnerability security rule status.
+
+        :return: The security_rule of this HostFilters.
+        :rtype: str
+        """
+        return self._security_rule
+
+    @security_rule.setter
+    def security_rule(self, security_rule):
+        """Sets the security_rule of this HostFilters.
+
+        Filter by Vulnerability security rule status.
+
+        :param security_rule: The security_rule of this HostFilters.
+        :type: str
+        """
+        allowed_values = ["present", "not_present"]
+        if self.local_vars_configuration.client_side_validation and security_rule not in allowed_values:
+            raise ValueError(
+                "Invalid value for `security_rule` ({}), must be one of {}".format(
+                    security_rule, allowed_values
+                )
+            )
+
+        self._security_rule = security_rule
 
     def to_dict(self):
         """Returns the model properties as a dict"""
