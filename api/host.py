@@ -1,3 +1,4 @@
+import time
 from enum import Enum
 from http import HTTPStatus
 
@@ -5,6 +6,7 @@ import flask
 from confluent_kafka.error import KafkaError
 from flask import current_app
 from marshmallow import ValidationError
+from sqlalchemy.exc import OperationalError
 
 from api import api_operation
 from api import build_collection_response
@@ -34,6 +36,7 @@ from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
+from app.exceptions import OutboxSaveException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
@@ -57,6 +60,7 @@ from app.serialization import serialize_host_with_params
 from app.serialization import serialize_uuid
 from app.utils import Tag
 from app.utils import check_all_ids_found
+from lib.db import is_deadlock_error
 from lib.feature_flags import FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID
 from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
@@ -68,6 +72,9 @@ from lib.middleware import access
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
+
+DEADLOCK_MAX_RETRIES = 3
+DEADLOCK_RETRY_DELAY = 0.5
 
 logger = get_logger(__name__)
 
@@ -315,17 +322,46 @@ def _delete_host_list(host_id_list, rbac_filter):
     ):
         query = get_host_list_by_id_list_from_db(host_id_list, current_identity, rbac_filter)
 
-        result_list = delete_hosts(
-            query,
-            current_app.event_producer,
-            current_app.notification_event_producer,
-            inventory_config().host_delete_chunk_size,
-            identity=current_identity,
-            control_rule=get_control_rule(),
-            initiated_by_frontend=initiated_by_frontend,
-        )
+        deleted_id_set = set()
+        deadlock_exhausted = False
 
-        deleted_id_list = [str(r.row.id) for r in result_list]
+        for attempt in range(1, DEADLOCK_MAX_RETRIES + 1):
+            try:
+                result_list = delete_hosts(
+                    query,
+                    current_app.event_producer,
+                    current_app.notification_event_producer,
+                    inventory_config().host_delete_chunk_size,
+                    identity=current_identity,
+                    control_rule=get_control_rule(),
+                    initiated_by_frontend=initiated_by_frontend,
+                )
+
+                for r in result_list:
+                    deleted_id_set.add(str(r.row.id))
+
+                break
+            except (OperationalError, OutboxSaveException) as e:
+                is_deadlock = (
+                    is_deadlock_error(e) if isinstance(e, OperationalError) else is_deadlock_error(e.__cause__)
+                )
+                if not is_deadlock:
+                    raise
+
+                logger.warning(
+                    "Deadlock detected during host deletion (attempt %d/%d)",
+                    attempt,
+                    DEADLOCK_MAX_RETRIES,
+                )
+                db.session.rollback()
+
+                if attempt == DEADLOCK_MAX_RETRIES:
+                    deadlock_exhausted = True
+                    break
+
+                time.sleep(DEADLOCK_RETRY_DELAY)
+
+        deleted_id_list = sorted(deleted_id_set)
 
         for host_id in host_id_list:
             tracker_message = "deleted host" if host_id in deleted_id_list else "not deleted host"
@@ -334,6 +370,10 @@ def _delete_host_list(host_id_list, rbac_filter):
                 payload_tracker, processing_status_message=tracker_message
             ) as payload_tracker_processing_ctx:
                 payload_tracker_processing_ctx.inventory_id = host_id
+
+        if deadlock_exhausted:
+            logger.warning("Exhausted all deadlock retry attempts during host deletion")
+            flask.abort(409, "Concurrent operation conflict. Please retry later.")
 
     return len(deleted_id_list)
 
