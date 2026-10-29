@@ -1,3 +1,4 @@
+import pkgutil
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -10,7 +11,9 @@ from app.models.outbox import Outbox
 
 
 @contextmanager
-def capture_outbox_calls(target: str, *, capture_groups: bool = False) -> Generator[list[dict[str, Any]]]:
+def capture_outbox_calls(
+    target: str, *, capture_groups: bool = False, passthrough: bool = False
+) -> Generator[list[dict[str, Any]]]:
     """
     Context manager to capture calls to outbox write functions.
 
@@ -21,6 +24,8 @@ def capture_outbox_calls(target: str, *, capture_groups: bool = False) -> Genera
         target: fully-qualified patch target where write_event_to_outbox is imported
         (e.g. "lib.outbox_repository.write_event_to_outbox").
         capture_groups: if True and host_obj is provided, also capture host_obj.groups on each call.
+        passthrough: if True, the original write functions are still called, so the outbox entries
+        are really validated and written to the DB. Only successful writes are captured.
 
     Yields:
         A list that will be appended with dictionaries describing each captured call.
@@ -28,7 +33,7 @@ def capture_outbox_calls(target: str, *, capture_groups: bool = False) -> Genera
 
     calls: list[dict[str, Any]] = []
 
-    def single_side_effect(event_type, host_id, host_obj=None, session=None):  # noqa: ARG001
+    def _build_entry(event_type, host_id, host_obj) -> dict[str, Any]:
         entry: dict[str, Any] = {
             "event_type": event_type,
             "host_id": host_id,
@@ -36,24 +41,24 @@ def capture_outbox_calls(target: str, *, capture_groups: bool = False) -> Genera
         }
         if capture_groups and host_obj is not None:
             entry["groups"] = host_obj.groups
-        calls.append(entry)
-        return True
+        return entry
 
-    def batch_side_effect(ops, session):  # noqa: ARG001
-        for event_type, host_id, host_obj in ops:
-            entry: dict[str, Any] = {
-                "event_type": event_type,
-                "host_id": host_id,
-                "host": host_obj,
-            }
-            if capture_groups and host_obj is not None:
-                entry["groups"] = host_obj.groups
-            calls.append(entry)
-        return len(ops)
+    def single_side_effect(event_type, host_id, host_obj=None, session=None):
+        result = original_single(event_type, host_id, host_obj, session=session) if passthrough else True
+        calls.append(_build_entry(event_type, host_id, host_obj))
+        return result
+
+    def batch_side_effect(ops, session):
+        result = original_batch(ops, session) if passthrough else len(ops)
+        calls.extend(_build_entry(event_type, host_id, host_obj) for event_type, host_id, host_obj in ops)
+        return result
 
     # Derive the batch target from the single target
     assert "write_event_to_outbox" in target, f"target must reference 'write_event_to_outbox', got: {target}"
     batch_target = target.replace("write_event_to_outbox", "write_events_to_outbox_batch")
+
+    original_single = pkgutil.resolve_name(target)
+    original_batch = pkgutil.resolve_name(batch_target)
 
     with patch(target, side_effect=single_side_effect), patch(batch_target, side_effect=batch_side_effect):
         yield calls
