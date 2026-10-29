@@ -16,7 +16,7 @@ if [ -z "$NAMESPACE" ]; then
 fi
 
 # Set default values for IQE test configuration
-IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:-backend and smoke}"
+IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:-smoke}"
 IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:-}"
 IQE_ENV="${IQE_ENV:-clowder_smoke}"
 IQE_PLUGINS="${IQE_PLUGINS:-host_inventory}"
