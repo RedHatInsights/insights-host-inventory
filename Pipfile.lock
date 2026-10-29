@@ -2641,11 +2641,11 @@
         },
         "virtualenv": {
             "hashes": [
-                "sha256:1720dc3a62ef5b443092e3f499228599045d7fea4c79199770499df8becf9098",
-                "sha256:1bd755b504931164a5a496d217c014d098426cddc79363ad66ac78125f9d908f"
+                "sha256:0d14a991689c67600316880eadc0a37b7690cb632e3b4ac67e2bc05b2b2e24a4",
+                "sha256:e79c90b8f601701599c25905e02839924fede2c798d52325670d24fbdaab74ee"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==21.2.0"
+            "version": "==21.15.1"
         }
     }
 }
