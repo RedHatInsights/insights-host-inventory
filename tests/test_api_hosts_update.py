@@ -100,6 +100,19 @@ def test_checkin_canonical_facts(
 
 
 @pytest.mark.usefixtures("event_producer_mock")
+@pytest.mark.parametrize("branch_id", ("", "54b80cb3-7fca-4444-9faf-aa43e8a560c3"))
+def test_checkin_ignores_branch_id(db_create_host, api_post, branch_id):
+    created_host = db_create_host()
+    post_doc = serialize_canonical_facts(created_host, include_none=False)
+
+    url = f"{build_host_checkin_url()}?branch_id={branch_id}"
+    response_status, response_data = api_post(url, post_doc)
+
+    assert_response_status(response_status, expected_status=201)
+    assert response_data["id"] == str(created_host.id)
+
+
+@pytest.mark.usefixtures("event_producer_mock")
 def test_checkin_checkin_frequency_valid(db_create_host, api_post, mocker):
     extra_data = {"insights_id": generate_uuid()}
     created_host = db_create_host(extra_data=extra_data)

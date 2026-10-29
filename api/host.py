@@ -57,6 +57,8 @@ from app.serialization import serialize_host_with_params
 from app.serialization import serialize_uuid
 from app.utils import Tag
 from app.utils import check_all_ids_found
+from lib.feature_flags import FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID
+from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
@@ -586,10 +588,18 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @api_operation
 @access(KesselResourceTypes.HOST.update)
 @metrics.api_request_time.time()
-def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API endpoints, not needed for host checkins
+def host_checkin(
+    body,
+    branch_id=None,  # noqa: ARG001
+    rbac_filter=None,  # noqa: ARG001, required for all API endpoints, not needed for host checkins
+):
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
-    existing_host = find_existing_host(current_identity, canonical_facts)
+    existing_host = find_existing_host(
+        current_identity,
+        canonical_facts,
+        nomatch_insights_id=get_flag_value(FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID, current_identity.org_id),
+    )
     staleness = get_staleness_obj(current_identity.org_id)
     if existing_host:
         existing_host._update_last_check_in_date()
@@ -610,7 +620,11 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
 @api_operation
 @access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
-def get_host_exists(insights_id, rbac_filter=None):
+def get_host_exists(
+    insights_id,
+    branch_id=None,  # noqa: ARG001
+    rbac_filter=None,
+):
     host_id = get_host_id_by_insights_id(insights_id, rbac_filter)
 
     if not host_id:

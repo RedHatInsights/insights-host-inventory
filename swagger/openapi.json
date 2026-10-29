@@ -375,6 +375,11 @@
             "BearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/branchId"
+          }
+        ],
         "requestBody": {
           "description": "Data required to create a check-in record for a host.",
           "required": true,
@@ -891,6 +896,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/insightsId"
+          },
+          {
+            "$ref": "#/components/parameters/branchId"
           }
         ],
         "responses": {
@@ -2335,7 +2343,7 @@
         "schema": {
           "type": "string"
         },
-        "description": "Filter by branch_id",
+        "description": "Accepted for compatibility. The value is ignored and does not filter the result.",
         "required": false
       },
       "displayName": {
@@ -5921,22 +5929,8 @@
       },
       "SystemProfileNestedObject": {
         "type": "object",
-        "description": "An arbitrary object that does not allow empty string keys.",
-        "x-propertyNames": {
-          "minLength": 1
-        },
-        "additionalProperties": {
-          "oneOf": [
-            {
-              "$ref": "#/components/schemas/SystemProfileNestedObject"
-            },
-            {
-              "not": {
-                "type": "object"
-              }
-            }
-          ]
-        }
+        "description": "An arbitrary object that allows any additional properties.",
+        "additionalProperties": true
       },
       "SystemProfileDiskDevice": {
         "description": "Representation of one mounted device",

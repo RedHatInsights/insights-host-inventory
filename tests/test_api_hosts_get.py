@@ -352,6 +352,66 @@ def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get):
     assert_response_status(response_status, 200)
 
 
+def test_get_hosts_returns_both_when_shared_insights_id_and_owner_were_cached(flask_app, db_create_host, api_get):
+    """A cached system-client lookup must not hide a second host with the same insights ID and owner."""
+    from flask_caching import Cache
+
+    import api.cache as cache_module
+    import api.host as host_api
+    from api.cache_key import make_system_cache_key
+    from app.queue.host_mq import cache_ingested_system
+
+    insights_id = generate_uuid()
+    owner_id = SYSTEM_IDENTITY["system"]["cn"]
+    org_id = SYSTEM_IDENTITY["org_id"]
+    hosts = [
+        db_create_host(
+            SYSTEM_IDENTITY,
+            extra_data={
+                "insights_id": insights_id,
+                "subscription_manager_id": generate_uuid(),
+                "system_profile_facts": {"owner_id": owner_id},
+            },
+        )
+        for _ in range(2)
+    ]
+    host_ids = {str(host.id) for host in hosts}
+    for host in hosts:
+        assert host.static_system_profile is not None
+        assert str(host.static_system_profile.owner_id) == owner_id
+
+    simple_cache = Cache(config={"CACHE_TYPE": "SimpleCache"})
+    simple_cache.init_app(flask_app.app, config={"CACHE_TYPE": "SimpleCache"})
+    original_cache = cache_module.CACHE
+    original_host_cache = host_api.CACHE
+    cache_module.CACHE = simple_cache
+    host_api.CACHE = simple_cache
+
+    system_key = make_system_cache_key(insights_id, org_id, owner_id, generation=0)
+    simple_cache.set(system_key, {"id": str(hosts[1].id), "insights_id": insights_id})
+
+    try:
+        cache_ingested_system(
+            {
+                "id": str(hosts[1].id),
+                "org_id": org_id,
+                "system_profile": {"owner_id": owner_id},
+            },
+            insights_id,
+            created=False,
+            groups=[],
+        )
+        assert simple_cache.get(system_key) is None
+
+        response_status, response_data = api_get(build_hosts_url(query=f"?insights_id={insights_id}"), SYSTEM_IDENTITY)
+        assert_response_status(response_status, 200)
+        assert response_data["count"] == 2
+        assert {host["id"] for host in response_data["results"]} == host_ids
+    finally:
+        cache_module.CACHE = original_cache
+        host_api.CACHE = original_host_cache
+
+
 @pytest.mark.parametrize(
     "query",
     (
@@ -2457,6 +2517,17 @@ def test_get_host_exists_found(db_create_host, api_get):
     created_host = db_create_host(extra_data={"insights_id": insights_id})
 
     url = build_host_exists_url(insights_id)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["id"] == str(created_host.id)
+
+
+def test_get_host_exists_ignores_branch_id(db_create_host, api_get):
+    insights_id = generate_uuid()
+    created_host = db_create_host(extra_data={"insights_id": insights_id})
+
+    url = f"{build_host_exists_url(insights_id)}&branch_id=54b80cb3-7fca-4444-9faf-aa43e8a560c3"
     response_status, response_data = api_get(url)
 
     assert response_status == 200
