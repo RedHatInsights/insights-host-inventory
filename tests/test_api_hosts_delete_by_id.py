@@ -6,10 +6,16 @@ from unittest.mock import patch
 
 import pytest
 from confluent_kafka import KafkaException
+from psycopg2.errors import DeadlockDetected
+from sqlalchemy.exc import OperationalError
 
+from api.host import _delete_host_list
+from app.auth.identity import Identity
+from app.exceptions import OutboxSaveException
 from app.models import Host
 from app.queue.event_producer import MessageDetails
 from app.queue.event_producer import logger as event_producer_logger
+from app.queue.host_mq import OperationResult
 from lib.host_delete import delete_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
@@ -22,6 +28,7 @@ from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.mq_utils import assert_delete_notification_is_valid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -672,3 +679,234 @@ class DeleteQueryWrapper:
         self.query = get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter)
         self.query.limit = self.mocker.Mock(wraps=self.query.limit)
         return self.query
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_hosts_deadlock_retry_exhausted_409(db_create_host, db_get_host, api_delete_host, mocker):
+    mock_sleep = mocker.patch("api.host.time.sleep")
+    deadlock = OperationalError("deadlock detected", params=None, orig=DeadlockDetected())
+    mock_delete_hosts = mocker.patch("api.host.delete_hosts", side_effect=deadlock)
+
+    host = db_create_host()
+
+    response_status, response_data = api_delete_host(host.id)
+
+    assert_response_status(response_status, expected_status=409)
+    assert response_data["detail"] == "Concurrent operation conflict. Please retry later."
+    assert mock_delete_hosts.call_count == 3
+    assert mock_sleep.call_count == 2
+    assert db_get_host(host.id)
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_hosts_deadlock_outbox_save_exception_exhausted_409(
+    db_create_host, db_get_host, api_delete_host, mocker
+):
+    mock_sleep = mocker.patch("api.host.time.sleep")
+    deadlock = OperationalError("deadlock detected", params=None, orig=DeadlockDetected())
+    outbox_exc = OutboxSaveException("Failed to save event to outbox")
+    outbox_exc.__cause__ = deadlock
+    mock_delete_hosts = mocker.patch("api.host.delete_hosts", side_effect=outbox_exc)
+
+    host = db_create_host()
+
+    response_status, response_data = api_delete_host(host.id)
+
+    assert_response_status(response_status, expected_status=409)
+    assert response_data["detail"] == "Concurrent operation conflict. Please retry later."
+    assert mock_delete_hosts.call_count == 3
+    assert mock_sleep.call_count == 2
+    assert db_get_host(host.id)
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_hosts_deadlock_retry_success(db_create_host, db_get_host, api_delete_host, mocker):
+    mock_sleep = mocker.patch("api.host.time.sleep")
+    orig_delete_hosts = delete_hosts
+    deadlock = OperationalError("deadlock detected", params=None, orig=DeadlockDetected())
+    call_count = 0
+
+    def mock_delete(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise deadlock
+        return orig_delete_hosts(*args, **kwargs)
+
+    mocker.patch("api.host.delete_hosts", side_effect=mock_delete)
+
+    host = db_create_host()
+
+    response_status, _ = api_delete_host(host.id)
+
+    assert_response_status(response_status, expected_status=200)
+    assert call_count == 2
+    mock_sleep.assert_called_once_with(0.5)
+    assert not db_get_host(host.id)
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_hosts_deadlock_outbox_retry_success(db_create_host, db_get_host, api_delete_host, mocker):
+    mock_sleep = mocker.patch("api.host.time.sleep")
+    orig_delete_hosts = delete_hosts
+    deadlock = OperationalError("deadlock detected", params=None, orig=DeadlockDetected())
+    outbox_exc = OutboxSaveException("Failed to save event to outbox")
+    outbox_exc.__cause__ = deadlock
+    call_count = 0
+
+    def mock_delete(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise outbox_exc
+        return orig_delete_hosts(*args, **kwargs)
+
+    mocker.patch("api.host.delete_hosts", side_effect=mock_delete)
+
+    host = db_create_host()
+
+    response_status, _ = api_delete_host(host.id)
+
+    assert_response_status(response_status, expected_status=200)
+    assert call_count == 2
+    mock_sleep.assert_called_once_with(0.5)
+    assert not db_get_host(host.id)
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_hosts_deadlock_recovery_accumulates_deleted_ids(flask_app, mocker):
+    mock_sleep = mocker.patch("api.host.time.sleep")
+    mocker.patch("api.host.get_current_identity", return_value=Identity(USER_IDENTITY))
+    mocker.patch("api.host.threadctx.request_id", "test-request-id", create=True)
+
+    host_id_1 = generate_uuid()
+    host_id_2 = generate_uuid()
+    host_id_list = [host_id_1, host_id_2]
+
+    res1 = OperationResult(mock.Mock(id=host_id_1), None, None, None, lambda: None)
+    res2 = OperationResult(mock.Mock(id=host_id_2), None, None, None, lambda: None)
+
+    deadlock = OperationalError("deadlock detected", params=None, orig=DeadlockDetected())
+
+    def attempt_1_gen():
+        yield res1
+        raise deadlock
+
+    def attempt_2_gen():
+        yield res2
+
+    mock_delete_hosts = mocker.patch(
+        "api.host.delete_hosts",
+        side_effect=[attempt_1_gen(), attempt_2_gen()],
+    )
+
+    with flask_app.app.test_request_context():
+        deleted_count = _delete_host_list(host_id_list, rbac_filter=None)
+
+    assert deleted_count == 2
+    assert mock_delete_hosts.call_count == 2
+    mock_sleep.assert_called_once_with(0.5)
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_hosts_non_deadlock_operational_error_raises(db_create_host, api_delete_host, mocker):
+    mock_sleep = mocker.patch("api.host.time.sleep")
+    non_deadlock = OperationalError("connection failure", params=None, orig=Exception("connection closed"))
+    mock_delete_hosts = mocker.patch("api.host.delete_hosts", side_effect=non_deadlock)
+
+    host = db_create_host()
+
+    response_status, _ = api_delete_host(host.id)
+
+    assert_response_status(response_status, expected_status=500)
+    assert mock_delete_hosts.call_count == 1
+    assert mock_sleep.call_count == 0
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_hosts_non_deadlock_outbox_save_exception_raises(db_create_host, api_delete_host, mocker):
+    mock_sleep = mocker.patch("api.host.time.sleep")
+    non_deadlock_outbox = OutboxSaveException("general outbox error")
+    mock_delete_hosts = mocker.patch("api.host.delete_hosts", side_effect=non_deadlock_outbox)
+
+    host = db_create_host()
+
+    response_status, response_data = api_delete_host(host.id)
+
+    assert_response_status(response_status, expected_status=400)
+    assert response_data["detail"] == "general outbox error"
+    assert mock_delete_hosts.call_count == 1
+    assert mock_sleep.call_count == 0
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_hosts_deadlock_two_retries_then_success(db_create_host, db_get_host, api_delete_host, mocker):
+    """Deadlock on attempts 1 and 2, success on attempt 3 (the last retry)."""
+    mock_sleep = mocker.patch("api.host.time.sleep")
+    orig_delete_hosts = delete_hosts
+    deadlock = OperationalError("deadlock detected", params=None, orig=DeadlockDetected())
+    call_count = 0
+
+    def mock_delete(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 2:
+            raise deadlock
+        return orig_delete_hosts(*args, **kwargs)
+
+    mocker.patch("api.host.delete_hosts", side_effect=mock_delete)
+
+    host = db_create_host()
+
+    response_status, _ = api_delete_host(host.id)
+
+    assert_response_status(response_status, expected_status=200)
+    assert call_count == 3
+    assert mock_sleep.call_count == 2
+    assert not db_get_host(host.id)
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_hosts_deadlock_calls_session_rollback(db_create_host, api_delete_host, mocker):
+    """Verify that db.session.rollback() is called on each deadlock."""
+    mocker.patch("api.host.time.sleep")
+    deadlock = OperationalError("deadlock detected", params=None, orig=DeadlockDetected())
+    mocker.patch("api.host.delete_hosts", side_effect=deadlock)
+    mock_rollback = mocker.patch("api.host.db.session.rollback")
+
+    host = db_create_host()
+
+    response_status, _ = api_delete_host(host.id)
+
+    assert_response_status(response_status, expected_status=409)
+    # rollback should be called for each deadlock attempt (3 times)
+    assert mock_rollback.call_count == 3
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_bulk_hosts_deadlock_retry_exhausted_409(
+    db_create_host, db_get_host, api_delete_filtered_hosts, mocker
+):
+    """Verify deadlock retry works through the bulk delete endpoint too."""
+    mocker.patch("api.host.time.sleep")
+    deadlock = OperationalError("deadlock detected", params=None, orig=DeadlockDetected())
+    mocker.patch("api.host.delete_hosts", side_effect=deadlock)
+
+    sub_man_id = generate_uuid()
+    host = db_create_host(extra_data={"subscription_manager_id": sub_man_id})
+    host_id = host.id
+
+    response_status, response_data = api_delete_filtered_hosts(
+        query_parameters={
+            "subscription_manager_id": sub_man_id,
+        }
+    )
+
+    assert_response_status(response_status, expected_status=409)
+    assert db_get_host(host_id)
