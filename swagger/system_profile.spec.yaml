@@ -490,6 +490,37 @@ $defs:
           type: string
           maxLength: 512
         x-dynamic: true
+      java_purls:
+        type: array  # third-party Java libraries detected on the host, as package URLs (purls)
+        # Budget worst-case (maxItems * maxLength) to a safe SLICE of the ~1MB Kafka ceiling; the rest of
+        # the system_profile + host envelope share it. These limits are ENFORCED on ingest: HostSchema
+        # validates the whole system_profile against this spec and REJECTS the entire host check-in on any
+        # violation -- it does NOT truncate (_TruncatingList does not run on this x-dynamic field's @pre_load
+        # path). So the PRODUCER must conform: insights-puptoo caps java_purls to these exact numbers (see
+        # profile.py PURL_MAX_ITEMS / PURL_MAX_LENGTH -- keep the two in sync). Sized from measured data:
+        # real maven purls are ~100-110 chars (maxLength 256 = ample), and a real enterprise app server
+        # (WildFly/JBoss EAP) ships ~753 distinct library jars (so maxItems 1024 covers enterprise Java
+        # hosts). Worst case ~259KB, realistic ~75KB.
+        maxItems: 1024
+        items:
+          description: A Maven package URL (purl) for a single detected Java library
+          example: "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
+          type: string
+          maxLength: 256
+        x-dynamic: true
+      python_purls:
+        type: array  # third-party Python packages detected on the host, as package URLs (purls)
+        # Same ingest-enforced budgeting as java_purls above: validated against this spec, and an oversized
+        # array means the whole host is REJECTED (not truncated), so insights-puptoo caps to these numbers
+        # (keep in sync). Sized from measured data: real pypi purls are short (~40-60 chars, maxLength 256 =
+        # ample); maxItems 1024 covers a heavy virtualenv / site-packages (a few hundred) with headroom.
+        maxItems: 1024
+        items:
+          description: A PyPI package URL (purl) for a single detected Python package
+          example: "pkg:pypi/requests@2.28.1"
+          type: string
+          maxLength: 256
+        x-dynamic: true
       installed_packages_delta:
         type: array  # packages not in installed_packages, ordered by RPM sorting algorithm
         items:
