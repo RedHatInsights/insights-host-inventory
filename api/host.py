@@ -91,6 +91,7 @@ def get_host_list(
     workspace_name=None,
     group_id=None,
     workspace_id=None,
+    branch_id=None,  # noqa: ARG001
     tags=None,
     page=1,
     per_page=100,
