@@ -813,7 +813,7 @@ def _app_models_needed_for_host_filter(host_filter: dict | None) -> list:
     builds its own query and discards query_base.  This helper ensures
     the export query also joins any app-data tables referenced by dedicated
     host-level filter params (recommendation_severity, incident_status,
-    cve_severity, known_exploit).
+    cve_severity, known_exploit, security_rule).
     """
     if not host_filter:
         return []
@@ -821,7 +821,7 @@ def _app_models_needed_for_host_filter(host_filter: dict | None) -> list:
     models = []
     if host_filter.get("recommendation_severity") or host_filter.get("incident_status"):
         models.append(HostAppDataAdvisor)
-    if host_filter.get("cve_severity") or host_filter.get("known_exploit"):
+    if host_filter.get("cve_severity") or host_filter.get("known_exploit") or host_filter.get("security_rule"):
         models.append(HostAppDataVulnerability)
     return models
 
