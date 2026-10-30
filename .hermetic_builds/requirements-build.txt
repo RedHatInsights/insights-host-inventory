@@ -397,7 +397,6 @@ hatch-vcs==0.5.0 \
     # via -r requirements-build.in
 hatchling==1.33.0 \
     --hash=sha256:415290b84f464d2884303fca8974d38e7b85579069fab02a15db0828fbb1446d \
-
     --hash=sha256:4c422bd4d554fcff5de5b73e9596f85e41e9f97f7e553d8f7595ecb31a627bef
     # via
     #   -r requirements-build.in
