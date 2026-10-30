@@ -22,6 +22,7 @@ from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.logging import ContextualFilter
 from app.models import db
+from app.queue.export_service import ALWAYS_APPENDED_EXPORT_FIELDS
 from app.queue.export_service import COMPOSITE_VIEW_FIELDS_TO_EXPORT_FIELDS
 from app.queue.export_service import _build_export_request_url
 from app.queue.export_service import _format_compliance_policies
@@ -794,6 +795,7 @@ class TestCreateExportWithView:
                 "advisor:important",
                 "advisor:moderate",
                 "advisor:low",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
             ]
             assert list(by_id[host1_id].keys()) == expected_keys
             assert by_id[host1_id]["advisor:critical"] == 2
@@ -823,10 +825,16 @@ class TestCreateExportWithView:
             )
 
             lines = captured[0].strip().splitlines()
-            assert (
-                lines[0]
-                == '"host_id","display_name","advisor:critical","advisor:important","advisor:moderate","advisor:low"'
-            )
+            expected_header_fields = [
+                "host_id",
+                "display_name",
+                "advisor:critical",
+                "advisor:important",
+                "advisor:moderate",
+                "advisor:low",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
+            ]
+            assert lines[0] == ",".join(f'"{field}"' for field in expected_header_fields)
             assert f'"{host1_id}","host-1",1,2,3,4' in lines[1]
 
     def test_export_with_view_omits_unauthorized_app_columns(
@@ -866,6 +874,7 @@ class TestCreateExportWithView:
                 "advisor:important",
                 "advisor:moderate",
                 "advisor:low",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
             ]
             assert parsed[0]["advisor:critical"] == 2
 
@@ -965,6 +974,7 @@ class TestCreateExportWithInlineConfiguration:
                 "advisor:important",
                 "advisor:moderate",
                 "advisor:low",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
             ]
             assert parsed[0]["advisor:critical"] == 4
             assert parsed[0]["advisor:low"] == 1
@@ -1173,6 +1183,7 @@ class TestResolveExportColumns:
                 "workloads",
                 "state",
                 "data_collector",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
             ]
             assert app_data == {}
 
@@ -1239,6 +1250,7 @@ class TestResolveExportColumns:
                 "advisor:moderate",
                 "advisor:low",
                 "vulnerability:critical_cves",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
             ]
             assert app_data == {
                 "advisor": ["critical", "important", "moderate", "low"],
@@ -1269,6 +1281,7 @@ class TestResolveExportColumns:
                 "advisor:important",
                 "advisor:moderate",
                 "advisor:low",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
             ]
             assert app_data == {"advisor": ["critical", "important", "moderate", "low"]}
 
@@ -1292,6 +1305,7 @@ class TestResolveExportColumns:
                 "vulnerability:important_cves",
                 "vulnerability:moderate_cves",
                 "vulnerability:low_cves",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
             ]
             assert app_data == {
                 "advisor": ["critical", "important", "moderate", "low"],
@@ -1330,7 +1344,7 @@ class TestResolveExportColumns:
         with flask_app.app.app_context():
             fields, app_data = resolve_export_columns([{"key": composite_key}])
 
-            assert fields == ["host_id", *expected_fields]
+            assert fields == ["host_id", *expected_fields, *ALWAYS_APPENDED_EXPORT_FIELDS]
             app_name = expected_fields[0].split(":", 1)[0]
             assert app_data == {app_name: [field.split(":", 1)[1] for field in expected_fields]}
 
@@ -1341,7 +1355,7 @@ class TestResolveExportColumns:
                 allowed_apps={"advisor"},
             )
 
-            assert fields == ["host_id", "display_name"]
+            assert fields == ["host_id", "display_name", *ALWAYS_APPENDED_EXPORT_FIELDS]
             assert app_data == {}
 
     def test_composite_expansion_deduplicates_overlapping_individual_columns(self, flask_app):
@@ -1358,10 +1372,51 @@ class TestResolveExportColumns:
                 "vulnerability:important_cves",
                 "vulnerability:moderate_cves",
                 "vulnerability:low_cves",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
             ]
             assert app_data == {
                 "vulnerability": ["critical_cves", "important_cves", "moderate_cves", "low_cves"],
             }
+
+    def test_always_appended_export_fields_follow_selected_columns(self, flask_app):
+        """WYSIWYG exports keep selected columns in order, then always append the
+        export fields that no manage-columns entry can select."""
+        with flask_app.app.app_context():
+            columns = [{"key": "display_name"}, {"key": "operating_system"}]
+            fields, _ = resolve_export_columns(columns)
+
+            assert fields == [
+                "host_id",
+                "display_name",
+                "os_release",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
+            ]
+
+    def test_updated_view_column_not_duplicated_by_append(self, flask_app):
+        """ "updated" is both a view field and an always-appended export field — it must
+        appear exactly once, at its selected position."""
+        with flask_app.app.app_context():
+            fields, _ = resolve_export_columns([{"key": "updated"}])
+
+            expected_appended = [f for f in ALWAYS_APPENDED_EXPORT_FIELDS if f != "updated"]
+            assert fields == ["host_id", "updated", *expected_appended]
+
+    def test_always_appended_export_fields_derived_from_legacy_export(self):
+        """The append list is derived from the legacy export field set, so it can
+        never drift from it — this pins the expected result of that derivation."""
+        assert ALWAYS_APPENDED_EXPORT_FIELDS == [
+            "fqdn",
+            "subscription_manager_id",
+            "satellite_id",
+            "group_id",
+            "updated",
+            "host_type",
+            "bios_uuid",
+            "satellite_managed",
+            "cloud_provider",
+            "is_marketplace",
+            "ip_addresses",
+        ]
 
 
 def _export_row(**overrides):

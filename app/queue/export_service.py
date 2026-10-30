@@ -153,6 +153,24 @@ COMPOSITE_VIEW_FIELDS_TO_EXPORT_FIELDS: dict[str, list[str]] = {
     ],
 }
 
+# Fields a view column can select for the export.
+_SELECTABLE_EXPORT_FIELDS = frozenset(
+    field for fields in CORE_VIEW_FIELDS_TO_EXPORT_FIELDS.values() for field in fields
+)
+
+# The fields every view-configuration export appends after the selected
+# columns: the legacy export fields that no manage-columns entry can produce
+# (customers asked for this data in exports beyond what the table displays),
+# plus "updated", which stays present even when deselected so the legacy
+# export's guarantee holds. Derived from _EXPORT_SERVICE_FIELDS and
+# CORE_VIEW_FIELDS_TO_EXPORT_FIELDS (app/serialization.py) so it cannot drift
+# from them; "host_id" is always included up front instead of appended.
+ALWAYS_APPENDED_EXPORT_FIELDS = [
+    field
+    for field in _EXPORT_SERVICE_FIELDS
+    if field != "host_id" and (field == "updated" or field not in _SELECTABLE_EXPORT_FIELDS)
+]
+
 
 def _expand_view_columns(view_columns: list[dict]) -> list[dict]:
     """Expand composite UI columns into their individual app-data columns.
@@ -217,6 +235,12 @@ def resolve_export_columns(
                 flat_key = f"{app_name}:{field_name}"
                 if flat_key not in export_fields:
                     export_fields.append(flat_key)
+
+    # Fields no manage-columns entry can select are always appended after the
+    # selected columns (see ALWAYS_APPENDED_EXPORT_FIELDS).
+    for field in ALWAYS_APPENDED_EXPORT_FIELDS:
+        if field not in export_fields:
+            export_fields.append(field)
 
     return export_fields, app_data_fields
 
