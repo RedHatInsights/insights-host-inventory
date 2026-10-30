@@ -7,7 +7,7 @@ pipenv==2025.0.4
 wheel==0.45.1
 flit_core<4,>=3.8
 virtualenv>=21.15.1
-hatch-vcs==0.4.0
+hatch-vcs>=0.5
 hatchling==1.27.0
 calver==2025.4.17
 tomli==2.0.2
