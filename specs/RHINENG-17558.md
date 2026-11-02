@@ -10,7 +10,7 @@ The regex in Tag.from_string() (app/utils.py line 289) does not handle the case 
 
 - `app/utils.py` (modify): In Tag.from_string(), change the namespace capture group in the regex from [^=/]+ to [^=/]* so that an empty namespace is matched when the tag string starts with '/'. After the URL-decoding loop, normalize the decoded namespace by passing it through Tag.serialize_namespace() to convert empty string to None (consistent with NULL_NAMESPACES handling).
 
-- `tests/test_unit.py` (modify): Add test cases for Tag.from_string() covering tags with empty namespace and '/' in the key. Add a test asserting Tag.from_string('/my/key=myvalue') equals Tag(None, 'my/key', 'myvalue'), a test for '/key=value' yielding Tag(None, 'key', 'value'), and a test for '/key' yielding Tag(None, 'key', None). Place these alongside the existing tag from_string tests near line 735.
+- `tests/unit/test_unit.py` (modify): Add test cases for Tag.from_string() covering tags with empty namespace and '/' in the key. Add a test asserting Tag.from_string('/my/key=myvalue') equals Tag(None, 'my/key', 'myvalue'), a test for '/key=value' yielding Tag(None, 'key', 'value'), and a test for '/key' yielding Tag(None, 'key', None). Place these alongside the existing tag from_string tests near line 735.
 
 ## Constraints
 - The regex change must not alter behavior for existing tag formats: 'NS/key=value', 'key=value', 'NS/key', 'key', and URL-encoded special characters
