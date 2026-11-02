@@ -49,6 +49,10 @@ logger = get_logger(__name__)
 RBAC_ROUTE = "/api/rbac/v1/access/?application="
 RBAC_V2_ROUTE = "/api/rbac/v2/"
 RBAC_PRIVATE_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
+# Ephemeral RBAC does not validate service-account JWTs. Any non-empty bearer is accepted;
+# X-RH-RBAC-ORG-ID selects the tenant. Real tokens are fetched only when Kessel auth is enabled
+# or the RBAC endpoint is marked authenticated.
+RBAC_UNVALIDATED_SERVICE_ACCOUNT_TOKEN = "ephemeral"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 VISIBLE_WORKSPACE_TYPES = "ungrouped-hosts,standard,default"
@@ -131,11 +135,9 @@ def _build_rbac_auth_request_headers(org_id: str) -> dict:
     """
     Build request headers for service-to-service RBAC API calls.
 
-    Uses OAuth2 service account authentication with explicit org_id context.
-
-    Note:
-        It has a fallback to PSK when Kessel auth is not enabled.
-        The fallback should only be used for testing in ephemeral or development environments.
+    Uses an OAuth2 service-account bearer with explicit org_id context. When neither Kessel
+    auth nor an authenticated RBAC endpoint is configured (ephemeral and local dev), RBAC
+    accepts any non-empty bearer and uses X-RH-RBAC-ORG-ID as the tenant.
     """
 
     config = inventory_config()
@@ -144,34 +146,17 @@ def _build_rbac_auth_request_headers(org_id: str) -> dict:
         "X-RH-RBAC-CLIENT-ID": "inventory",
     }
 
-    # The endpoint's `authenticated` flag forces kessel-sdk auth. Otherwise: kessel auth when enabled,
-    # PSK fallback for dev/ephemeral environments.
-    #
-    # This attaches the bearer for `authenticated` itself (not only `kessel_auth_enabled`), even
-    # though the transport block in _execute_rbac_http_request would also do so, on purpose:
-    # keeping the condition here makes this builder correct standalone and guarantees the PSK is
-    # never emitted alongside a bearer. Narrowing this to just `kessel_auth_enabled` would let the
-    # `else` attach a PSK while the transport block adds a bearer, sending both credentials.
     if config.rbac_endpoint_authenticated or config.kessel_auth_enabled:
         try:
             access_token = _get_rbac_access_token()
         except Exception:
             logger.exception("Failed to get OAuth2 token for authenticated RBAC endpoint")
             abort(503, "Failed to authenticate with RBAC endpoint")
-
-        headers["Authorization"] = f"Bearer {access_token}"
     else:
-        # This branch should only be used for testing or development environments where Kessel auth is not enabled.
-        # TODO: enable Kessel auth for all environments and remove this fallback logic.
-        if not config.rbac_psk:
-            logger.error("Kessel auth is not enabled and RBAC PSK is not configured (RBAC_PSKS)")
-            abort(503, "RBAC PSK is not configured")
+        logger.info("Using an unvalidated service-account bearer for RBAC; org_id=%s", org_id)
+        access_token = RBAC_UNVALIDATED_SERVICE_ACCOUNT_TOKEN
 
-        logger.warning(
-            "Kessel auth is not enabled, falling back to PSK for RBAC API authentication. "
-            "This is not recommended for production use."
-        )
-        headers["X-RH-RBAC-PSK"] = config.rbac_psk
+    headers["Authorization"] = f"Bearer {access_token}"
     return headers
 
 
@@ -927,8 +912,7 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
         UUID: Workspace ID from RBAC v2 API, or None if bypass_kessel is enabled
 
     Note:
-        Uses OAuth2 service account for authentication instead of PSK.
-        PSK is used only as a fallback for testing environments.
+        Uses OAuth2 service account authentication.
 
         If not using Kessel, returns None so the DB will automatically generate the group ID.
     """
