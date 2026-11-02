@@ -397,7 +397,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     from lib import host_outbox_events  # noqa: F401
 
     # OpenTelemetry instrumentation
-    instrument_flask_app(flask_app)
+    instrument_flask_app(app)
     try:
         with flask_app.app_context():
             instrument_sqlalchemy(db.engine, flask_app.extensions.get("inventory_read_engine"))

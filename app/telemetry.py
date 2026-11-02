@@ -10,8 +10,8 @@ Usage:
     # In gunicorn.conf.py post_fork or service main():
     init_otel(service_name="host-inventory")
 
-    # After Flask app creation:
-    instrument_flask_app(flask_app)
+    # After Connexion app creation:
+    instrument_flask_app(connexion_app)
 
     # After db.init_app():
     instrument_sqlalchemy(db.engine, read_engine)
@@ -254,8 +254,8 @@ def init_otel(
     )
 
 
-def instrument_flask_app(flask_app):
-    """Instrument a Flask app with OpenTelemetry request tracing.
+def instrument_flask_app(connexion_app):
+    """Instrument Connexion's Flask app with OpenTelemetry request tracing.
 
     Each HTTP request becomes a span with method, path, status code,
     plus HBI-specific attributes (org_id, request_id).
@@ -263,16 +263,28 @@ def instrument_flask_app(flask_app):
     if not OTEL_ENABLED or not OTEL_HTTP_INBOUND_ENABLED:
         return
 
+    from opentelemetry import trace
     from opentelemetry.instrumentation.flask import FlaskInstrumentor
 
-    # Patterns match flask.request.url (full URL), not path-only; do not anchor with ^.
-    # Optional (?...) allows query strings (e.g. /health?verbose=1).
-    FlaskInstrumentor().instrument_app(
-        flask_app,
-        excluded_urls=r"/health(?:\?.*)?$,/metrics(?:\?.*)?$,/version(?:\?.*)?$",
-        request_hook=_request_hook,
-        response_hook=_response_hook,
-    )
+    from lib.flask_telemetry import HTTPTracerProvider
+
+    def instrument_wsgi_app(wsgi_app):
+        flask_app = connexion_app.app
+        # Connexion caches the WSGI callable when it constructs the Flask app.
+        # Wrap its current middleware stack and return the instrumented callable
+        # so requests reach OTel's start_response wrapper as well as Flask's hooks.
+        flask_app.wsgi_app = wsgi_app
+        # Patterns match full request URLs; allow query strings on excluded paths.
+        FlaskInstrumentor().instrument_app(
+            flask_app,
+            excluded_urls=r"/health(?:\?.*)?$,/metrics(?:\?.*)?$,/version(?:\?.*)?$",
+            request_hook=_request_hook,
+            response_hook=_response_hook,
+            tracer_provider=HTTPTracerProvider(trace.get_tracer_provider()),
+        )
+        return flask_app.wsgi_app
+
+    connexion_app.add_wsgi_middleware(instrument_wsgi_app)
     logger.info("Flask instrumented with OpenTelemetry")
 
 
