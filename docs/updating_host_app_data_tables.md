@@ -154,12 +154,12 @@ To ensure end-to-end consistency, you must update the following files:
 | `app/models/host_app_data.py` | SQLAlchemy model definition (columns, sortable/filterable fields) |
 | `app/queue/enums.py` | Application enum (if adding a new app) |
 | `swagger/host_app_events.spec.yaml` | Kafka event schema specification |
-| `tests/test_host_app_mq_service.py` | MQ service integration tests |
-| `tests/test_models.py` | Database model unit tests |
+| `tests/mq/test_host_app_mq_service.py` | MQ service integration tests |
+| `tests/models/test_models.py` | Database model unit tests |
 | `api/filtering/app_data_sorting.py` | Sorting logic for hosts-view endpoint |
 | `api/filtering/db_app_data_filters.py` | Filtering logic for hosts-view endpoint |
-| `tests/test_api_host_views.py` | Hosts-view API tests (sorting, filtering, sparse fields) |
-| `tests/test_filtering_app_data_sorting.py` | Sorting utility unit tests |
+| `tests/api/host_views/test_host_views.py` | Hosts-view API tests (sorting, filtering, sparse fields) |
+| `tests/api/host_views/test_filtering_app_data_sorting.py` | Sorting utility unit tests |
 
 ## Step-by-Step Guide
 
@@ -400,7 +400,7 @@ You **must** update the test suite to account for the new schema. Failure to do 
 
 #### A. Update MQ Service Tests
 
-**File:** `tests/test_host_app_mq_service.py`
+**File:** `tests/mq/test_host_app_mq_service.py`
 
 **Action:** Update the `APPLICATION_TEST_DATA` list to include your new fields in the mock payloads.
 
@@ -429,7 +429,7 @@ APPLICATION_TEST_DATA = [
 
 #### B. Update Model Tests
 
-**File:** `tests/test_models.py`
+**File:** `tests/models/test_models.py`
 
 **Action:** Add or update test cases to verify that your new columns can be written to and read from the database correctly.
 
@@ -461,7 +461,7 @@ def test_create_host_app_data_patch(db_create_host):
 
 If you added or changed `__sortable_fields__`, update the sorting tests.
 
-**File:** `tests/test_api_host_views.py`
+**File:** `tests/api/host_views/test_host_views.py`
 
 **Action:** Add test cases to verify sorting behavior for the new fields in the hosts-view endpoint.
 
@@ -489,7 +489,7 @@ def test_sort_by_my_new_app_field(
     assert response["results"][1]["id"] == str(host_a.id)
 ```
 
-**File:** `tests/test_filtering_app_data_sorting.py`
+**File:** `tests/api/host_views/test_filtering_app_data_sorting.py`
 
 **Action:** Verify that the new field appears in the sort field map.
 
@@ -503,7 +503,7 @@ def test_my_app_field_in_sort_map():
 
 If you added or changed `__filterable_fields__`, update the filtering tests.
 
-**File:** `tests/test_api_host_views.py`
+**File:** `tests/api/host_views/test_host_views.py`
 
 **Action:** Add test cases to verify filtering behavior for the new fields. Test at least the basic operators (`eq`, `nil`, `not_nil`) and, for numeric fields, comparison operators (`gt`, `gte`, `lt`, `lte`).
 
@@ -565,7 +565,7 @@ def test_filter_and_sort_same_app(
 
 If you added a new application, verify it works with the sparse fieldsets feature.
 
-**File:** `tests/test_api_host_views.py`
+**File:** `tests/api/host_views/test_host_views.py`
 
 **Action:** Add test cases to verify the new app data appears correctly with the `fields` parameter.
 
@@ -601,7 +601,7 @@ make upgrade_db
 pytest .
 
 # Or run specific test files
-pytest tests/test_host_app_mq_service.py tests/test_models.py -v
+pytest tests/mq/test_host_app_mq_service.py tests/models/test_models.py -v
 ```
 
 ## Quick Reference: Adding a New Application

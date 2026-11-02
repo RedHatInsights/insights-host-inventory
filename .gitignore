@@ -5,7 +5,7 @@ pip-selfcheck.json
 pyvenv.cfg
 .python-version
 .venv/
-tags
+/tags
 .coverage
 .pytest_cache/
 /.scannerwork/
