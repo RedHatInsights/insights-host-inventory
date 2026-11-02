@@ -36,12 +36,12 @@ dependencies = [
     "opentelemetry-api~=1.45.0",
     "opentelemetry-sdk~=1.45.0",
     "opentelemetry-exporter-otlp-proto-http~=1.45.1",
-    "opentelemetry-instrumentation-flask==0.66b1",
+    "opentelemetry-instrumentation-flask==0.66b2",
     # The extra carries the instrumentor's supported SQLAlchemy range.
-    "opentelemetry-instrumentation-sqlalchemy[instruments]==0.66b1",
-    "opentelemetry-instrumentation-requests==0.66b1",
-    "opentelemetry-instrumentation-grpc==0.66b1",
-    "opentelemetry-instrumentation-botocore==0.66b1",
+    "opentelemetry-instrumentation-sqlalchemy[instruments]==0.66b2",
+    "opentelemetry-instrumentation-requests==0.66b2",
+    "opentelemetry-instrumentation-grpc==0.66b2",
+    "opentelemetry-instrumentation-botocore==0.66b2",
     "opentelemetry-instrumentation-confluent-kafka~=0.53b",
     "unleashclient==6.9.1",
     "rpds-py==2026.9.1",
@@ -101,7 +101,7 @@ dev = [
     "types-pytz",
     "tabulate",
     "faker",
-    "opentelemetry-test-utils==0.66b1",
+    "opentelemetry-test-utils==0.66b2",
     "pytest-dotenv>=0.5.2",
 ]
 
