@@ -48,7 +48,8 @@ ENV PIPENV_VENV_IN_PROJECT=1
 RUN python3.12 -m pip install --upgrade pip setuptools wheel && \
     python3.12 -m pip install pipenv && \
     python3.12 -m pip install dumb-init && \
-    pipenv install --system --dev
+    pipenv install --system --dev && \
+    python3.12 -m pip uninstall -y pipenv virtualenv
 
 # allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
 RUN if [ "$TEST_IMAGE" = "true" ]; then \
