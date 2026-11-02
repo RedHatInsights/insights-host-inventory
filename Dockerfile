@@ -61,7 +61,7 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install pipenv && \
     python3 -m pip install dumb-init && \
     pipenv install --system && \
-    python3 -m pip uninstall -y pipenv virtualenv
+    python3 -m pip uninstall -y virtualenv
 
 # remove devel packages that were only necessary for psycopg2 to compile
 RUN microdnf remove  -y  libpq-devel python3.12-devel gcc cargo rust rust-std-static gcc-c++ && \
