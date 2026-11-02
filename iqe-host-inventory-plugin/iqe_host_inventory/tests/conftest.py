@@ -25,6 +25,7 @@ from iqe_host_inventory.modeling.uploads import build_archives_from_data
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils import get_username
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
+from iqe_host_inventory.utils.rate_limit_utils import rate_limit_http_requests
 from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 
 logger = logging.getLogger(__name__)
@@ -192,6 +193,23 @@ def configure_robust_http_retries() -> Generator[None, None, None]:
 
     # Restore original default
     urllib3.util.retry.Retry.DEFAULT = original_retry
+
+
+@pytest.fixture(scope="session", autouse=True)
+def hbi_rate_limit_http_requests(
+    host_inventory: ApplicationHostInventory,
+) -> Generator[None, None, None]:
+    """Stay under the Akamai rate limits in environments that have `rate_limit` configured"""
+    rate_limit = host_inventory.config.get("rate_limit")
+    if not rate_limit:
+        yield
+        return
+
+    with rate_limit_http_requests(
+        requests_per_second=rate_limit.requests_per_second,
+        write_requests_per_second=rate_limit.write_requests_per_second,
+    ):
+        yield
 
 
 @pytest.fixture(scope="session", autouse=True)
