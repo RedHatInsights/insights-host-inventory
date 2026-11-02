@@ -125,6 +125,15 @@ objects:
           name: ${UNLEASH_SECRET_NAME}
           key: CLIENT_ACCESS_TOKEN
           optional: true
+    # Common RBAC PSK secret reference
+    # Only used as a fallback when Kessel auth is disabled (ephemeral/dev). The secret is provided by
+    # the RBAC ClowdApp, so it is optional to not block deployments in environments where it's missing.
+    rbacPsks: &rbacPsks
+      valueFrom:
+        secretKeyRef:
+          key: psks.json
+          name: rbac-psks
+          optional: true
     # Common Kessel auth secret reference
     kesselClientId: &kesselClientId
       valueFrom:
@@ -209,6 +218,8 @@ objects:
             value: inventory
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
+          - <<: *rbacPsks
+            name: RBAC_PSKS
           - name: BYPASS_RBAC
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
@@ -439,6 +450,8 @@ objects:
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
+          - <<: *rbacPsks
+            name: RBAC_PSKS
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
           - name: KESSEL_AUTH_CLIENT_ID
@@ -580,6 +593,8 @@ objects:
             value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
           - name: HOSTS_TABLE_NUM_PARTITIONS
             value: ${HOSTS_TABLE_NUM_PARTITIONS}
+          - <<: *rbacPsks
+            name: RBAC_PSKS
           - name: KESSEL_AUTH_CLIENT_ID
             <<: *kesselClientId
           - name: KESSEL_AUTH_CLIENT_SECRET
@@ -842,6 +857,8 @@ objects:
             value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: CONSUMER_MQ_BROKER
             value: ${CONSUMER_MQ_BROKER}
+          - <<: *rbacPsks
+            name: RBAC_PSKS
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
           - name: BYPASS_KESSEL
@@ -984,6 +1001,8 @@ objects:
             value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: CONSUMER_MQ_BROKER
             value: ${CONSUMER_MQ_BROKER}
+          - <<: *rbacPsks
+            name: RBAC_PSKS
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
           - name: BYPASS_KESSEL
@@ -1305,6 +1324,8 @@ objects:
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: HOST_DELETE_CHUNK_SIZE
             value: ${HOST_DELETE_CHUNK_SIZE}
+          - <<: *rbacPsks
+            name: RBAC_PSKS
         resources:
           limits:
             cpu: ${CPU_LIMIT_REAPER}
