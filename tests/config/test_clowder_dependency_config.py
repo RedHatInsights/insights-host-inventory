@@ -137,3 +137,22 @@ def test_kafka_ssl_configs_downstream_consumers_and_producers():
             assert "sasl.mechanism" in consumer_or_producer
             assert "sasl.username" in consumer_or_producer
             assert "sasl.password" in consumer_or_producer
+
+
+@pytest.mark.parametrize(
+    "rbac_psks,expected_psk",
+    [
+        ('{"inventory": {"secret": "psk-secret"}}', "psk-secret"),
+        ('{"advisor": {"alt-secret": "other"}}', None),
+        ("{}", None),
+        ("not-json", None),
+        ("[]", None),
+        ("null", None),
+        ('"psk-secret"', None),
+        ('{"inventory": "psk-secret"}', None),
+    ],
+)
+def test_rbac_psk_parsing(rbac_psks, expected_psk):
+    with patch.dict(os.environ, {"CLOWDER_ENABLED": "false", "RBAC_PSKS": rbac_psks}):
+        config = Config(RuntimeEnvironment.TEST)
+        assert config.rbac_psk == expected_psk
