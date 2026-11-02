@@ -266,6 +266,20 @@ def test_build_rbac_auth_request_headers_psk_fallback(mocker):
     token_mock.assert_not_called()
 
 
+@pytest.mark.parametrize("rbac_psk", [None, ""])
+def test_build_rbac_auth_request_headers_missing_psk_returns_503(mocker, rbac_psk):
+    """When falling back to PSK and no PSK is configured, fail clearly instead of sending no credentials."""
+    token_mock = mocker.patch("lib.middleware._get_rbac_access_token")
+    _mock_rbac_auth_config(mocker, rbac_psk=rbac_psk)
+    abort_mock = mocker.patch("lib.middleware.abort", side_effect=ServiceUnavailable())
+
+    with pytest.raises(ServiceUnavailable):
+        lib.middleware._build_rbac_auth_request_headers("org-7")
+
+    abort_mock.assert_called_once_with(503, "RBAC PSK is not configured")
+    token_mock.assert_not_called()
+
+
 def test_build_rbac_auth_request_headers_token_failure_returns_503(mocker):
     mocker.patch("lib.middleware._get_rbac_access_token", side_effect=RuntimeError("token unavailable"))
     _mock_rbac_auth_config(mocker, kessel_auth_enabled=True)

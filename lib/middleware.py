@@ -163,6 +163,10 @@ def _build_rbac_auth_request_headers(org_id: str) -> dict:
     else:
         # This branch should only be used for testing or development environments where Kessel auth is not enabled.
         # TODO: enable Kessel auth for all environments and remove this fallback logic.
+        if not config.rbac_psk:
+            logger.error("Kessel auth is not enabled and RBAC PSK is not configured (RBAC_PSKS)")
+            abort(503, "RBAC PSK is not configured")
+
         logger.warning(
             "Kessel auth is not enabled, falling back to PSK for RBAC API authentication. "
             "This is not recommended for production use."

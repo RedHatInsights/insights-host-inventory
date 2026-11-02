@@ -465,7 +465,7 @@ class Config:
         try:
             _psk_dict = json.loads(os.environ.get("RBAC_PSKS", "{}"))
             self.rbac_psk = _psk_dict.get("inventory", {}).get("secret")
-        except json.JSONDecodeError:
+        except json.JSONDecodeError, AttributeError:
             self.logger.error("Failed to load RBAC PSKs from environment variable RBAC_PSKS")
             self.rbac_psk = None
 
