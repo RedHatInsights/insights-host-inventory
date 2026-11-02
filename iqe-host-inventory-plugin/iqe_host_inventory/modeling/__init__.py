@@ -33,6 +33,7 @@ from iqe_host_inventory.utils.db_utils import query_hosts_by_ids
 from iqe_host_inventory.utils.db_utils import query_hosts_ids_all
 from iqe_host_inventory.utils.kafka_utils import encode_identity
 from iqe_host_inventory.utils.kafka_utils import prepare_identity_metadata
+from iqe_host_inventory.utils.rate_limit_utils import get_throttled_time
 
 from .exports_api import ExportsAPIWrapper
 from .groups_api import GROUP_OR_GROUPS
@@ -182,10 +183,12 @@ class HBIApis(BaseEntity):
     def measure_time(self, endpoint: str, *, count: int | None = None) -> Generator[None]:
         label = endpoint if count is None else f"{endpoint}; {count}"
         start = time.monotonic()
+        throttled_start = get_throttled_time()
         try:
             yield
         finally:
-            elapsed = time.monotonic() - start
+            throttled = get_throttled_time() - throttled_start
+            elapsed = time.monotonic() - start - throttled
             self.add_request_time(label, elapsed)
 
     def log_request_statistics(self) -> str:
