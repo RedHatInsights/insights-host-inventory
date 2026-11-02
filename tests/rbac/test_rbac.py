@@ -278,7 +278,9 @@ def test_build_rbac_auth_request_headers_ephemeral_uses_placeholder_bearer(mocke
 
     headers = lib.middleware._build_rbac_auth_request_headers("org-7")
 
-    assert headers["Authorization"] == f"Bearer {lib.middleware.RBAC_UNVALIDATED_SERVICE_ACCOUNT_TOKEN}"
+    scheme, _, token = headers["Authorization"].partition(" ")
+    assert scheme == "Bearer"
+    assert token == "ephemeral"
     assert headers["X-RH-RBAC-ORG-ID"] == "org-7"
     assert headers["X-RH-RBAC-CLIENT-ID"] == "inventory"
     assert "X-RH-RBAC-PSK" not in headers
