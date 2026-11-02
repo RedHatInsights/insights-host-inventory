@@ -237,46 +237,53 @@ def test_build_rbac_auth_request_headers(mocker):
     assert "x-rh-identity" not in {k.lower() for k in headers}
 
 
-def test_build_rbac_auth_request_headers_authenticated_forces_bearer(mocker):
-    """authenticated=True forces the kessel-sdk bearer even when kessel_auth_enabled is False,
-    and must never emit a PSK alongside it."""
+def test_build_rbac_auth_request_headers_uses_service_account(mocker):
+    """Service-account authentication is used for RBAC requests."""
     token_mock = mocker.patch("lib.middleware._get_rbac_access_token", return_value="sa_token_xyz")
-    _mock_rbac_auth_config(mocker, rbac_endpoint_authenticated=True)
+    _mock_rbac_auth_config(mocker, kessel_auth_enabled=True)
 
     headers = lib.middleware._build_rbac_auth_request_headers("org-7")
 
     assert headers["Authorization"] == "Bearer sa_token_xyz"
     assert headers["X-RH-RBAC-ORG-ID"] == "org-7"
     assert headers["X-RH-RBAC-CLIENT-ID"] == "inventory"
-    assert "X-RH-RBAC-PSK" not in headers
     token_mock.assert_called_once()
 
 
-def test_build_rbac_auth_request_headers_psk_fallback(mocker):
-    """When neither authenticated nor kessel_auth_enabled, fall back to PSK and emit no bearer."""
-    token_mock = mocker.patch("lib.middleware._get_rbac_access_token")
-    _mock_rbac_auth_config(mocker, rbac_psk="psk-secret")
+@pytest.mark.parametrize(
+    "kessel_auth_enabled,rbac_endpoint_authenticated",
+    [(True, False), (False, True)],
+)
+def test_build_rbac_auth_request_headers_fetches_token_when_auth_configured(
+    mocker, kessel_auth_enabled, rbac_endpoint_authenticated
+):
+    token_mock = mocker.patch("lib.middleware._get_rbac_access_token", return_value="sa_token_real")
+    _mock_rbac_auth_config(
+        mocker,
+        kessel_auth_enabled=kessel_auth_enabled,
+        rbac_endpoint_authenticated=rbac_endpoint_authenticated,
+    )
 
     headers = lib.middleware._build_rbac_auth_request_headers("org-7")
 
-    assert headers["X-RH-RBAC-PSK"] == "psk-secret"
+    assert headers["Authorization"] == "Bearer sa_token_real"
+    assert headers["X-RH-RBAC-ORG-ID"] == "org-7"
+    token_mock.assert_called_once()
+
+
+def test_build_rbac_auth_request_headers_ephemeral_uses_placeholder_bearer(mocker):
+    """Ephemeral RBAC accepts any non-empty bearer and selects the org via X-RH-RBAC-ORG-ID."""
+    token_mock = mocker.patch("lib.middleware._get_rbac_access_token")
+    _mock_rbac_auth_config(mocker)
+
+    headers = lib.middleware._build_rbac_auth_request_headers("org-7")
+
+    scheme, _, token = headers["Authorization"].partition(" ")
+    assert scheme == "Bearer"
+    assert token == "ephemeral"
     assert headers["X-RH-RBAC-ORG-ID"] == "org-7"
     assert headers["X-RH-RBAC-CLIENT-ID"] == "inventory"
-    assert "Authorization" not in headers
-    token_mock.assert_not_called()
-
-
-@pytest.mark.parametrize("rbac_psk", [None, ""])
-def test_build_rbac_auth_request_headers_missing_psk_returns_503(mocker, rbac_psk):
-    """When falling back to PSK and no PSK is configured, fail clearly instead of sending no credentials."""
-    token_mock = mocker.patch("lib.middleware._get_rbac_access_token")
-    _mock_rbac_auth_config(mocker, rbac_psk=rbac_psk)
-    abort_mock = mocker.patch("lib.middleware.abort", side_effect=ServiceUnavailable())
-
-    with pytest.raises(ServiceUnavailable):
-        lib.middleware._build_rbac_auth_request_headers("org-7")
-
-    abort_mock.assert_called_once_with(503, "RBAC PSK is not configured")
+    assert "X-RH-RBAC-PSK" not in headers
     token_mock.assert_not_called()
 
 
@@ -291,11 +298,10 @@ def test_build_rbac_auth_request_headers_token_failure_returns_503(mocker):
     abort_mock.assert_called_once_with(503, "Failed to authenticate with RBAC endpoint")
 
 
-def _mock_rbac_auth_config(mocker, kessel_auth_enabled=False, rbac_endpoint_authenticated=False, rbac_psk=None):
+def _mock_rbac_auth_config(mocker, kessel_auth_enabled=False, rbac_endpoint_authenticated=False):
     mock_config = mocker.Mock()
     mock_config.kessel_auth_enabled = kessel_auth_enabled
     mock_config.rbac_endpoint_authenticated = rbac_endpoint_authenticated
-    mock_config.rbac_psk = rbac_psk
     mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
     return mock_config
 
