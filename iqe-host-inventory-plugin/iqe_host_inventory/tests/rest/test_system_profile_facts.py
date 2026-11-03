@@ -3,7 +3,6 @@
 import logging
 
 import pytest
-from iqe.utils.blockers import iqe_blocker
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
@@ -13,7 +12,6 @@ logger = logging.getLogger(__name__)
 pytestmark = [pytest.mark.backend]
 
 
-@iqe_blocker(iqe_blocker.jira("RHINENG-17920", category=iqe_blocker.PRODUCT_ISSUE))
 @pytest.mark.smoke
 @pytest.mark.ephemeral
 def test_system_profile_facts_update_single_field(
