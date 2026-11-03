@@ -111,37 +111,15 @@ class HBIUploads(BaseEntity):
     def _hosts_api(self) -> HostsAPIWrapper:
         return self._host_inventory.apis.hosts
 
-    def _reset_ingress_api(self) -> None:
-        """Clear cached ingress API client and backing service object."""
-        self.__dict__.pop("_ingress_api", None)
-        self._host_inventory._services.pop("v7_ingress_v1", None)
-
     def _upload_file(self, filepath: str, content_type: str = _FILE_TYPE) -> None:
         """Upload a file to ingress using the iqe-bindings v7 client."""
         file_data = pathlib.Path(filepath).read_bytes()
         file_extension = _CONTENT_TYPE_TO_EXTENSION.get(content_type, ".bin")
 
-        for attempt in range(2):
-            try:
-                self._ingress_api.upload_post(
-                    file=(f"upload{file_extension}", file_data),
-                    metadata={"content_type": content_type},
-                )
-                break
-            except Exception as exc:
-                # WORKAROUND(iqe-core): LazyClowderJinja._lazy_frozen_once race.
-                # The first DynaBox access to hostname burns the flag without
-                # resolving, so the service URL contains a raw repr string.
-                # Clearing cached state and retrying triggers a second DynaBox
-                # access that resolves correctly.
-                # TODO: Remove once iqe-core fixes the _lazy_frozen_once race.
-                if attempt > 0 or "lazyclowderjinja" not in str(exc).lower():
-                    raise
-                logger.warning(
-                    "Ingress upload failed due to unresolved LazyClowderJinja "
-                    "hostname; clearing cached service and retrying"
-                )
-                self._reset_ingress_api()
+        self._ingress_api.upload_post(
+            file=(f"upload{file_extension}", file_data),
+            metadata={"content_type": content_type},
+        )
 
     def upload_archive(
         self,
@@ -209,6 +187,10 @@ class HBIUploads(BaseEntity):
         :return None
         """
         logger.info("Creating/Updating hosts via Ingress/Puptoo")
+        # The ingress client has to be created before spawning the threads. Creating it
+        # resolves the service config (e.g. Clowder hostname via LazyClowderJinja), which
+        # is not thread-safe in iqe-core and can produce an invalid URL when done concurrently.
+        _ = self._ingress_api
         with ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
             futures = [
                 executor.submit(self._upload_file, archive.filename) for archive in archives
