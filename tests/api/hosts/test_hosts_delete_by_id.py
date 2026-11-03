@@ -699,7 +699,6 @@ def test_delete_hosts_deadlock_retry_exhausted_409(db_create_host, db_get_host, 
 
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
-@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_delete_hosts_deadlock_outbox_save_exception_exhausted_409(
     db_create_host, db_get_host, api_delete_host, mocker
 ):
@@ -720,7 +719,6 @@ def test_delete_hosts_deadlock_outbox_save_exception_exhausted_409(
     assert db_get_host(host.id)
 
 
-@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_delete_hosts_deadlock_retry_success(db_create_host, db_get_host, api_delete_host, mocker):
     mock_sleep = mocker.patch("api.host.time.sleep")
@@ -747,7 +745,6 @@ def test_delete_hosts_deadlock_retry_success(db_create_host, db_get_host, api_de
     assert not db_get_host(host.id)
 
 
-@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_delete_hosts_deadlock_outbox_retry_success(db_create_host, db_get_host, api_delete_host, mocker):
     mock_sleep = mocker.patch("api.host.time.sleep")
@@ -776,7 +773,6 @@ def test_delete_hosts_deadlock_outbox_retry_success(db_create_host, db_get_host,
     assert not db_get_host(host.id)
 
 
-@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_delete_hosts_deadlock_recovery_accumulates_deleted_ids(flask_app, mocker):
     mock_sleep = mocker.patch("api.host.time.sleep")
@@ -871,7 +867,6 @@ def test_delete_hosts_deadlock_two_retries_then_success(db_create_host, db_get_h
 
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
-@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_delete_hosts_deadlock_calls_session_rollback(db_create_host, api_delete_host, mocker):
     """Verify that db.session.rollback() is called on each deadlock."""
     mocker.patch("api.host.time.sleep")
@@ -888,7 +883,6 @@ def test_delete_hosts_deadlock_calls_session_rollback(db_create_host, api_delete
     assert mock_rollback.call_count == 3
 
 
-@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_delete_bulk_hosts_deadlock_retry_exhausted_409(
     db_create_host, db_get_host, api_delete_filtered_hosts, mocker
