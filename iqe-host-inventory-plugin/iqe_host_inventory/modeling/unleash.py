@@ -46,7 +46,7 @@ class HBIUnleash(BaseEntity):
             if enable == self._unleash.is_enabled(flag):
                 logger.info(f"'{flag}' feature flag already set to: {enable}.")
             else:
-                pytest.xfail(
+                pytest.skip(
                     f"'{flag}' feature flag is set to {not enable} in current environment."
                 )
 

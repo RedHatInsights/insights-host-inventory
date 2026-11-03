@@ -10,7 +10,6 @@ from typing import Any
 from typing import NamedTuple
 
 import pytest
-from iqe.utils.blockers import iqe_blocker
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import DataAlias
@@ -205,7 +204,6 @@ def make_miss_updates_actions() -> list[IdentifiersActions]:
 @pytest.mark.ephemeral
 @pytest.mark.parametrize("other_fields_correct", list(FieldAction))
 @pytest.mark.parametrize("identifiers_correct", make_miss_updates_actions())
-@iqe_blocker(iqe_blocker.jira("RHINENG-16546", category=iqe_blocker.PRODUCT_RFE))
 def test_system_profile_topic_update_not_found(
     host_inventory: ApplicationHostInventory,
     identifiers_correct: IdentifiersActions,
