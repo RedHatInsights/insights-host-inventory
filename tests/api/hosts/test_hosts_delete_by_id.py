@@ -9,6 +9,7 @@ from confluent_kafka import KafkaException
 from psycopg2.errors import DeadlockDetected
 from sqlalchemy.exc import OperationalError
 
+import lib.host_delete
 from api.host import _delete_host_list
 from app.auth.identity import Identity
 from app.exceptions import OutboxSaveException
@@ -906,13 +907,17 @@ def test_delete_bulk_hosts_deadlock_retry_exhausted_409(
     assert db_get_host(host_id)
 
 
-@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
-def test_delete_hosts_deadlock_retry_real_delete_path(flask_app, db_create_host, db_get_host, mocker):
+def test_delete_hosts_deadlock_retry_real_delete_path(
+    event_producer_mock,
+    notification_event_producer_mock,
+    db_create_host,
+    db_get_host,
+    api_delete_filtered_hosts,
+    mocker,
+    inventory_config,
+):
+    inventory_config.host_delete_chunk_size = 1
     mock_sleep = mocker.patch("api.host.time.sleep")
-    mocker.patch("api.host.get_current_identity", return_value=Identity(USER_IDENTITY))
-    mocker.patch("api.host.threadctx.request_id", "test-request-id", create=True)
-
-    import lib.host_delete
 
     orig_delete_host = lib.host_delete._delete_host
     call_count = 0
@@ -920,19 +925,37 @@ def test_delete_hosts_deadlock_retry_real_delete_path(flask_app, db_create_host,
     def mock_delete_host(*args, **kwargs):
         nonlocal call_count
         call_count += 1
-        if call_count == 1:
+        if call_count == 2:
+            # Let real SQL run (simulates a real deadlock that aborts after writes),
+            # then raise the deadlock error.
+            orig_delete_host(*args, **kwargs)
             raise OperationalError("deadlock detected", params=None, orig=DeadlockDetected())
         return orig_delete_host(*args, **kwargs)
 
     mocker.patch("lib.host_delete._delete_host", side_effect=mock_delete_host)
 
-    host = db_create_host()
-    host_id = str(host.id)
+    # Spy on event producers to count Kafka messages
+    delete_event_spy = mocker.spy(event_producer_mock, "write_event")
+    notification_event_spy = mocker.spy(notification_event_producer_mock, "write_event")
 
-    with flask_app.app.test_request_context():
-        deleted_count = _delete_host_list([host_id], rbac_filter=None)
+    # Create 3 hosts with a shared attribute for filtered deletion
+    sub_man_id = generate_uuid()
+    hosts = [db_create_host(extra_data={"subscription_manager_id": sub_man_id}) for _ in range(3)]
+    host_ids = [str(h.id) for h in hosts]
 
-    assert deleted_count == 1
-    assert call_count == 2
+    response_status, response_data = api_delete_filtered_hosts(
+        query_parameters={"subscription_manager_id": sub_man_id}
+    )
+
+    assert_response_status(response_status, expected_status=202)
+    assert response_data["hosts_deleted"] == 3
+
+    # All hosts should be gone
+    for host_id in host_ids:
+        assert not db_get_host(host_id)
+
+    # Exactly 3 delete events and 3 notifications should have been produced
+    assert delete_event_spy.call_count == 3
+    assert notification_event_spy.call_count == 3
+
     mock_sleep.assert_called_once_with(0.5)
-    assert not db_get_host(host_id)
