@@ -5,7 +5,6 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from iqe.utils.blockers import iqe_blocker
 from sqlalchemy import inspect
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -273,14 +272,14 @@ def test_db_schema_groups_max_len(inventory_db_session):
             assert group_attrs[key] == value
 
 
-@iqe_blocker(iqe_blocker.jira("RHINENG-18981", category=iqe_blocker.PRODUCT_RFE))
 @pytest.mark.smoke
 @pytest.mark.ephemeral
 def test_db_schema_hosts_groups_correct(inventory_db_session):
     """
     Check DB Hosts_Groups partitioned table schema - correct values
 
-    JIRA: https://issues.redhat.com/browse/ESSNTL-3824
+    https://issues.redhat.com/browse/ESSNTL-3824
+    https://issues.redhat.com/browse/RHINENG-18981
 
     metadata:
         assignee: fstavela
@@ -306,7 +305,6 @@ def test_db_schema_hosts_groups_correct(inventory_db_session):
         assert association_attrs[key] == str(value)
 
 
-@iqe_blocker(iqe_blocker.jira("RHINENG-18981", category=iqe_blocker.PRODUCT_RFE))
 @pytest.mark.smoke
 @pytest.mark.ephemeral
 @pytest.mark.parametrize("id_key", ["org_id, host_id", "group_id"])
@@ -314,7 +312,8 @@ def test_db_schema_hosts_groups_foreign_keys(inventory_db_session, id_key):
     """
     Check that IDs in DB Hosts_Groups partitioned table schema are foreign keys
 
-    JIRA: https://issues.redhat.com/browse/ESSNTL-3824
+    https://issues.redhat.com/browse/ESSNTL-3824
+    https://issues.redhat.com/browse/RHINENG-18981
 
     metadata:
         assignee: fstavela

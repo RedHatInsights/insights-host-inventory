@@ -4,7 +4,6 @@ import logging
 
 import pytest
 from fauxfactory import gen_mac
-from iqe.utils.blockers import iqe_blocker
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.datagen_utils import TagDict
@@ -421,9 +420,12 @@ def test_create_ansible_execution_node_host(
     assert conventional_host.id not in response_ids
 
 
-@iqe_blocker(iqe_blocker.jira("RHINENG-30469", category=iqe_blocker.PRODUCT_RFE))
 def test_create_containerized_aap_host(host_inventory: ApplicationHostInventory) -> None:
-    """Verify containerized AAP host creation with correct system profile."""
+    """
+    Verify containerized AAP host creation with correct system profile.
+
+    https://issues.redhat.com/browse/RHINENG-30469
+    """
     display_name = generate_display_name()
     host = host_inventory.upload.create_host(
         display_name=display_name, base_archive=CONTAINERIZED_AAP_ARCHIVE
@@ -451,11 +453,14 @@ def test_create_containerized_aap_host(host_inventory: ApplicationHostInventory)
     assert host.id in response_ids
 
 
-@iqe_blocker(iqe_blocker.jira("RHINENG-30469", category=iqe_blocker.PRODUCT_RFE))
 def test_create_containerized_aap_execution_node_host(
     host_inventory: ApplicationHostInventory,
 ) -> None:
-    """Verify containerized AAP execution node host creation with correct system profile."""
+    """
+    Verify containerized AAP execution node host creation with correct system profile.
+
+    https://issues.redhat.com/browse/RHINENG-30469
+    """
     display_name = generate_display_name()
     host = host_inventory.upload.create_host(
         display_name=display_name, base_archive=CONTAINERIZED_AAP_EXEC_NODE_ARCHIVE
