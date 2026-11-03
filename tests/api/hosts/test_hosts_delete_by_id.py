@@ -910,3 +910,35 @@ def test_delete_bulk_hosts_deadlock_retry_exhausted_409(
 
     assert_response_status(response_status, expected_status=409)
     assert db_get_host(host_id)
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_hosts_deadlock_retry_real_delete_path(flask_app, db_create_host, db_get_host, mocker):
+    mock_sleep = mocker.patch("api.host.time.sleep")
+    mocker.patch("api.host.get_current_identity", return_value=Identity(USER_IDENTITY))
+    mocker.patch("api.host.threadctx.request_id", "test-request-id", create=True)
+
+    import lib.host_delete
+
+    orig_delete_host = lib.host_delete._delete_host
+    call_count = 0
+
+    def mock_delete_host(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise OperationalError("deadlock detected", params=None, orig=DeadlockDetected())
+        return orig_delete_host(*args, **kwargs)
+
+    mocker.patch("lib.host_delete._delete_host", side_effect=mock_delete_host)
+
+    host = db_create_host()
+    host_id = str(host.id)
+
+    with flask_app.app.test_request_context():
+        deleted_count = _delete_host_list([host_id], rbac_filter=None)
+
+    assert deleted_count == 1
+    assert call_count == 2
+    mock_sleep.assert_called_once_with(0.5)
+    assert not db_get_host(host_id)
