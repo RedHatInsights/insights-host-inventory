@@ -70,8 +70,8 @@ default:
 
 prod:
   rate_limit:
-    requests_per_second: 12
-    write_requests_per_second: 3
+    requests_per_second: 10
+    write_requests_per_second: 2.5
   legacy_hostname: "api.access.redhat.com"
   turnpike_base_url: "https://mtls.internal.console.redhat.com/api/rbac"
   default_user: insights_inventory_qe
