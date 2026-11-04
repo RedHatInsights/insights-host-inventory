@@ -7,7 +7,6 @@ import time
 import uuid
 from collections.abc import Callable
 from contextlib import nullcontext
-from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
 from functools import partial
@@ -235,15 +234,26 @@ class OperationResult:
                 "rh.org_id": self.org_id,
                 "rh.host_id": str(host_id),
             }
-            if len(self.persisted_host_ids) == 1:
-                self.otel_span.add_event("rh.ingestion.completed", attributes=attrs, timestamp=completed_at_ns)
-            else:
-                # One carrier per host avoids the SDK event limit on large batches.
-                span = tracer.start_span(
-                    "hbi.ingestion.completed", context=self.otel_context, attributes=attrs, start_time=completed_at_ns
+            try:
+                if len(self.persisted_host_ids) == 1:
+                    self.otel_span.add_event("rh.ingestion.completed", attributes=attrs, timestamp=completed_at_ns)
+                else:
+                    # One carrier per host avoids the SDK event limit on large batches.
+                    span = tracer.start_span(
+                        "hbi.ingestion.completed",
+                        context=self.otel_context,
+                        attributes=attrs,
+                        start_time=completed_at_ns,
+                    )
+                    try:
+                        span.add_event("rh.ingestion.completed", attributes=attrs, timestamp=completed_at_ns)
+                    finally:
+                        span.end(end_time=completed_at_ns)
+            except Exception:
+                logger.exception(
+                    "Unable to record ingestion completion",
+                    extra={"application": application, "milestone": milestone, "host_id": str(host_id)},
                 )
-                span.add_event("rh.ingestion.completed", attributes=attrs, timestamp=completed_at_ns)
-                span.end(end_time=completed_at_ns)
 
 
 class HBIMessageConsumerBase:
@@ -618,14 +628,18 @@ class HBIMessageConsumerBase:
                     result.committed_at_ns = committed_at_ns
                     if result.application:
                         application = result.application
-                        metrics.host_app_data_processing_success.labels(application=application).inc(
-                            len(result.persisted_host_ids)
-                        )
-                        if result.persisted_host_ids:
-                            with suppress(TypeError, OSError):
+                        try:
+                            metrics.host_app_data_processing_success.labels(application=application).inc(
+                                len(result.persisted_host_ids)
+                            )
+                            if result.persisted_host_ids:
                                 metrics.host_app_data_last_processed_timestamp.labels(application=application).set(
                                     committed_at_ns / 1e9
                                 )
+                        except Exception:
+                            logger.exception(
+                                "Unable to record host application metrics", extra={"application": application}
+                            )
                         result.record_ingestion_completion(application, "inventory_views", committed_at_ns)
                 self.post_process_rows()
             finally:

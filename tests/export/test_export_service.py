@@ -12,6 +12,7 @@ from uuid import uuid4
 
 import pytest
 from marshmallow.exceptions import ValidationError
+from opentelemetry.trace import SpanKind
 from requests import Response
 from sqlalchemy import event
 from sqlalchemy.orm.exc import ObjectDeletedError
@@ -21,6 +22,7 @@ from api.host_query_db import get_hosts_to_export
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.logging import ContextualFilter
+from app.logging import threadctx
 from app.models import db
 from app.queue.export_service import ALWAYS_APPENDED_EXPORT_FIELDS
 from app.queue.export_service import COMPOSITE_VIEW_FIELDS_TO_EXPORT_FIELDS
@@ -39,6 +41,7 @@ from app.queue.host_mq import OperationResult
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import CORE_VIEW_FIELDS_TO_EXPORT_FIELDS
 from app.serialization import serialize_host_row_for_export
+from app.telemetry import _build_rh_attribute_span_processor
 from tests.helpers import export_service_utils as es_utils
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -314,7 +317,7 @@ def test_handle_message_missing_export_request_uuid_logs_warning(
     parsed_message, flask_app, mocker, export_service_consumer_mock, caplog
 ):
     mocker.patch("app.queue.export_service_mq.parse_export_service_message", return_value=parsed_message)
-    init_tls = mocker.patch("app.queue.export_service_mq.initialize_thread_local_storage")
+    init_context = mocker.spy(export_service_consumer_mock, "_initialize_message_context")
 
     with flask_app.app.app_context(), caplog.at_level(logging.WARNING):
         resp = export_service_consumer_mock.handle_message("{}")
@@ -324,16 +327,19 @@ def test_handle_message_missing_export_request_uuid_logs_warning(
         "Export message missing export_request_uuid; logging without request_id" in record.getMessage()
         for record in caplog.records
     )
-    assert init_tls.call_args_list[0] == mocker.call(None, org_id="org-1")
+    init_context.assert_called_once_with(None, org_id="org-1")
 
 
-def test_export_handle_message_sets_request_id_for_logs(flask_app, mocker, export_service_consumer_mock, caplog):
-    """Export handling must attach request_id to logs emitted during the message (not after cleanup)."""
+def test_export_handle_message_preserves_span_and_log_identity(
+    flask_app, mocker, export_service_consumer_mock, caplog, otel_provider
+):
+    """Export identity stays on the consumer span after the handler clears threadctx."""
     mocker.patch("app.queue.export_service.resolve_permission", return_value=(False, None))
     mock_post = mocker.patch("requests.Session.post", autospec=True)
     mock_post.return_value.status_code = 202
 
     expected_request_id = "9becbc61-49a4-49be-beb1-1f0a7cbc6e36"
+    provider, exporter = otel_provider(span_processors=[_build_rh_attribute_span_processor()])
     export_logger = logging.getLogger("inventory.app.queue.export_service")
     contextual_filter = ContextualFilter()
     export_logger.addFilter(contextual_filter)
@@ -341,8 +347,13 @@ def test_export_handle_message_sets_request_id_for_logs(flask_app, mocker, expor
         with (
             flask_app.app.app_context(),
             caplog.at_level(logging.ERROR, logger="inventory.app.queue.export_service"),
+            provider.get_tracer(__name__).start_as_current_span(
+                "mq.process export", kind=SpanKind.CONSUMER, attributes={"messaging.operation.name": "process"}
+            ),
         ):
             export_service_consumer_mock.handle_message(es_utils.create_export_message_mock())
+            assert threadctx.request_id is None
+            assert threadctx.org_id is None
     finally:
         export_logger.removeFilter(contextual_filter)
 
@@ -353,6 +364,9 @@ def test_export_handle_message_sets_request_id_for_logs(flask_app, mocker, expor
     ]
     assert error_records
     assert error_records[0].request_id == expected_request_id
+    span = next(span for span in exporter.get_finished_spans() if span.name == "mq.process export")
+    assert span.attributes["rh.request_id"] == expected_request_id
+    assert span.attributes["rh.org_id"] == "test"
 
 
 def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_staleness_culling, inventory_config):

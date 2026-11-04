@@ -172,16 +172,39 @@ def test_batch_preserves_message_and_sql_identity(completion_consumer, upstream)
     } == {(app, request, host) for (app, request), host in zip(identities[:3], hosts[:3], strict=True)}
 
 
-def test_reporting_failure_closes_deferred_spans(completion_consumer):
+@pytest.mark.parametrize("failure", ["metrics", "completion"])
+def test_reporting_failure_preserves_processing_and_offset_commit(completion_consumer, monkeypatch, caplog, failure):
     consumer, exporter = completion_consumer
-    host_mq.metrics.host_app_data_processing_success.labels.side_effect = RuntimeError("reporting failed")
-    with pytest.raises(RuntimeError, match="reporting failed"):
-        consumer._run_batch([message([str(uuid4())])])
-    assert consumer.processed_rows[0].otel_span is None
-    assert any(span.name.startswith("mq.process") for span in exporter.get_finished_spans())
+    if failure == "metrics":
+        host_mq.metrics.host_app_data_processing_success.labels.side_effect = [
+            RuntimeError("reporting failed"),
+            MagicMock(),
+        ]
+    else:
+        process = consumer._process_single_message_in_batch
+
+        def process_message(msg):
+            process(msg)
+            result = consumer.processed_rows[-1]
+            if result.request_id == "request-A":
+                monkeypatch.setattr(
+                    result.otel_span, "add_event", MagicMock(side_effect=RuntimeError("reporting failed"))
+                )
+
+        monkeypatch.setattr(consumer, "_process_single_message_in_batch", process_message)
+    postprocess = MagicMock()
+    monkeypatch.setattr(consumer, "post_process_rows", postprocess)
+    consumer._run_batch([message([str(uuid4())]), message([str(uuid4())], request_id="request-B", index=2)])
+    host_mq.db.session.commit.assert_called_once()
+    postprocess.assert_called_once()
+    consumer.consumer.commit.assert_called_once_with(asynchronous=False)
+    assert all(result.otel_span is None for result in consumer.processed_rows)
+    assert len(completions(exporter)) == (2 if failure == "metrics" else 1)
+    assert completions(exporter)[-1][1].attributes["rh.request_id"] == "request-B"
+    assert "reporting failed" in caplog.text
 
 
-@pytest.mark.parametrize("outcome", ["ack", "delivery_error", "enqueue_error", "deleted"])
+@pytest.mark.parametrize("outcome", ["ack", "delivery_error", "enqueue_error", "deleted", "reporting_error"])
 def test_hbi_completion_requires_commit_and_broker_ack(completion_consumer, monkeypatch, outcome):
     _consumer, exporter = completion_consumer
     producer = event_producer.EventProducer.__new__(event_producer.EventProducer)
@@ -197,6 +220,12 @@ def test_hbi_completion_requires_commit_and_broker_ack(completion_consumer, monk
 
     def handle_message(*_args, **_kwargs):
         consumer._initialize_message_context("request-A", "org-A")
+        if outcome == "reporting_error":
+            monkeypatch.setattr(
+                host_mq.trace_api.get_current_span(),
+                "add_event",
+                MagicMock(side_effect=RuntimeError("reporting failed")),
+            )
         return result
 
     monkeypatch.setattr(consumer, "handle_message", handle_message)
@@ -225,6 +254,10 @@ def test_hbi_completion_requires_commit_and_broker_ack(completion_consumer, monk
     consumer._run_batch([message([str(host_id)])])
     events = completions(exporter)
     assert len(events) == (1 if outcome == "ack" else 0)
+    if outcome == "reporting_error":
+        result.success_logger.assert_called_once()
+        host_mq.cache_ingested_system.assert_called_once()
+        consumer.consumer.commit.assert_called_once_with(asynchronous=False)
     if events:
         span, event = events[0]
         assert span.context.trace_id == 1
