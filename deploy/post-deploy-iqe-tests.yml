@@ -46,7 +46,7 @@ objects:
               name: ibutsu-config
           env:
           - name: IBUTSU_SOURCE
-            value: ${NAME_STUB}-${RUN_ID}
+            value: ${NAME_STUB}-${IMAGE_TAG}-${RUN_ID}
           - name: ENV_FOR_DYNACONF
             value: ${ENV_FOR_DYNACONF}
           - name: IQE_PLUGINS
@@ -91,6 +91,9 @@ parameters:
   required: true
 - name: COMMIT_SHA
   description: Deployed commit, provided by app-interface
+  required: true
+- name: IMAGE_TAG
+  description: Short deployed commit, provided by app-interface
   required: true
 - name: RUN_ID
   description: Unique ID of the run, generated on every deployment
