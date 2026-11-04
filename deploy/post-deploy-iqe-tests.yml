@@ -1,0 +1,106 @@
+---
+# IQE tests that app-interface runs after every successful Stage and Prod deployment
+# of host-inventory (SaaS file "host-inventory-post-deploy-testing").
+#
+# This is a stripped-down version of common/iqe-cronjob-template.yaml from
+# https://github.com/RedHatInsights/sre-testing-templates (used by the scheduled
+# runs), keeping only what the host_inventory IQE plugin needs. It has to live in
+# this repository, because app-interface auto-promotion pins the target to the
+# deployed commit of this repository.
+#
+# The Job name is fixed, and RUN_ID changes the pod template on every deployment.
+# Because the pod template of a Job is immutable, app-interface deletes the
+# existing Job (stopping a run that is still in progress) and creates a new one.
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: host-inventory-post-deploy-iqe-tests
+objects:
+- apiVersion: batch/v1
+  kind: Job
+  metadata:
+    name: ${NAME_STUB}
+    labels:
+      commit-sha: ${COMMIT_SHA}
+  spec:
+    activeDeadlineSeconds: 10800
+    backoffLimit: 0
+    template:
+      metadata:
+        annotations:
+          run-id: ${RUN_ID}
+      spec:
+        imagePullSecrets:
+        - name: quay-cloudservices-pull
+        restartPolicy: Never
+        containers:
+        - name: iqe
+          image: quay.io/cloudservices/iqe-tests:host-inventory
+          imagePullPolicy: Always
+          args:
+          - run
+          envFrom:
+          - secretRef:
+              name: iqe-ibutsu-token
+          - configMapRef:
+              name: ibutsu-config
+          env:
+          - name: IBUTSU_SOURCE
+            value: ${NAME_STUB}-${RUN_ID}
+          - name: ENV_FOR_DYNACONF
+            value: ${ENV_FOR_DYNACONF}
+          - name: IQE_PLUGINS
+            value: host_inventory
+          - name: IQE_MARKER_EXPRESSION
+            value: ${IQE_MARKER_EXPRESSION}
+          - name: IQE_FILTER_EXPRESSION
+            value: ${IQE_FILTER_EXPRESSION}
+          - name: IQE_PARALLEL_ENABLED
+            value: "false"
+          - name: DYNACONF_DEFAULT_USER
+            value: ${DYNACONF_DEFAULT_USER}
+          - name: DYNACONF_non_org_admin_user
+            value: ${NON_ORG_ADMIN_USER}
+          - name: DYNACONF_IQE_VAULT_URL
+            valueFrom:
+              secretKeyRef:
+                name: iqe-vault
+                key: url
+          - name: DYNACONF_IQE_VAULT_ROLE_ID
+            valueFrom:
+              secretKeyRef:
+                name: iqe-vault
+                key: roleId
+          - name: DYNACONF_IQE_VAULT_SECRET_ID
+            valueFrom:
+              secretKeyRef:
+                name: iqe-vault
+                key: secretId
+          resources:
+            limits:
+              cpu: 1500m
+              memory: 2.5Gi
+            requests:
+              cpu: 250m
+              memory: 2Gi
+parameters:
+- name: NAME_STUB
+  description: Job name, also used as the Ibutsu source prefix
+  required: true
+- name: COMMIT_SHA
+  description: Deployed commit, provided by app-interface
+  required: true
+- name: RUN_ID
+  description: Unique ID of the run, generated on every deployment
+  generate: expression
+  from: "[a-z0-9]{6}"
+- name: ENV_FOR_DYNACONF
+  required: true
+- name: IQE_MARKER_EXPRESSION
+  value: "not ephemeral and not longrun"
+- name: IQE_FILTER_EXPRESSION
+  value: ""
+- name: DYNACONF_DEFAULT_USER
+  value: "insights_inventory_qe"
+- name: NON_ORG_ADMIN_USER
+  value: "insights_inventory_qe_2"
