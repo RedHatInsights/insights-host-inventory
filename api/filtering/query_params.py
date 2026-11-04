@@ -26,7 +26,7 @@ class HostFilters:
     query_filter: dict[str, Any] | None = None
     rbac_filter: dict[str, Any] | None = None
     recommendation_severity: list[str] | None = None
-    incident_status: str | None = None
+    incident_status: list[str] | None = None
     cve_severity: list[str] | None = None
     known_exploit: str | None = None
     security_rule: str | None = None

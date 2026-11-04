@@ -1979,7 +1979,7 @@ class HostsApi:
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param list[str] recommendation_severity: Filter by Advisor recommendation severity (OR logic)
-        :param str incident_status: Filter by Advisor incident status
+        :param list[str] incident_status: Filter by Advisor incident status. Repeat the parameter for multiple values.
         :param list[str] cve_severity: Filter by Vulnerability CVE severity (OR logic)
         :param str known_exploit: Filter by Vulnerability known exploit status
         :param str security_rule: Filter by Vulnerability security rule status
@@ -2032,7 +2032,7 @@ class HostsApi:
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param list[str] recommendation_severity: Filter by Advisor recommendation severity (OR logic)
-        :param str incident_status: Filter by Advisor incident status
+        :param list[str] incident_status: Filter by Advisor incident status. Repeat the parameter for multiple values.
         :param list[str] cve_severity: Filter by Vulnerability CVE severity (OR logic)
         :param str known_exploit: Filter by Vulnerability known exploit status
         :param str security_rule: Filter by Vulnerability security rule status
@@ -2179,6 +2179,7 @@ class HostsApi:
             collection_formats["recommendation_severity"] = "multi"
         if "incident_status" in local_var_params and local_var_params["incident_status"] is not None:
             query_params.append(("incident_status", local_var_params["incident_status"]))
+            collection_formats["incident_status"] = "multi"
         if (
             "cve_severity" in local_var_params
             and local_var_params["cve_severity"] is not None
