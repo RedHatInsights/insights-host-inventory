@@ -61,6 +61,8 @@ objects:
             value: ${DYNACONF_DEFAULT_USER}
           - name: DYNACONF_non_org_admin_user
             value: ${NON_ORG_ADMIN_USER}
+          - name: DYNACONF_IQE_VAULT_VERIFY
+            value: "true"
           - name: DYNACONF_IQE_VAULT_URL
             valueFrom:
               secretKeyRef:
