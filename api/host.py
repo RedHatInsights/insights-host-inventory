@@ -16,6 +16,7 @@ from api import pagination_params
 from api.cache import CACHE
 from api.cache import delete_cached_system_keys
 from api.cache import get_system_cache_generation
+from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
 from api.filtering.db_filters import update_query_for_owner_id
 from api.filtering.query_params import HostFilters
@@ -160,7 +161,7 @@ def get_host_list(
             forwarded_identity=forwarded_identity,
             generation=generation,
         )
-        stored_system = CACHE.get(f"{system_key}")
+        stored_system = CACHE.get(system_key)
         if stored_system:
             host_list = [stored_system]
             total = 1 if get_total else None
@@ -209,8 +210,7 @@ def get_host_list(
     )
     if is_cached_insights_client_system_query and len(host_list) == 1:
         output_host = serialize_host_with_params(host_list[0])
-        timeout = inventory_config().cache_insights_client_system_timeout_sec
-        CACHE.set(key=system_key, value=output_host, timeout=timeout)
+        set_cached_system(system_key, output_host)
 
     return flask_json_response(json_data)
 
