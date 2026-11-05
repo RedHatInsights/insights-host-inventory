@@ -102,6 +102,8 @@ YUM_REPO1 = {"id": "repo1", "name": "repo1", "gpgcheck": True, "enabled": True, 
 
 YUM_REPO2 = {"id": "repo2", "name": "repo2", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
 
+OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
+
 SATELLITE_IDENTITY = deepcopy(SYSTEM_IDENTITY)
 SATELLITE_IDENTITY["system"]["cert_type"] = "satellite"
 
@@ -130,6 +132,21 @@ def generate_random_string(size=10):
 
 def now():
     return datetime.now(UTC)
+
+
+def timestamp_to_str(timestamp):
+    return timestamp.astimezone(UTC).isoformat()
+
+
+def add_seconds(timestamp, seconds):
+    return timestamp + timedelta(seconds=seconds)
+
+
+def make_config():
+    from app.config import Config
+    from app.environment import RuntimeEnvironment
+
+    return Config(RuntimeEnvironment.SERVER)
 
 
 def get_staleness_timestamps():
