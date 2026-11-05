@@ -32,8 +32,6 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 
-OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
-
 # Custom staleness configurations for testing
 # Makes hosts stale in 1 second and stale_warning after 2 seconds
 CUSTOM_STALENESS_STALE_WARNING = {
