@@ -27,10 +27,11 @@ flit-scm==1.7.0
 cython==3.1.2
 maturin==1.15.0
 setuptools-rust>=1.11.0
-cffi==1.17.1
+cffi==2.0.0
 cfgv==3.4.0
 coverage==7.9.2
 cryptography==50.0.2
+urllib3==2.8.0
 identify==2.6.12
 iniconfig==2.1.0
 nodeenv==1.9.1
