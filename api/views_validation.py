@@ -29,6 +29,23 @@ CORE_SORTABLE_FIELDS = VALID_CORE_VIEW_FIELDS & IMPLEMENTED_CORE_SORT_FIELDS
 
 VALID_SORT_DIRECTIONS = frozenset({"asc", "desc"})
 
+TAG_COLUMN_PREFIX = "tag:"
+# "tag:" + namespace (255) + "/" + key (255)
+MAX_TAG_COLUMN_KEY_LENGTH = len(TAG_COLUMN_PREFIX) + 255 + 1 + 255
+
+
+def is_tag_column_key(key: str) -> bool:
+    """A tag column key is ``tag:`` plus a non-empty namespace/key identity.
+
+    These are not in the field registry: the identity comes from the account's
+    tags, and a saved column must still load after that tag is gone.
+    """
+    if not isinstance(key, str) or not key.startswith(TAG_COLUMN_PREFIX):
+        return False
+    if len(key) > MAX_TAG_COLUMN_KEY_LENGTH:
+        return False
+    return len(key) > len(TAG_COLUMN_PREFIX)
+
 
 @cache
 def _get_app_column_keys() -> frozenset[str]:
@@ -62,7 +79,7 @@ def validate_view_configuration(configuration: dict) -> None:
     columns = configuration.get("columns", [])
     for col in columns:
         key = col.get("key", "")
-        if key not in valid_column_keys:
+        if key not in valid_column_keys and not is_tag_column_key(key):
             raise ValidationException(
                 f"Invalid column key '{key}'. Valid keys: {', '.join(sorted(valid_column_keys))}"
             )

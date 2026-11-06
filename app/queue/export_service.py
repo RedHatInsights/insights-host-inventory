@@ -14,6 +14,7 @@ from requests.adapters import HTTPAdapter
 from api.filtering.app_data_sorting import get_app_name_from_sort
 from api.host_query_db import get_hosts_to_export
 from api.views_validation import VALID_HOST_FILTER_KEYS
+from api.views_validation import is_tag_column_key
 from api.views_validation import validate_view_configuration
 from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
@@ -217,6 +218,9 @@ def resolve_export_columns(
     app_data_fields: dict[str, list[str]] = {}
 
     for col in _expand_view_columns(view_columns):
+        # Tag values are a later export. A hidden column is not part of the view.
+        if col.get("shown") is False or is_tag_column_key(col.get("key") or ""):
+            continue
         key = col.get("key") or ""
 
         if key in CORE_VIEW_FIELDS_TO_EXPORT_FIELDS:
