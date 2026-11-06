@@ -33,11 +33,11 @@ An org-level generation counter is used instead of a Redis SCAN-based key deleti
 
 - `tests/lib/test_utils.py` (modify): Add tests for `get_org_cache_generation` and `invalidate_org_system_cache` verifying correct Redis interactions (INCR, lazy init, no TTL on org counter). Add a test for `get_system_cache_generations` that verifies both counters are fetched in a single `MGET` call, including lazy-init behavior for missing keys and the `(0, 0)` fallback when Redis is unavailable.
 
-- `tests/test_cache_key.py` (modify or create): Add tests for `make_system_cache_key` with `org_generation` argument: verify no `:o…` suffix is appended when `org_generation == 0`, and `:o{N}` is appended when `org_generation > 0`.
+- `tests/lib/test_utils.py` (modify, additional): Add tests for `make_system_cache_key` with `org_generation` argument: verify no `:o…` suffix is appended when `org_generation == 0`, and `:o{N}` is appended when `org_generation > 0`.
 
-- `tests/api/test_host.py` (modify or relevant host test file): Add a test that verifies `api/host.py` passes the org generation counter returned by `get_system_cache_generations` into `make_system_cache_key`. Mock `get_system_cache_generations` to return a non-zero org generation and assert `make_system_cache_key` receives it.
+- `tests/api/hosts/test_hosts_get_system_cache.py` (modify): Add a test that verifies `api/host.py` passes the org generation counter returned by `get_system_cache_generations` into `make_system_cache_key`. Mock `get_system_cache_generations` to return a non-zero org generation and assert `make_system_cache_key` receives it.
 
-- `tests/app/queue/test_host_mq.py` (modify or relevant MQ test file): Add a test that verifies `app/queue/host_mq.py` passes the org generation counter returned by `get_system_cache_generations` into `make_system_cache_key`. Mock `get_system_cache_generations` to return a non-zero org generation and assert `make_system_cache_key` receives it.
+- `tests/mq/test_misc.py` (modify): Add a test that verifies `app/queue/host_mq.py` passes the org generation counter returned by `get_system_cache_generations` into `make_system_cache_key`. Mock `get_system_cache_generations` to return a non-zero org generation and assert `make_system_cache_key` receives it.
 
 ## Constraints
 - The org generation counter must use `INCR` (O(1)), NOT a SCAN-based approach.
