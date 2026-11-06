@@ -90,6 +90,12 @@ def _config_filters_to_query_filters(config_filters: dict) -> tuple[dict, dict]:
     if workspace_name:
         host_filter["group_name"] = [workspace_name] if isinstance(workspace_name, str) else workspace_name
 
+    # Configurations store "workspace_id" (workspace UUIDs, like the
+    # workspace_id query parameter) but query_filters() expects "group_ids".
+    workspace_id = host_filter.pop("workspace_id", None)
+    if workspace_id:
+        host_filter["group_ids"] = [workspace_id] if isinstance(workspace_id, str) else workspace_id
+
     return host_filter, query_filter
 
 

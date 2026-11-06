@@ -3397,6 +3397,12 @@ components:
           type: array
           items:
             type: string
+        workspace_id:
+          description: Filter by workspace ID (UUID format).
+          type: array
+          items:
+            type: string
+            format: uuid
         last_check_in_start:
           description: Start of last check-in date range (ISO 8601).
           type: string
