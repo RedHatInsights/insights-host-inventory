@@ -85,7 +85,7 @@ class ExportServiceConsumer(HBIMessageConsumerBase):
             export_request_uuid = resource_request.get("export_request_uuid")
             if export_request_uuid is None:
                 logger.warning("Export message missing export_request_uuid; logging without request_id")
-            initialize_thread_local_storage(
+            self._initialize_message_context(
                 str(export_request_uuid) if export_request_uuid is not None else None,
                 org_id=validated_msg.get("redhatorgid"),
             )
