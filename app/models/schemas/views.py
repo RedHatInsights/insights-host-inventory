@@ -5,6 +5,7 @@ from marshmallow import pre_load
 from marshmallow import validate as marshmallow_validate
 
 from app.models.views import MAX_VIEW_NAME_LENGTH
+from app.validators import verify_uuid_format
 
 VIEW_NAME_PATTERN = r"^[a-zA-Z0-9 _.'-]+$"
 VIEW_NAME_VALIDATION_ERROR = (
@@ -45,6 +46,7 @@ class HostFiltersSchema(MarshmallowSchema):
     registered_with = fields.List(fields.Str(), required=False)
     tags = fields.List(fields.Str(), required=False)
     workspace_name = fields.List(fields.Str(), required=False)
+    workspace_id = fields.List(fields.Str(validate=verify_uuid_format), required=False)
     last_check_in_start = fields.Str(required=False)
     last_check_in_end = fields.Str(required=False)
     updated_start = fields.Str(required=False)
