@@ -242,7 +242,8 @@ class TestHostAppMessageConsumerMetrics:
         headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
         host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
-        mock_metrics.host_app_data_processing_success.labels.assert_called_with(application="advisor")
+        mock_metrics.host_app_data_processing_success.labels.assert_not_called()
+        # A handler return is not commit evidence; _run_batch records success after commit.
 
     @patch("app.queue.host_mq.metrics")
     def test_unicode_error_increments_failure_metric(self, mock_metrics, host_app_consumer):
@@ -359,7 +360,8 @@ class TestHostAppMessageConsumerEdgeCases:
         }
 
         headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
-        host_app_consumer.handle_message(json.dumps(message), headers=headers)
+        result = host_app_consumer.handle_message(json.dumps(message), headers=headers)
+        assert [str(host_id) for host_id in result.persisted_host_ids] == [str(host.id)]
 
         app_data = db.session.query(HostAppDataAdvisor).filter_by(org_id=org_id, host_id=host.id).first()
         assert app_data is not None

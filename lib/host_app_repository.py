@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 from psycopg2.errors import ForeignKeyViolation
 from sqlalchemy.dialects.postgresql import insert
@@ -17,7 +18,10 @@ __all__ = ("upsert_host_app_data",)
 def _build_upsert_stmt(model_class: type, rows: list[dict[str, Any]]):
     stmt = insert(model_class).values(rows)
     update_cols = {col: stmt.excluded[col] for col in rows[0] if col not in ("org_id", "host_id")}
-    return stmt.on_conflict_do_update(index_elements=["org_id", "host_id"], set_=update_cols)
+    return stmt.on_conflict_do_update(
+        index_elements=["org_id", "host_id"],
+        set_=update_cols,
+    ).returning(stmt.table.c.host_id)
 
 
 def _upsert_individually(
@@ -25,15 +29,15 @@ def _upsert_individually(
     application: str,
     org_id: str,
     hosts_data: list[dict[str, Any]],
-) -> int:
+) -> list[UUID]:
     """Fallback: upsert one row at a time using savepoints so a single
     deleted host doesn't prevent the rest of the batch from being persisted."""
-    success_count = 0
+    successful_ids: list[UUID] = []
     for row in hosts_data:
         try:
             with db.session.begin_nested():
-                db.session.execute(_build_upsert_stmt(model_class, [row]))
-            success_count += 1
+                persisted = db.session.execute(_build_upsert_stmt(model_class, [row])).scalars().all()
+            successful_ids.extend(persisted)
         except IntegrityError as e:
             if not isinstance(e.orig, ForeignKeyViolation):
                 raise
@@ -43,7 +47,7 @@ def _upsert_individually(
                 application,
                 extra={"application": application, "org_id": org_id, "host_id": str(row.get("host_id"))},
             )
-    return success_count
+    return successful_ids
 
 
 def upsert_host_app_data(
@@ -51,7 +55,7 @@ def upsert_host_app_data(
     application: str,
     org_id: str,
     hosts_data: list[dict[str, Any]],
-) -> int:
+) -> list[UUID]:
     """
     Perform efficient upsert (INSERT ... ON CONFLICT DO UPDATE) for host application data.
 
@@ -59,23 +63,23 @@ def upsert_host_app_data(
     is retried row-by-row so that valid hosts are still persisted.
 
     Returns:
-        Number of hosts successfully upserted
+        IDs of successfully upserted hosts, excluding hosts skipped after FK violations.
     """
     if not hosts_data:
         logger.info(f"No hosts to upsert for {application}", extra={"application": application, "org_id": org_id})
-        return 0
+        return []
 
     try:
         with db.session.begin_nested():
-            db.session.execute(_build_upsert_stmt(model_class, hosts_data))
-        success_count = len(hosts_data)
+            successful_ids = list(db.session.execute(_build_upsert_stmt(model_class, hosts_data)).scalars())
     except IntegrityError as e:
         if not isinstance(e.orig, ForeignKeyViolation):
             raise
-        success_count = _upsert_individually(model_class, application, org_id, hosts_data)
+        successful_ids = _upsert_individually(model_class, application, org_id, hosts_data)
 
+    success_count = len(successful_ids)
     logger.info(
         f"Successfully upserted {success_count} host records for {application}",
         extra={"application": application, "org_id": org_id, "success_count": success_count},
     )
-    return success_count
+    return successful_ids
