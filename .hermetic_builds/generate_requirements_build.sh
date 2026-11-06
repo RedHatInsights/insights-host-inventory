@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 hermetic_builds_dir=${1:-"."}
 
