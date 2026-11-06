@@ -287,6 +287,30 @@ class TestCreateView:
         assert_response_status(response_status, 201)
         assert len(response_data["configuration"]["columns"]) == 12
 
+    def test_creates_view_with_tag_columns(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [
+                {"key": "display_name"},
+                {"key": "tag:insights-client/env"},
+                {"key": "tag:owner", "shown": False},
+            ]
+        }
+        data = {"name": "Tagged View", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert response_data["configuration"]["columns"] == [
+            {"key": "display_name"},
+            {"key": "tag:insights-client/env"},
+            {"key": "tag:owner", "shown": False},
+        ]
+
+        get_status, get_data = do_request(flask_client.get, build_views_url(response_data["id"]), USER_IDENTITY)
+        assert_response_status(get_status, 200)
+        assert get_data["configuration"]["columns"] == response_data["configuration"]["columns"]
+
     def test_creates_view_with_sort(self, flask_client: TestClient) -> None:
         config = {
             "columns": [{"key": "display_name"}],
@@ -608,6 +632,28 @@ class TestCreateView:
 
         assert_response_status(response_status, 400)
         assert "advisor:nonexistent" in response_data["detail"]
+
+    def test_400_for_empty_tag_column_key(self, flask_client: TestClient) -> None:
+        data = {"name": "Empty Tag", "configuration": {"columns": [{"key": "tag:"}]}}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "tag:" in response_data["detail"]
+
+    def test_400_for_tag_column_sort_key(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}, {"key": "tag:owner"}],
+            "sort": {"key": "tag:owner", "direction": "asc"},
+        }
+        data = {"name": "Sorted Tag", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "tag:owner" in response_data["detail"]
 
     def test_400_for_invalid_sort_key(self, flask_client: TestClient) -> None:
         config = {

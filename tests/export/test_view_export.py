@@ -893,6 +893,25 @@ class TestResolveExportColumns:
                 *ALWAYS_APPENDED_EXPORT_FIELDS,
             ]
 
+    def test_tag_columns_are_omitted(self, flask_app):
+        with flask_app.app.app_context():
+            fields, app_data = resolve_export_columns(
+                [
+                    {"key": "display_name"},
+                    {"key": "tag:insights-client/env"},
+                    {"key": "tag:owner", "shown": False},
+                    {"key": "operating_system", "shown": False},
+                ]
+            )
+
+            assert fields == [
+                "host_id",
+                "display_name",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
+            ]
+            assert app_data == {}
+            assert not any(field.startswith("tag:") for field in fields)
+
     def test_updated_view_column_not_duplicated_by_append(self, flask_app):
         """ "updated" is both a view field and an always-appended export field — it must
         appear exactly once, at its selected position."""
