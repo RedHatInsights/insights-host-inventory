@@ -41,7 +41,7 @@ class HostFilters:
         "updated_end": "datetime",
         "system_type": "list[str]",
         "recommendation_severity": "list[str]",
-        "incident_status": "str",
+        "incident_status": "list[str]",
         "cve_severity": "list[str]",
         "known_exploit": "str",
         "security_rule": "str",
@@ -407,7 +407,7 @@ class HostFilters:
         :param recommendation_severity: The recommendation_severity of this HostFilters.  # noqa: E501
         :type: list[str]
         """
-        allowed_values = ["critical", "important", "moderate", "low"]
+        allowed_values = ["critical", "important", "moderate", "low", "not_analyzed"]
         if self.local_vars_configuration.client_side_validation and not set(recommendation_severity).issubset(
             set(allowed_values)
         ):
@@ -427,7 +427,7 @@ class HostFilters:
         Filter by Advisor incident status.  # noqa: E501
 
         :return: The incident_status of this HostFilters.  # noqa: E501
-        :rtype: str
+        :rtype: list[str]
         """
         return self._incident_status
 
@@ -435,16 +435,19 @@ class HostFilters:
     def incident_status(self, incident_status):
         """Sets the incident_status of this HostFilters.
 
-        Filter by Advisor incident status.  # noqa: E501
+        Filter by Advisor incident status. Values are OR.  # noqa: E501
 
         :param incident_status: The incident_status of this HostFilters.  # noqa: E501
-        :type: str
+        :type: list[str]
         """
-        allowed_values = ["incident", "no_incident"]
-        if self.local_vars_configuration.client_side_validation and incident_status not in allowed_values:
+        allowed_values = ["present", "not_present", "not_analyzed"]
+        if self.local_vars_configuration.client_side_validation and not set(incident_status).issubset(
+            set(allowed_values)
+        ):
             raise ValueError(
-                "Invalid value for `incident_status` ({}), must be one of {}".format(
-                    incident_status, allowed_values
+                "Invalid values for `incident_status` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(incident_status) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
                 )
             )
 

@@ -2702,7 +2702,9 @@
         "in": "query",
         "name": "recommendation_severity",
         "required": false,
-        "description": "Filters hosts by Advisor recommendation severity. Only hosts with at least one recommendation of the specified severity are returned. Multiple values use OR logic (e.g. critical + low returns hosts with either).",
+        "style": "form",
+        "explode": true,
+        "description": "Filters hosts by Advisor recommendation severity. Repeat the parameter for multiple values (recommendation_severity=critical&recommendation_severity=low). Values are OR. critical, important, moderate, and low match hosts whose count for that severity is greater than 0. not_analyzed matches hosts with no Advisor data.",
         "schema": {
           "type": "array",
           "items": {
@@ -2711,7 +2713,8 @@
               "critical",
               "important",
               "moderate",
-              "low"
+              "low",
+              "not_analyzed"
             ]
           }
         }
@@ -2720,13 +2723,19 @@
         "in": "query",
         "name": "incident_status",
         "required": false,
-        "description": "Filters hosts by Advisor incident status. Mutually exclusive: only one value may be provided. \"incident\" returns hosts with incidents > 0. \"no_incident\" returns hosts with incidents = 0 (excludes hosts with no Advisor data).",
+        "style": "form",
+        "explode": true,
+        "description": "Filters hosts by Advisor incident status. Repeat the parameter for multiple values (incident_status=present&incident_status=not_analyzed). Values are OR. present matches incidents greater than 0. not_present matches a published Advisor row with incidents equal to 0. not_analyzed matches hosts with no Advisor data.",
         "schema": {
-          "type": "string",
-          "enum": [
-            "incident",
-            "no_incident"
-          ]
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "present",
+              "not_present",
+              "not_analyzed"
+            ]
+          }
         }
       },
       "cveSeverityParam": {
@@ -6301,7 +6310,7 @@
             }
           },
           "recommendation_severity": {
-            "description": "Filter by Advisor recommendation severity (OR logic).",
+            "description": "Filter by Advisor recommendation severity. Values are OR. not_analyzed matches hosts with no Advisor data.",
             "type": "array",
             "items": {
               "type": "string",
@@ -6309,17 +6318,22 @@
                 "critical",
                 "important",
                 "moderate",
-                "low"
+                "low",
+                "not_analyzed"
               ]
             }
           },
           "incident_status": {
-            "description": "Filter by Advisor incident status.",
-            "type": "string",
-            "enum": [
-              "incident",
-              "no_incident"
-            ]
+            "description": "Filter by Advisor incident status. Values are OR. present matches incidents greater than 0. not_present matches incidents equal to 0. not_analyzed matches hosts with no Advisor data.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "present",
+                "not_present",
+                "not_analyzed"
+              ]
+            }
           },
           "cve_severity": {
             "description": "Filter by Vulnerability CVE severity (OR logic).",

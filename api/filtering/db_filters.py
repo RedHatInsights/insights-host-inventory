@@ -543,11 +543,18 @@ def _system_type_filter(filters: list[str]) -> list:
     return [or_(*(SYSTEM_TYPE_FILTERS[f] for f in filters))]
 
 
+_ADVISOR_SEVERITY_COLUMNS = ("critical", "important", "moderate", "low")
+
+
 def _advisor_filter(
     recommendation_severity: list[str] | None,
-    incident_status: str | None,
+    incident_status: list[str] | None,
 ) -> tuple[list, type]:
     """Build filters for recommendation_severity and incident_status params.
+
+    Values within each param are OR. The two params are AND when both are set.
+    not_analyzed is the absence of an advisor row (host_id IS NULL), not a column.
+    present is incidents > 0. not_present is a published row with incidents == 0.
 
     Returns:
         (list of SQLAlchemy filter expressions, HostAppDataAdvisor model class)
@@ -557,14 +564,26 @@ def _advisor_filter(
     filters = []
 
     if recommendation_severity:
-        severity_conditions = [getattr(HostAppDataAdvisor, sev) > 0 for sev in recommendation_severity]
-        filters.append(or_(*severity_conditions))
+        severity_conditions = []
+        for severity in recommendation_severity:
+            if severity == "not_analyzed":
+                severity_conditions.append(HostAppDataAdvisor.host_id.is_(None))
+            elif severity in _ADVISOR_SEVERITY_COLUMNS:
+                severity_conditions.append(getattr(HostAppDataAdvisor, severity) > 0)
+        if severity_conditions:
+            filters.append(or_(*severity_conditions))
 
     if incident_status:
-        if incident_status == "incident":
-            filters.append(HostAppDataAdvisor.incidents > 0)
-        else:
-            filters.append(HostAppDataAdvisor.incidents == 0)
+        incident_conditions = []
+        for status in incident_status:
+            if status == "present":
+                incident_conditions.append(HostAppDataAdvisor.incidents > 0)
+            elif status == "not_present":
+                incident_conditions.append(HostAppDataAdvisor.incidents == 0)
+            elif status == "not_analyzed":
+                incident_conditions.append(HostAppDataAdvisor.host_id.is_(None))
+        if incident_conditions:
+            filters.append(or_(*incident_conditions))
 
     return filters, HostAppDataAdvisor
 
