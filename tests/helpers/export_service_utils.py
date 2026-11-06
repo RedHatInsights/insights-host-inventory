@@ -180,3 +180,12 @@ def create_export_csv_mock(mocker):
 
 def create_export_json_mock(mocker):
     return [{field: mocker.ANY for field in _EXPORT_SERVICE_FIELDS}]
+
+
+def make_response(status_code, text=""):
+    from unittest import mock
+
+    resp = mock.Mock()
+    resp.status_code = status_code
+    resp.text = text
+    return resp

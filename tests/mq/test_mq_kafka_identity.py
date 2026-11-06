@@ -17,6 +17,7 @@ from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import write_add_update_event_message
 from lib.host_repository import host_query
 from tests.helpers.mq_utils import wrap_message
+from tests.helpers.test_utils import OWNER_ID
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -25,8 +26,6 @@ from tests.helpers.test_utils import get_encoded_idstr
 from tests.helpers.test_utils import get_platform_metadata
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import valid_system_profile
-
-OWNER_ID: str = SYSTEM_IDENTITY["system"]["cn"]
 
 
 def _assert_host_not_in_db(org_id: str, subscription_manager_id: str) -> None:
