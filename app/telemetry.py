@@ -89,6 +89,7 @@ def _build_rh_attribute_span_processor(rh_service: str = "host-inventory"):
     from opentelemetry import trace
     from opentelemetry.sdk.trace import ReadableSpan
     from opentelemetry.sdk.trace import SpanProcessor
+    from opentelemetry.trace import SpanKind
 
     from app.logging import threadctx
 
@@ -105,6 +106,12 @@ def _build_rh_attribute_span_processor(rh_service: str = "host-inventory"):
                 return
 
             span.set_attribute("rh.service", rh_service)
+
+            # A consumer starts a new message scope. Its handler supplies that
+            # message's identity; the parent or thread-local values can belong
+            # to another message in the same batch.
+            if span.kind == SpanKind.CONSUMER:
+                return
 
             # Tracer.start_span often passes parent_context=None even for children; in that
             # case the active span during on_start is still the parent.
