@@ -22,7 +22,7 @@ flit-scm==1.7.0
 cython==3.1.2
 maturin==1.15.0
 setuptools-rust>=1.11.0
-cffi==1.17.1
+cffi==2.1.1
 cfgv==3.4.0
 coverage==7.9.2
 cryptography==50.0.2
@@ -39,7 +39,7 @@ pytest-cov==6.2.1
 pytest-mock==3.14.1
 pytest-subtests==0.14.2
 sqlalchemy-utils==0.41.2
-types-cffi==1.17.0.20250523
+types-cffi==2.1.0.20260827
 types-pyopenssl==24.1.0.20240722
 types-python-dateutil==2.9.0.20250708
 types-pytz==2025.2.0.20250516
