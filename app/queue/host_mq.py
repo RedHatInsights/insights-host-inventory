@@ -7,7 +7,6 @@ import time
 import uuid
 from collections.abc import Callable
 from contextlib import nullcontext
-from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
 from functools import partial
@@ -29,6 +28,7 @@ from opentelemetry import trace as trace_api
 from opentelemetry.context import Context as OtelContext
 from opentelemetry.instrumentation.utils import suppress_instrumentation
 from opentelemetry.propagate import extract as otel_extract
+from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.trace import SpanKind
 from opentelemetry.trace import StatusCode
 from psycopg2.errors import UniqueViolation
@@ -207,8 +207,53 @@ class OperationResult:
         self.staleness_object = so
         self.event_type = et
         self.success_logger = sl
+        self.application: str | None = None
+        self.request_id: str | None = None
+        self.org_id: str | None = None
+        self.persisted_host_ids: list[UUID] = []
+        self.committed_at_ns: int | None = None
         self.otel_context: OtelContext | None = None
         self.otel_span = None
+
+    def record_ingestion_completion(self, application: str, milestone: str, completed_at_ns: int) -> None:
+        """Report committed hosts using the identity captured for this message."""
+        if (
+            self.committed_at_ns is None
+            or not self.request_id
+            or not self.org_id
+            or self.otel_span is None
+            or not self.otel_span.is_recording()
+        ):
+            return
+        for host_id in self.persisted_host_ids:
+            attrs = {
+                "rh.ingestion.application": application,
+                "rh.ingestion.milestone": milestone,
+                "rh.ingestion.outcome": "processed",
+                "rh.request_id": self.request_id,
+                "rh.org_id": self.org_id,
+                "rh.host_id": str(host_id),
+            }
+            try:
+                if len(self.persisted_host_ids) == 1:
+                    self.otel_span.add_event("rh.ingestion.completed", attributes=attrs, timestamp=completed_at_ns)
+                else:
+                    # One carrier per host avoids the SDK event limit on large batches.
+                    span = tracer.start_span(
+                        "hbi.ingestion.completed",
+                        context=self.otel_context,
+                        attributes=attrs,
+                        start_time=completed_at_ns,
+                    )
+                    try:
+                        span.add_event("rh.ingestion.completed", attributes=attrs, timestamp=completed_at_ns)
+                    finally:
+                        span.end(end_time=completed_at_ns)
+            except Exception:
+                logger.exception(
+                    "Unable to record ingestion completion",
+                    extra={"application": application, "milestone": milestone, "host_id": str(host_id)},
+                )
 
 
 class HBIMessageConsumerBase:
@@ -267,7 +312,7 @@ class HBIMessageConsumerBase:
         pass  # No action is taken by default
 
     def _end_all_deferred_spans(self, error: Exception | None = None) -> None:
-        """Enrich and end any deferred mq.process spans still open on processed_rows.
+        """End deferred mq.process spans with the identity captured per message.
 
         Used as a safety net on error paths (flush/commit failure) and after
         post_process_rows. If an error is provided, marks all open spans with
@@ -277,7 +322,6 @@ class HBIMessageConsumerBase:
             if isinstance(result, OperationResult) and result.otel_span is not None:
                 if error:
                     self._mark_span_error(result.otel_span, error)
-                self._enrich_span_from_threadctx(result.otel_span)
                 result.otel_span.end()
                 result.otel_span = None
 
@@ -389,6 +433,19 @@ class HBIMessageConsumerBase:
         if request_id:
             span.set_attribute("rh.request_id", request_id)
 
+    def _initialize_message_context(
+        self, request_id: str | None, org_id: str | None = None, account_number: str | None = None
+    ) -> None:
+        """Set this message's identity before its DB and producer child spans."""
+        initialize_thread_local_storage(request_id, org_id, account_number)
+        span = trace_api.get_current_span()
+        if (
+            isinstance(span, ReadableSpan)
+            and span.kind == SpanKind.CONSUMER
+            and (span.attributes or {}).get("messaging.operation.name") == "process"
+        ):
+            self._enrich_span_from_threadctx(span)
+
     def _start_deferred_message_span(self, msg: Message):
         """Start a per-message span that will be ended later (after post_process).
 
@@ -412,11 +469,15 @@ class HBIMessageConsumerBase:
 
         Returns the context token so callers can detach after flushing.
         """
+        initialize_thread_local_storage(None)
         span, token = self._start_deferred_message_span(msg)
         start_ns = None if span else time.time_ns()
         try:
             result = self.handle_message(msg.value(), headers=msg.headers())
+            self._enrich_span_from_threadctx(span)
             if isinstance(result, OperationResult):
+                result.request_id = getattr(threadctx, "request_id", None)
+                result.org_id = getattr(threadctx, "org_id", None)
                 result.otel_context = otel_context_api.get_current()
                 result.otel_span = span
             self.processed_rows.append(result)
@@ -554,12 +615,32 @@ class HBIMessageConsumerBase:
                 # traces since per-message span contexts have already been detached.
                 with suppress_instrumentation() if self._has_upstream_trace else nullcontext():
                     db.session.commit()
+                committed_at_ns = time.time_ns()
             except Exception as exc:
                 db.session.rollback()
                 self._end_all_deferred_spans(error=exc)
                 raise
 
             try:
+                for result in self.processed_rows:
+                    if not isinstance(result, OperationResult):
+                        continue
+                    result.committed_at_ns = committed_at_ns
+                    if result.application:
+                        application = result.application
+                        try:
+                            metrics.host_app_data_processing_success.labels(application=application).inc(
+                                len(result.persisted_host_ids)
+                            )
+                            if result.persisted_host_ids:
+                                metrics.host_app_data_last_processed_timestamp.labels(application=application).set(
+                                    committed_at_ns / 1e9
+                                )
+                        except Exception:
+                            logger.exception(
+                                "Unable to record host application metrics", extra={"application": application}
+                            )
+                        result.record_ingestion_completion(application, "inventory_views", committed_at_ns)
                 self.post_process_rows()
             finally:
                 self._end_all_deferred_spans()
@@ -637,7 +718,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
         org_id = validated_operation_msg["org_id"]
         operation = validated_operation_msg["operation"]
         workspace = validated_operation_msg["workspace"]
-        initialize_thread_local_storage(None, org_id=org_id)
+        self._initialize_message_context(None, org_id=org_id)
         identity = create_mock_identity_with_org_id(org_id)
         identity.account_number = validated_operation_msg["account_number"]
         logger.info(f"Received {operation} message for workspace ID {workspace['id']}")
@@ -728,7 +809,7 @@ class HostMessageConsumer(HBIMessageConsumerBase):
 
         request_id = platform_metadata.get("request_id")
         host_data = validated_operation_msg["data"]
-        initialize_thread_local_storage(request_id, org_id=host_data.get("org_id"))
+        self._initialize_message_context(request_id, org_id=host_data.get("org_id"))
 
         payload_tracker = get_payload_tracker(request_id=request_id)
 
@@ -751,13 +832,15 @@ class HostMessageConsumer(HBIMessageConsumerBase):
                 )
                 event_type = operation_results_to_event_type(operation_result)
 
-                return OperationResult(
+                result = OperationResult(
                     host_row,
                     platform_metadata,
                     get_staleness_obj(identity.org_id),
                     event_type,
                     success_logger,
                 )
+                result.persisted_host_ids = [host_row.id]
+                return result
 
             except ValidationException as ve:
                 logger.error(
@@ -951,8 +1034,10 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             application=application,
         )
 
-        initialize_thread_local_storage(request_id, org_id=validated_msg.get("org_id"))
-        return self.process_message(application, validated_msg)
+        self._initialize_message_context(request_id, org_id=validated_msg.get("org_id"))
+        result = self.process_message(application, validated_msg)
+        result.application = application.value
+        return result
 
     @override
     def process_message(self, application: ConsumerApplication, validated_msg: dict[str, Any]) -> OperationResult:
@@ -978,16 +1063,18 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 partial(log_host_app_data_upsert_via_mq, logger, application, org_id, []),
             )
 
-        self._upsert_hosts(model_class, application, org_id, valid_hosts_list)
+        persisted_ids = self._upsert_hosts(model_class, application, org_id, valid_hosts_list)
 
-        host_ids = [str(host["host_id"]) for host in valid_hosts_list]
-        return OperationResult(
+        host_ids = [str(host_id) for host_id in persisted_ids]
+        result = OperationResult(
             None,
             None,
             None,
             None,
             partial(log_host_app_data_upsert_via_mq, logger, application, org_id, host_ids),
         )
+        result.persisted_host_ids = persisted_ids
+        return result
 
     def _extract_headers(self, headers: list[tuple[str, bytes]] | None = None) -> tuple[str | None, str | None]:
         decoded = decode_kafka_headers(headers)
@@ -1061,22 +1148,16 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
 
     def _upsert_hosts(
         self, model_class: type, application: ConsumerApplication, org_id: str, hosts_data: list[dict]
-    ) -> None:
+    ) -> list:
         try:
-            success_count = host_app_repository.upsert_host_app_data(
+            persisted_ids = host_app_repository.upsert_host_app_data(
                 model_class=model_class,
                 application=application,
                 org_id=org_id,
                 hosts_data=hosts_data,
             )
-            metrics.host_app_data_processing_success.labels(application=application).inc(success_count)
 
-            # Update data freshness metric with current timestamp
-            # In test/dev environments, Gauge metrics may fail if PROMETHEUS_MULTIPROC_DIR
-            # isn't properly configured for multiprocess mode. This is non-fatal.
-            with suppress(TypeError, OSError):
-                metrics.host_app_data_last_processed_timestamp.labels(application=application).set(time.time())
-
+            return persisted_ids
         except OperationalError as e:
             logger.exception(
                 f"Database operational error while upserting host app data for {application}",
@@ -1405,7 +1486,9 @@ def write_add_update_event_message(
             tracker_ctx._success_status_msg = "skipped – host deleted before event production"
             return
 
-        event_producer.write_event(event, str(result.row.id), headers, wait=True)
+        published = event_producer.write_event(event, str(result.row.id), headers, wait=True)
+        if published is True:
+            result.record_ingestion_completion("hbi", "processing", time.time_ns())
 
         if result.event_type.name == HOST_EVENT_TYPE_CREATED:
             # Notifications are expected to omit null canonical facts
