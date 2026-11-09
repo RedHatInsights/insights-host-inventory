@@ -74,14 +74,8 @@ Then follow these steps:
 * Reserve a namespace with:
 `NAMESPACE=$(bonfire namespace reserve -d <hours_to_reserve (at least 2)>)`
 * Deploy HBI to that namespace: `bonfire deploy --source appsre --ref-env insights-stage host-inventory -n $NAMESPACE`
-* Run the tests: `POD=$(bonfire deploy-iqe-cji host-inventory -m "not resilience and not cert_auth and not rbac_dependent" -n $NAMESPACE)`
+* Run the tests: `POD=$(bonfire deploy-iqe-cji host-inventory -m "not cert_auth and not rbac_dependent" -n $NAMESPACE)`
 * To see the live results: `oc logs -n $NAMESPACE $POD -f`
-* Run graceful shutdown tests:
-`POD=$(bonfire deploy-iqe-cji host-inventory -m "resilience" -n $NAMESPACE)`
-* To see the live results: `oc logs -n $NAMESPACE $POD -f`
-
-You can run graceful shutdown tests together with other tests, but it is recommended to run them
-separately, because they can be destructive, and they could affect results of the other tests.
 
 The reason why we skip e2e cert auth tests (`-m "not cert_auth"`) is that when we use
 `ENV_FOR_DYNACONF=clowder_smoke`, which is the default env in ephemeral, then we send direct
@@ -104,7 +98,7 @@ the service accounts tests (`-m "not service_account"`), because of the same rea
 cert auth tests (see above). So, if you wanted to run all the tests now, the command would look
 like this:
 ```bash
-$ POD=$(bonfire deploy-iqe-cji host-inventory -m "not resilience and not cert_auth and not service_account" -n $NAMESPACE)
+$ POD=$(bonfire deploy-iqe-cji host-inventory -m "not cert_auth and not service_account" -n $NAMESPACE)
 ```
 
 ## Running tests with local changes in ephemeral environment
@@ -127,7 +121,7 @@ end of the `deploy-iqe-cji` command:
 
 3. Deploy the pod:
 ```bash
-POD=$(bonfire deploy-iqe-cji --debug-pod host-inventory -m "not resilience and not cert_auth and not rbac_dependent" -n $NAMESPACE)
+POD=$(bonfire deploy-iqe-cji --debug-pod host-inventory -m "not cert_auth and not rbac_dependent" -n $NAMESPACE)
 ```
 
 4. Copy your local changes to the pod:
@@ -215,7 +209,6 @@ requirements)
 * `concurrency` - Tests that involve making multiple concurrent requests against a given endpoint
 * `multi_account` - Tests that require two different application user accounts to execute
 * `reaper_script` - Tests that need to run HBI reaper script
-* `resilience` - Tests intended to verify the graceful shutdown of the HBI services
 * `cert_auth` - Tests that require certificates for authorization
 * `rbac_dependent` - Tests that require RBAC to be running
 * `service_account` - Tests that require service accounts

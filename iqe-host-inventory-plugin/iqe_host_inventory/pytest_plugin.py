@@ -36,10 +36,6 @@ def pytest_configure(config):
     )
     config.addinivalue_line("markers", "reaper_script: Tests that need to run HBI reaper script")
     config.addinivalue_line(
-        "markers",
-        "resilience: Tests intended to verify the graceful shutdown of the HBI services",
-    )
-    config.addinivalue_line(
         "markers", "cert_auth: Tests that require certificates for authorization"
     )
     config.addinivalue_line("markers", "rbac_dependent: Tests that require RBAC to be running")
