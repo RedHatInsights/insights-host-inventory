@@ -2,23 +2,187 @@ import uuid
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
+from urllib.parse import urlencode
 
 import pytest
 
 from app.models import ProviderType
+from app.models import db
 from app.serialization import _deserialize_tags_dict
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_tags_url
+from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_hosts_by_reporter_and_staleness
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import run_rbac_test
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+
+
+def _assert_aggregate_tags(response, expected_tags):
+    """Compare complete tag membership and host counts, independent of ordering."""
+    assert response["total"] == response["count"] == len(response["results"]) == len(expected_tags)
+    assert {
+        (item["tag"]["namespace"], item["tag"]["key"], item["tag"]["value"], item["count"])
+        for item in response["results"]
+    } == {(tag["namespace"], tag["key"], tag["value"], 1) for tag in expected_tags}
+
+
+def test_get_tags_by_host_identity_and_provider(db_create_host, api_get, subtests):
+    target = {
+        "fqdn": "Target.Example.test",
+        "insights_id": "abcdef01-2345-6789-abcd-0123456789ab",
+        "provider_id": "fedcba98-7654-3210-abcd-0123456789ab",
+        "provider_type": ProviderType.AWS.value,
+    }
+    expected_tags = [
+        {"namespace": "target", "key": "role", "value": "database"},
+        {"namespace": "target", "key": "env", "value": "production"},
+    ]
+    db_create_host(extra_data={**target, "tags": {"target": {"role": ["database"], "env": ["production"]}}})
+    db_create_host(
+        extra_data={
+            "fqdn": "other.example.test",
+            "provider_id": generate_uuid(),
+            "provider_type": ProviderType.AZURE.value,
+            "tags": {"other": {"role": ["web"], "env": ["stage"]}},
+        }
+    )
+    for field, value in target.items():
+        for variant in dict.fromkeys((value, value.lower(), value.upper()) if field != "provider_type" else (value,)):
+            with subtests.test(field=field, value=variant):
+                status, response = api_get(build_tags_url(query="?" + urlencode({field: variant})))
+                assert status == 200
+                _assert_aggregate_tags(response, expected_tags)
+
+
+def test_get_tags_valid_filter_combinations(
+    db_create_host, db_create_group, db_create_host_group_assoc, api_get, subtests
+):
+    """Each near match violates exactly one restriction of the conjunction."""
+    group = db_create_group("selected-group")
+    other_group = db_create_group("other-group")
+    current = now()
+    inside = current - timedelta(hours=2)
+    start, end = inside - timedelta(minutes=1), inside + timedelta(minutes=1)
+    identity = {"display_name": "selected-host", "fqdn": "selected.example.test", "insights_id": generate_uuid()}
+    expected_tags = [
+        {"namespace": "match", "key": "role", "value": "database"},
+        {"namespace": "match", "key": "env", "value": "prod"},
+    ]
+    for reason in ("match", "group", "identity", "provider", "stale", "before", "after"):
+        extra = {**identity, "provider_type": ProviderType.AWS.value, "tags": {reason: {"role": ["database"]}}}
+        if reason == "match":
+            extra["tags"][reason]["env"] = ["prod"]
+        elif reason == "identity":
+            extra.update(display_name="other-host", fqdn="other.example.test", insights_id=generate_uuid())
+        elif reason == "provider":
+            extra["provider_type"] = ProviderType.AZURE.value
+        host = db_create_host(extra_data=extra)
+        db_create_host_group_assoc(host.id, other_group.id if reason == "group" else group.id)
+        # Set timestamps after group assignment, which is itself a modification.
+        host.modified_on = (
+            start - timedelta(seconds=1)
+            if reason == "before"
+            else (end + timedelta(seconds=1) if reason == "after" else inside)
+        )
+        host.last_check_in = current - timedelta(days=8) if reason == "stale" else current
+    db.session.commit()
+
+    for field, value in {**identity, "hostname_or_id": identity["fqdn"]}.items():
+        with subtests.test(identifier=field):
+            params = {
+                field: value,
+                "provider_type": "aws",
+                "staleness": "fresh",
+                "updated_start": start.isoformat(),
+                "updated_end": end.isoformat(),
+                "group_name": group.name,
+            }
+            status, response = api_get(build_tags_url(query="?" + urlencode(params)))
+            assert status == 200
+            _assert_aggregate_tags(response, expected_tags)
+
+
+def test_get_tags_updated_boundaries_and_timezones(db_create_host, api_get, subtests):
+    """One five-host dataset discriminates inclusive, interstitial and offset bounds."""
+    middle = now().replace(microsecond=123456) - timedelta(hours=1)
+    times = [middle + timedelta(minutes=index - 2) for index in range(5)]
+    tags = [{"namespace": "time", "key": f"host-{index}", "value": "v"} for index in range(5)]
+    for timestamp, tag in zip(times, tags, strict=True):
+        host = db_create_host(extra_data={"tags": {"time": {tag["key"]: ["v"]}}})
+        host.modified_on = timestamp
+    db.session.commit()
+
+    # Exact and interstitial cutoffs select the same hosts. Equal bounds select only the middle.
+    intervals = (
+        ({"updated_start": times[2]}, tags[2:]),
+        ({"updated_start": times[2] - timedelta(seconds=1)}, tags[2:]),
+        ({"updated_end": times[2]}, tags[:3]),
+        ({"updated_end": times[2] + timedelta(seconds=1)}, tags[:3]),
+        ({"updated_start": times[1], "updated_end": times[3]}, tags[1:4]),
+        (
+            {"updated_start": times[1] - timedelta(seconds=1), "updated_end": times[3] + timedelta(seconds=1)},
+            tags[1:4],
+        ),
+        ({"updated_start": times[2], "updated_end": times[2]}, tags[2:3]),
+    )
+    for bounds, expected in intervals:
+        for representation in ("naive", "utc", "z"):
+            formatted = {
+                key: value.replace(tzinfo=None).isoformat()
+                if representation == "naive"
+                else (value.isoformat().replace("+00:00", "Z") if representation == "z" else value.isoformat())
+                for key, value in bounds.items()
+            }
+            with subtests.test(bounds=formatted):
+                status, response = api_get(build_tags_url(query="?" + urlencode(formatted)))
+                assert status == 200
+                _assert_aggregate_tags(response, expected)
+
+    for hours in (-3, 3):
+        bounds = {
+            "updated_start": times[1].astimezone(timezone(timedelta(hours=hours))).isoformat(),
+            "updated_end": times[3].astimezone(timezone(timedelta(hours=hours))).isoformat(),
+        }
+        with subtests.test(offset=hours):
+            status, response = api_get(build_tags_url(query="?" + urlencode(bounds)))
+            assert status == 200
+            _assert_aggregate_tags(response, tags[1:4])
+
+
+@pytest.mark.usefixtures("event_producer_mock")
+def test_get_tags_updated_not_created(db_create_host, db_get_host, api_patch, api_get, mocker):
+    current = now()
+    old, inside, after = (current - timedelta(hours=hours) for hours in (3, 2, 1))
+    hosts = []
+    for label, created in (("untouched", old), ("updated-inside", old), ("updated-after", inside)):
+        host = db_create_host(extra_data={"tags": {"modified": {label: ["v"]}}})
+        host.created_on = host.modified_on = created
+        hosts.append(host)
+    db.session.commit()
+
+    for host, timestamp in zip(hosts[1:], (inside, after), strict=True):
+        with mocker.patch("app.models.utils.datetime", **{"now.return_value": timestamp}):
+            status, _ = api_patch(build_hosts_url(host_list_or_id=host.id), {"display_name": "changed"})
+        assert status == 200
+        assert db_get_host(host.id).modified_on == timestamp
+
+    params = {
+        "updated_start": (inside - timedelta(minutes=1)).isoformat(),
+        "updated_end": (inside + timedelta(minutes=1)).isoformat(),
+    }
+    status, response = api_get(build_tags_url(query="?" + urlencode(params)))
+    assert status == 200
+    _assert_aggregate_tags(response, [{"namespace": "modified", "key": "updated-inside", "value": "v"}])
 
 
 @pytest.mark.parametrize(
@@ -493,20 +657,110 @@ def test_query_tags_group_id_rejects_invalid_uuid(api_get):
     assert "pattern" in response_data["detail"].lower() or "uuid" in response_data["detail"].lower()
 
 
-def test_query_tags_group_name_and_group_id_mutually_exclusive(db_create_group_with_hosts, api_get):
+def test_query_tags_group_name_and_group_id_mutually_exclusive(db_create_group, api_get, subtests):
     """Test that using both group_name and group_id together returns 400 error."""
-    group = db_create_group_with_hosts("test_group", 2)
+    group = db_create_group("test_group")
+    for prefix in ("group", "workspace"):
+        with subtests.test(prefix=prefix):
+            url = build_tags_url(query=f"?{prefix}_name=test_group&{prefix}_id={group.id}")
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+            assert f"{prefix}_name" in response_data["detail"].lower()
+            assert f"{prefix}_id" in response_data["detail"].lower()
 
-    # Try using both filters together
-    url = build_tags_url(query=f"?group_name=test_group&group_id={group.id}")
-    response_status, response_data = api_get(url)
 
-    # Should return 400 Bad Request
-    assert response_status == 400
+def test_get_tags_by_group_name_and_ungrouped(
+    db_create_group, db_create_host, db_create_host_group_assoc, api_get, subtests
+):
+    group = db_create_group("selected-group")
+    other_group = db_create_group("other-group")
+    tags = []
+    for index, membership in enumerate((group, group, other_group, None)):
+        tag = {"namespace": "group", "key": f"host-{index}", "value": "v"}
+        tags.append(tag)
+        host = db_create_host(extra_data={"tags": {"group": {tag["key"]: ["v"]}}})
+        if membership:
+            db_create_host_group_assoc(host.id, membership.id)
 
-    # Verify error message mentions both parameters
-    assert "group_name" in response_data["detail"].lower()
-    assert "group_id" in response_data["detail"].lower()
+    for name, expected in ((group.name, tags[:2]), ("", tags[3:])):
+        with subtests.test(group_name=name):
+            status, response = api_get(build_tags_url(query="?" + urlencode({"group_name": name})))
+            assert status == 200
+            _assert_aggregate_tags(response, expected)
+
+
+@pytest.mark.parametrize("identity", (USER_IDENTITY, SYSTEM_IDENTITY), ids=("user", "system"))
+def test_post_tags_readback(identity, mq_create_or_update_host, api_post, api_get):
+    original = {"namespace": "original", "key": "env", "value": "prod"}
+    added = {"namespace": "sat_iam", "key": "hash", "value": "aaabbbaa"}
+    host = mq_create_or_update_host(minimal_host(tags=[original]), identity=identity)
+    status, _ = api_post("/tags", {"tags": [added], "host_id_list": [host.id]}, identity=identity)
+    assert status == 200
+    status, response = api_get(build_host_tags_url(host.id), identity=identity)
+    assert status == 200
+    assert response["total"] == response["count"] == 1
+    assert sorted(response["results"][host.id], key=lambda tag: tag["namespace"]) == [original, added]
+
+
+def test_search_host_tags_nonmatching_terms(db_create_host, api_get, subtests):
+    host_id = str(
+        db_create_host(extra_data={"tags": {"ns": {"key": ["value"], "key-only": []}, "null": {"bare": ["v"]}}}).id
+    )
+    for search in ("x" * 256, ".", "unrelated-term"):
+        with subtests.test(search=search):
+            status, response = api_get(build_host_tags_url(host_id, query="?" + urlencode({"search": search})))
+            assert status == 200
+            assert response["total"] == response["count"] == 1
+            assert response["results"] == {host_id: []}
+
+
+@pytest.mark.parametrize(
+    "tag",
+    (
+        {"namespace": "ordinary-ns", "key": "ordinary-test", "value": "ordinary-test-tag"},
+        {"namespace": " leading-space", "key": "embedded space test", "value": "test tag"},
+        {"namespace": "punctuation", "key": "test-key-&+0@%$", "value": "punctuation-value"},
+        {"namespace": None, "key": "test-𝗤Ɍ𝓢ȚЦ𝒱Ѡ𝓧ƳȤ", "value": "unicode-value"},
+        {"namespace": None, "key": "test-Ça}{?:", "value": None},
+        {"namespace": "test-+[{]};:", "key": "test-+(!*%", "value": "test-٤ḞԍНǏ𝙅ƘԸⲘ𝙉০"},
+    ),
+    ids=("ordinary", "spaces", "punctuation", "unicode-key", "bare-key", "unicode-value"),
+)
+def test_search_tags_components_and_full_representation(tag, db_create_host, api_get, subtests):
+    namespace = tag["namespace"] or "null"
+    db_create_host(extra_data={"tags": {namespace: {tag["key"]: [tag["value"]] if tag["value"] else []}}})
+    full_tag = (f"{tag['namespace']}/" if tag["namespace"] else "") + tag["key"]
+    if tag["value"]:
+        full_tag += f"={tag['value']}"
+    for term in [value for value in tag.values() if value] + [full_tag]:
+        for search in dict.fromkeys((term, term.upper())):
+            with subtests.test(search=search):
+                status, response = api_get(build_tags_url(query="?" + urlencode({"search": search, "per_page": 1})))
+                assert status == 200
+                assert response["per_page"] == 1
+                _assert_aggregate_tags(response, [tag])
+
+
+def test_search_tags_with_staleness_filter(db_create_host, api_get, mocker, subtests):
+    states = ("fresh", "stale", "stale_warning")
+    tag_data = {
+        (state, "puptoo"): {"tags": {"shared-search-namespace": {state: [f"value-{state}"]}}} for state in states
+    }
+    create_hosts_by_reporter_and_staleness(db_create_host, mocker, reporters=("puptoo",), extra_data_per_host=tag_data)
+    # A state match alone must not admit this tag: search and state must both apply.
+    db_create_host(extra_data={"tags": {"unrelated": {"key": ["v"]}}})
+    for selected in [(state,) for state in states] + [states]:
+        with subtests.test(states=selected):
+            params = [("search", "SHARED-SEARCH-NAMESPACE"), *(("staleness", state) for state in selected)]
+            status, response = api_get(build_tags_url(query="?" + urlencode(params)))
+            assert status == 200
+            _assert_aggregate_tags(
+                response,
+                [
+                    {"namespace": "shared-search-namespace", "key": state, "value": f"value-{state}"}
+                    for state in selected
+                ],
+            )
 
 
 def test_query_tags_group_id_nonexistent_uuid(api_get, db_create_group_with_hosts):
