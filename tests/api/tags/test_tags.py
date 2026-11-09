@@ -56,6 +56,16 @@ def test_host_tag_response_and_pagination_via_db(mq_create_three_specific_hosts,
     assert response_data["per_page"] == 50  # The default value, since we didn't specify
 
 
+def test_tags_pagination_page_sizes(db_create_host, api_get, subtests):
+    db_create_host(extra_data={"tags": {"pagination": {f"key-{i}": ["value"] for i in range(100)}}})
+    for per_page in (5, 10, 15, 25, 50, 100):
+        with subtests.test(per_page=per_page):
+            status, data = api_get(build_tags_url(), query_parameters={"per_page": per_page})
+            assert status == 200
+            assert data["total"] == 100
+            assert data["count"] == len(data["results"]) == per_page
+
+
 def test_host_tags_via_db_invalid_updated_params(api_get):
     """
     Test using an updated_start that's later than updated_end

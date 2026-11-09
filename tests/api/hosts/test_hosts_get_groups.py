@@ -13,10 +13,21 @@ from tests.helpers.api_utils import create_custom_rbac_response
 
 @pytest.mark.parametrize("num_groups", (1, 3, 5))
 @pytest.mark.parametrize("group_param_to_use", ("workspace", "group"))
-def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups, group_param_to_use):
+def test_query_using_group_name(
+    db_create_group_with_hosts, db_get_hosts_for_group, api_get, num_groups, group_param_to_use
+):
     hosts_per_group = 3
+    expected_groups = {}
     for i in range(num_groups):
-        db_create_group_with_hosts(f"existing_group_{i}", hosts_per_group)
+        group = db_create_group_with_hosts(f"existing_group_{i}", hosts_per_group)
+        for host in db_get_hosts_for_group(group.id):
+            expected_groups[str(host.id)] = {
+                "id": str(group.id),
+                "name": group.name,
+                "account": group.account,
+                "org_id": group.org_id,
+                "ungrouped": False,
+            }
 
     # Some other group that we don't want to see in the response
     db_create_group_with_hosts("some_other_group", 5)
@@ -28,9 +39,12 @@ def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups,
 
     assert response_status == 200
     assert len(response_data["results"]) == num_groups * hosts_per_group
+    assert {host["id"] for host in response_data["results"]} == set(expected_groups)
     for result in response_data["results"]:
-        assert "existing_group_" in result["groups"][0]["name"]
-        assert result["groups"][0]["ungrouped"] is False
+        assert len(result["groups"]) == 1
+        assert {key: result["groups"][0][key] for key in expected_groups[result["id"]]} == expected_groups[
+            result["id"]
+        ]
 
 
 @pytest.mark.parametrize("group_param_to_use", ("workspace", "group"))
@@ -47,6 +61,9 @@ def test_query_ungrouped_hosts(
     response_status, response_data = api_get(url)
 
     assert response_status == 200
+    for result in response_data["results"]:
+        assert len(result["groups"]) == 1
+        assert result["groups"][0]["ungrouped"] is True
     assert_host_lists_equal(build_expected_host_list(ungrouped_hosts), response_data["results"])
 
 
@@ -156,6 +173,8 @@ def test_query_group_name_and_group_id_mutually_exclusive(db_create_group_with_h
     # Verify error message mentions both parameters
     assert f"{group_param_to_use}_name" in response_data["detail"].lower()
     assert f"{group_param_to_use}_id" in response_data["detail"].lower()
+    assert "Cannot use both" in response_data["detail"]
+    assert "Please use only one workspace filter parameter" in response_data["detail"]
 
 
 def test_query_workspace_and_group_name_mix_not_allowed(db_create_group_with_hosts, api_get):

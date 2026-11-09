@@ -105,6 +105,7 @@ def test_order_by_bad_field_raises_error_host_params_to_order_by():
         params_to_order_by(Mock(), "fqdn")
 
 
-def test_order_by_only_how_raises_error_host_params_to_order_by():
+@pytest.mark.parametrize("direction", ("ASC", "DESC"))
+def test_order_by_only_how_raises_error_host_params_to_order_by(direction):
     with pytest.raises(ValueError):
-        params_to_order_by(Mock(), order_how="ASC")
+        params_to_order_by(order_how=direction)
