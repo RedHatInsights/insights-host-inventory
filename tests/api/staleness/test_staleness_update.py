@@ -85,3 +85,54 @@ def test_patch_staleness_at_exactly_one_hour_keeps_custom(
     row = db_get_staleness_culling(response_data["org_id"])
     assert row is not None
     assert_staleness_row_matches_triple(row, AT_EXACTLY_ONE_HOUR)
+
+
+def test_update_staleness_invalidates_cache(mocker, api_patch, db_create_staleness_culling):
+    saved_staleness = db_create_staleness_culling(conventional_time_to_stale=1)
+    org_id = saved_staleness.org_id
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_system_cache")
+
+    url = build_staleness_url()
+    response_status, _ = api_patch(url, host_data=_INPUT_DATA)
+    assert_response_status(response_status, 200)
+    invalidate_mock.assert_called_once_with(org_id)
+
+
+def test_update_non_existing_staleness_does_not_invalidate_cache(mocker, api_patch):
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_system_cache")
+
+    url = build_staleness_url()
+    response_status, _ = api_patch(url, host_data=_INPUT_DATA)
+    assert_response_status(response_status, 404)
+    invalidate_mock.assert_not_called()
+
+
+def test_update_staleness_to_defaults_invalidates_cache(mocker, api_patch, db_create_staleness_culling):
+    saved_staleness = db_create_staleness_culling(**CUSTOM_STALENESS)
+    org_id = saved_staleness.org_id
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_system_cache")
+
+    url = build_staleness_url()
+    response_status, response_data = api_patch(url, host_data=_DEFAULT_STALENESS_TRIPLE)
+    assert_response_status(response_status, 200)
+    assert response_data["id"] == "system_default"
+    invalidate_mock.assert_called_once_with(org_id)
+
+
+def test_update_staleness_error_does_not_invalidate_cache(mocker, api_patch, db_create_staleness_culling):
+    db_create_staleness_culling(conventional_time_to_stale=1)
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_system_cache")
+
+    url = build_staleness_url()
+    response_status, _ = api_patch(url, host_data={"invalid_field": "val"})
+    assert_response_status(response_status, 400)
+    invalidate_mock.assert_not_called()
+
+
+def test_update_staleness_to_defaults_without_custom_row_does_not_invalidate_cache(mocker, api_patch):
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_system_cache")
+
+    url = build_staleness_url()
+    response_status, _ = api_patch(url, host_data=_DEFAULT_STALENESS_TRIPLE)
+    assert_response_status(response_status, 404)
+    invalidate_mock.assert_not_called()

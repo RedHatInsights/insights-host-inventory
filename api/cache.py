@@ -17,6 +17,7 @@ CACHE_TYPE_REDIS_CACHE = "RedisCache"
 REDIS_CLIENT = None
 STALENESS_L2_CACHE_ENABLED = False
 GENERATION_KEY_SUFFIX = ":gen"
+ORG_GENERATION_KEY_SUFFIX = ":org_gen"
 logger = get_logger("cache")
 
 
@@ -107,6 +108,78 @@ def get_system_cache_generation(insights_id, org_id, owner_id):
         return 0
 
 
+def _org_generation_key(org_id: str) -> str:
+    return f"{CACHE_PREFIX}org={org_id}{ORG_GENERATION_KEY_SUFFIX}"
+
+
+def get_org_cache_generation(org_id):
+    """Read the current org-level cache generation counter.
+
+    Returns 0 when Redis is unavailable or the generation key does not exist.
+    When the key is absent, it is lazily initialised to 0 without expiry.
+    """
+    if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE):
+        return 0
+    try:
+        client = _get_redis_client()
+        org_gen_key = _org_generation_key(org_id)
+        value = client.get(org_gen_key)
+        if value is not None:
+            return int(value)
+        # Key does not exist — lazily initialise to 0 without expiry
+        if client.set(org_gen_key, 0, nx=True):
+            return 0
+        current_value = client.get(org_gen_key)
+        return int(current_value) if current_value is not None else 0
+    except Exception as exc:
+        logger.exception("Failed to read org cache generation", exc_info=exc)
+        return 0
+
+
+def get_system_cache_generations(insights_id, org_id, owner_id):
+    """Fetch both the per-system generation and the per-org generation in a single MGET call.
+
+    Returns (generation, org_generation). Returns (0, 0) when Redis is unavailable or on error.
+    """
+    if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE):
+        return (0, 0)
+    try:
+        from app.common import inventory_config
+
+        client = _get_redis_client()
+        base_key = system_cache_key_base(insights_id, org_id, owner_id)
+        sys_gen_key = _generation_key(base_key)
+        org_gen_key = _org_generation_key(org_id)
+
+        values = client.mget([sys_gen_key, org_gen_key])
+        sys_val = values[0] if len(values) > 0 else None
+        org_val = values[1] if len(values) > 1 else None
+
+        if sys_val is not None:
+            sys_gen = int(sys_val)
+        else:
+            gen_ttl = inventory_config().cache_insights_client_system_timeout_sec
+            if client.set(sys_gen_key, 0, ex=gen_ttl, nx=True):
+                sys_gen = 0
+            else:
+                current_sys = client.get(sys_gen_key)
+                sys_gen = int(current_sys) if current_sys is not None else 0
+
+        if org_val is not None:
+            org_gen = int(org_val)
+        else:
+            if client.set(org_gen_key, 0, nx=True):
+                org_gen = 0
+            else:
+                current_org = client.get(org_gen_key)
+                org_gen = int(current_org) if current_org is not None else 0
+
+        return (sys_gen, org_gen)
+    except Exception as exc:
+        logger.exception("Failed to read system cache generations", exc_info=exc)
+        return (0, 0)
+
+
 def _invalidate_system_cache_redis(insights_id, org_id, owner_id):
     """Increment the generation counter, making all current cache entries unreachable.
 
@@ -140,6 +213,28 @@ def _invalidate_system_cache(insights_id, org_id, owner_id):
         return
 
     _invalidate_system_cache_redis(insights_id, org_id, owner_id)
+
+
+def invalidate_org_system_cache(org_id):
+    """Increment the org-level generation counter, making all current org cache entries unreachable.
+
+    The org generation counter does not have a TTL (it is permanent).
+    """
+    if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE):
+        if not CACHE_CONFIG:
+            logger.info("Not invalidating org cache: CACHE_CONFIG is falsy")
+        else:
+            cache_type = CACHE_CONFIG.get("CACHE_TYPE")
+            logger.info(f"Not invalidating org cache: CACHE_TYPE '{cache_type}' != '{CACHE_TYPE_REDIS_CACHE}'")
+        return
+
+    try:
+        client = _get_redis_client()
+        org_gen_key = _org_generation_key(org_id)
+        new_gen = client.incr(org_gen_key)
+        logger.info("Invalidated org system cache for org_id=%s new_generation=%s", org_id, new_gen)
+    except Exception as exc:
+        logger.exception("Org system cache invalidation failed", exc_info=exc)
 
 
 def _delete_keys_redis(cache_key, wildcard=True):
