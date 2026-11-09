@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from itertools import combinations
@@ -26,6 +27,8 @@ from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import create_hosts_by_reporter_and_staleness
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
+from tests.helpers.system_profile_filter_utils import LEGACY_WORKLOAD_FIELDS
+from tests.helpers.system_profile_filter_utils import round_trip_profile
 from tests.helpers.test_utils import IDENTITY_WITHOUT_HOSTS
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -193,6 +196,43 @@ def test_query_using_single_field(mq_create_three_specific_hosts, api_get, subte
     api_pagination_test(api_get, subtests, url, expected_total=1)
     assert response_status == 200
     assert len(response_data["results"]) == 1
+
+
+def test_canonical_columns_list_and_omitted_update(mq_create_or_update_host, db_get_host, api_get):
+    canonical = {
+        "insights_id": generate_uuid(),
+        "subscription_manager_id": generate_uuid(),
+        "satellite_id": generate_uuid(),
+        "bios_uuid": generate_uuid(),
+        "fqdn": "canonical.example.test",
+        "ip_addresses": ["192.0.2.1", "2001:db8::1"],
+        "mac_addresses": ["aa:bb:cc:dd:ee:ff"],
+        "provider_id": "i-0123456789abcdef0",
+        "provider_type": "aws",
+    }
+    host = mq_create_or_update_host(minimal_host(**deepcopy(canonical), display_name="original"))
+    status, response = api_get(build_hosts_url(query=f"?insights_id={canonical['insights_id']}"))
+    assert status == 200
+    assert response["count"] == len(response["results"]) == 1
+    assert response["results"][0]["id"] == host.id
+    assert {field: response["results"][0][field] for field in canonical} == canonical
+
+    # Deliberately omit BOTH values rather than explicitly resending the same values.
+    update = minimal_host(insights_id=canonical["insights_id"], display_name="renamed")
+    assert "satellite_id" not in update.data()
+    assert "bios_uuid" not in update.data()
+    updated = mq_create_or_update_host(update)
+    assert updated.id == host.id
+    stored = db_get_host(host.id)
+    assert stored.satellite_id == canonical["satellite_id"]
+    assert stored.bios_uuid == canonical["bios_uuid"]
+    status, response = api_get(build_hosts_url(host.id))
+    assert status == 200
+    result = response["results"][0]
+    assert result["id"] == host.id
+    assert result["display_name"] == "renamed"
+    assert result["satellite_id"] == canonical["satellite_id"]
+    assert result["bios_uuid"] == canonical["bios_uuid"]
 
 
 @pytest.mark.parametrize("tag_query", (";?:@&+$/-_.!~*'()'=#", " \t\n\r\f\v/ \t\n\r\f\v= \t\n\r\f\v"))
@@ -390,49 +430,37 @@ def test_query_using_id_list_nonexistent_host(api_get):
     assert response_status == 404
 
 
-@pytest.mark.parametrize("legacy_field", ("crowdstrike", "ibm_db2", "oracle_db"))
-@pytest.mark.parametrize("endpoint", ("list", "by_id", "system_profile"))
-def test_sparse_legacy_workload_root_fields_omitted(db_create_host, api_get, legacy_field, endpoint):
-    host = db_create_host(extra_data={"system_profile_facts": {"arch": "x86_64", "host_type": "edge"}})
-    query = f"?fields[system_profile]={legacy_field}"
-    if endpoint == "list":
-        url = build_hosts_url(query=query)
-    elif endpoint == "by_id":
-        url = build_hosts_url(host_list_or_id=host.id, query=query)
-    else:
-        url = build_system_profile_url(host.id, query=query)
-
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    for result in response_data["results"]:
-        assert legacy_field not in result.get("system_profile", {})
+def test_sparse_legacy_workload_root_fields_omitted(mq_create_or_update_host, api_get, subtests):
+    _, dynamic = round_trip_profile()
+    host = mq_create_or_update_host(minimal_host(system_profile=dynamic))
+    for url in (build_hosts_url(), build_hosts_url(host.id), build_system_profile_url(host.id)):
+        for legacy_field in LEGACY_WORKLOAD_FIELDS:
+            with subtests.test(url=url, legacy_field=legacy_field):
+                response_status, response_data = api_get(f"{url}?fields[system_profile]={legacy_field}")
+                assert response_status == 200
+                assert [result["id"] for result in response_data["results"]] == [host.id]
+                assert legacy_field not in response_data["results"][0]["system_profile"]
 
 
-def test_query_all_sparse_fields(db_create_multiple_hosts, api_get):
-    # Create hosts that have a system profile
-    sp_data = {
-        "system_profile_facts": {
-            "arch": "x86_64",
-            "os_kernel_version": "4.18.2",
-            "host_type": "edge",
-            "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
-        }
-    }
-    db_create_multiple_hosts(how_many=3, extra_data=sp_data)
-    url = build_hosts_url(query="?fields[system_profile]=arch,host_type")
-
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    # Assert that the system_profile is not in the response by default
-    for result in response_data["results"]:
-        assert "system_profile" in result
-        assert "arch" in result["system_profile"]
-        assert "host_type" in result["system_profile"]
-        assert "os_kernel_version" not in result["system_profile"]
-        assert "owner_id" not in result["system_profile"]
+def test_query_all_sparse_fields(db_create_host, api_get, subtests):
+    static, dynamic = round_trip_profile()
+    profile = {**static, **dynamic}
+    full_id = str(db_create_host(extra_data={"system_profile_facts": profile}).id)
+    sparse_id = str(
+        db_create_host(extra_data={"system_profile_facts": {"arch": "aarch64", "os_release": "unselected"}}).id
+    )
+    selections = (
+        ("arch", "owner_id", "number_of_cpus", "is_marketplace", "operating_system", "captured_date"),
+        ("arch", "installed_packages", "systemd", "workloads", "last_boot_time", "cpu_flags"),
+    )
+    for selected in selections:
+        with subtests.test(selected=selected):
+            status, response = api_get(build_hosts_url(query=f"?fields[system_profile]={','.join(selected)}"))
+            assert status == 200
+            results = {item["id"]: item["system_profile"] for item in response["results"]}
+            assert set(results) == {full_id, sparse_id}
+            assert results[full_id] == {field: profile[field] for field in selected}
+            assert results[sparse_id] == {"arch": "aarch64"}
 
 
 def test_query_sys_profile_with_sql_characters(db_create_multiple_hosts, api_get):
@@ -461,32 +489,31 @@ def test_query_sys_profile_with_sql_characters(db_create_multiple_hosts, api_get
         assert "owner_id" not in result["system_profile"]
 
 
-def test_query_by_id_sparse_fields(db_create_multiple_hosts, api_get):
-    # Create hosts that have a system profile
-    sp_data = {
-        "system_profile_facts": {
-            "arch": "x86_64",
-            "os_kernel_version": "4.18.2",
-            "host_type": "edge",
-            "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
-        }
-    }
-    created_hosts = db_create_multiple_hosts(how_many=3, extra_data=sp_data)
-    url = build_hosts_url(
-        host_list_or_id=created_hosts[0].id, query="?fields[system_profile]=os_kernel_version,owner_id"
+def test_query_by_id_sparse_fields(mq_create_or_update_host, api_get, subtests):
+    static, dynamic = round_trip_profile()
+    profile = {**static, **dynamic}
+    host = mq_create_or_update_host(minimal_host(system_profile=deepcopy(profile)), identity=USER_IDENTITY)
+    selected = (
+        "arch",
+        "os_kernel_version",
+        "owner_id",
+        "is_marketplace",
+        "operating_system",
+        "installed_packages",
+        "workloads",
+        "systemd",
+        "last_boot_time",
+        "captured_date",
+        "cpu_flags",
     )
-
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    # Assert that the system_profile is not in the response by default
-    for result in response_data["results"]:
-        assert "system_profile" in result
-        assert "arch" not in result["system_profile"]
-        assert "host_type" not in result["system_profile"]
-        assert "os_kernel_version" in result["system_profile"]
-        assert "owner_id" in result["system_profile"]
+    expected = {field: profile[field] for field in selected}
+    for url in (build_hosts_url(host.id), build_system_profile_url(host.id)):
+        with subtests.test(url=url):
+            status, response = api_get(f"{url}?fields[system_profile]={','.join(selected)}")
+            assert status == 200
+            assert len(response["results"]) == 1
+            assert response["results"][0]["id"] == host.id
+            assert response["results"][0]["system_profile"] == expected
 
 
 def test_query_by_id_culled_hosts(db_create_host, api_get):

@@ -30,6 +30,14 @@ from app.queue.events import message_headers
 from app.serialization import _sanitize_workloads_none_values
 from app.serialization import deserialize_host
 from lib import host_kafka
+from tests.helpers.system_profile_filter_utils import BOOLEAN_FIELDS
+from tests.helpers.system_profile_filter_utils import DATE_FIELDS
+from tests.helpers.system_profile_filter_utils import ENUM_VALUES
+from tests.helpers.system_profile_filter_utils import INTEGER_FIELDS
+from tests.helpers.system_profile_filter_utils import INVALID_COMPARATORS
+from tests.helpers.system_profile_filter_utils import LEGACY_WORKLOAD_FIELDS
+from tests.helpers.system_profile_filter_utils import STRING_FIELDS
+from tests.helpers.system_profile_filter_utils import UUID_FIELDS
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
@@ -691,6 +699,21 @@ def test_custom_fields_parser_query_parameter_parsing():
         assert is_deep_object is True
 
 
+def test_profile_scalar_fields_reject_unsupported_comparators(subtests):
+    from api.filtering.db_custom_filters import build_system_profile_filter
+    from app.exceptions import ValidationException
+
+    fields = (*STRING_FIELDS, *UUID_FIELDS, *DATE_FIELDS, *ENUM_VALUES, *INTEGER_FIELDS, *BOOLEAN_FIELDS)
+    for field in fields:
+        for operation in INVALID_COMPARATORS:
+            with subtests.test(field=field, operation=operation):
+                value = "True" if field in BOOLEAN_FIELDS else "123"
+                with pytest.raises(ValidationException) as error:
+                    build_system_profile_filter({field: {operation: value}})
+                assert "invalid operation" in str(error.value).lower()
+                assert field in str(error.value)
+
+
 def test_sparse_fields_validator_resolves_bracket_query_before_lookup():
     """Bracket-style fields[system_profile] must be validated, not skipped.
 
@@ -747,7 +770,7 @@ def test_sparse_fields_validator_resolves_bracket_query_before_lookup():
     validator.validate(scope_for("fields[system_profile]=arch"))
 
 
-@pytest.mark.parametrize("legacy_field", ("crowdstrike", "ibm_db2", "oracle_db"))
+@pytest.mark.parametrize("legacy_field", LEGACY_WORKLOAD_FIELDS)
 @pytest.mark.parametrize(
     "query_string",
     (

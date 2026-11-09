@@ -1,11 +1,33 @@
 import random
 from collections.abc import Callable
+from copy import deepcopy
+from urllib.parse import quote
 
 import pytest
 
 from app.models.host import Host
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import build_system_profile_operating_system_url
+from tests.helpers.api_utils import build_system_profile_url
+from tests.helpers.api_utils import build_tags_url
+from tests.helpers.system_profile_filter_utils import BOOLEAN_FIELDS
+from tests.helpers.system_profile_filter_utils import BOOLEAN_INDICES
+from tests.helpers.system_profile_filter_utils import DATE_FIELDS
+from tests.helpers.system_profile_filter_utils import ENUM_VALUES
+from tests.helpers.system_profile_filter_utils import INTEGER_FIELDS
+from tests.helpers.system_profile_filter_utils import INVALID_COMPARATORS
+from tests.helpers.system_profile_filter_utils import STRING_FIELDS
+from tests.helpers.system_profile_filter_utils import UUID_FIELDS
+from tests.helpers.system_profile_filter_utils import UUID_VALUES
+from tests.helpers.system_profile_filter_utils import assert_profile_filter_results
+from tests.helpers.system_profile_filter_utils import bootc_image
+from tests.helpers.system_profile_filter_utils import bootc_profiles
+from tests.helpers.system_profile_filter_utils import create_profile_hosts
+from tests.helpers.system_profile_filter_utils import round_trip_profile
+from tests.helpers.system_profile_filter_utils import scalar_profiles
+from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 
@@ -24,11 +46,19 @@ def test_get_hosts_sap_system_bad_parameter_values(api_get, query):
     assert_response_status(status, 400)
 
 
-def test_sparse_fields_rejects_unknown_system_profile_field(api_get):
-    response_status, response_data = api_get(build_hosts_url(query="?fields[system_profile]=not_a_real_field"))
-
-    assert response_status == 400
-    assert "not_a_real_field" in response_data["detail"]
+def test_sparse_fields_rejects_unknown_system_profile_field(db_create_host, api_get, subtests):
+    host = db_create_host()
+    for url in (build_hosts_url(), build_hosts_url(host.id), build_system_profile_url(host.id)):
+        for selector, value, reason in (
+            ("system_profile", "not_a_real_field", "not_a_real_field"),
+            ("system_failure", "operating_system", "must include fields[system_profile]"),
+        ):
+            with subtests.test(url=url, selector=selector):
+                status, response = api_get(f"{url}?fields[{selector}]={value}")
+                assert status == 400
+                assert reason in response["detail"]
+                if selector == "system_profile":
+                    assert "not present in the system_profile schema" in response["detail"]
 
 
 @pytest.mark.parametrize("order_how", ("", "ASC", "DESC"))
@@ -933,3 +963,305 @@ def test_system_profile_nil_not_nil_not_escaped(
     ids = [r["id"] for r in response["results"]]
     assert str(host_with_val.id) in ids
     assert str(host_without_val.id) not in ids
+
+
+def test_profile_scalar_equality_filters(db_create_host, api_get, subtests):
+    profiles = scalar_profiles()
+    hosts = create_profile_hosts(db_create_host, profiles)
+    for field in (*STRING_FIELDS, *UUID_FIELDS, *DATE_FIELDS, *ENUM_VALUES):
+        first, second = (quote(str(profile[field]), safe="") for profile in profiles[:2])
+        expected = [0, 1] if field == "host_type" else [0]
+        for comparator in ("", "[eq]"):
+            with subtests.test(field=field, comparator=comparator):
+                assert_profile_filter_results(
+                    api_get, f"?filter[system_profile][{field}]{comparator}={first}", hosts, expected
+                )
+        with subtests.test(field=field, comparator="OR"):
+            query = f"?filter[system_profile][{field}][]={first}&filter[system_profile][{field}][]={second}"
+            assert_profile_filter_results(api_get, query, hosts, [0, 1])
+
+
+def test_profile_numeric_and_datetime_range_filters(db_create_host, api_get, subtests):
+    profiles = scalar_profiles()
+    hosts = create_profile_hosts(db_create_host, profiles)
+    for field in (*INTEGER_FIELDS, *DATE_FIELDS):
+        low, middle, high = (quote(str(profile[field]), safe="") for profile in profiles[:3])
+        prefix = f"filter[system_profile][{field}]"
+        cases = [
+            (f"{prefix}[gt]={middle}", [2]),
+            (f"{prefix}[gte]={middle}", [1, 2]),
+            (f"{prefix}[lt]={middle}", [0]),
+            (f"{prefix}[lte]={middle}", [0, 1]),
+            (f"{prefix}[gt][]={low}&{prefix}[lt][]={high}", [1]),
+        ]
+        if field in INTEGER_FIELDS:
+            cases += [
+                (f"{prefix}={middle}", [1]),
+                (f"{prefix}[eq]={middle}", [1]),
+                (f"{prefix}[]={low}&{prefix}[]={middle}", [0, 1]),
+            ]
+        for query, expected in cases:
+            with subtests.test(field=field, query=query):
+                assert_profile_filter_results(api_get, f"?{query}", hosts, expected)
+
+
+def test_profile_boolean_value_filters(db_create_host, api_get, subtests):
+    hosts = create_profile_hosts(db_create_host, scalar_profiles())
+    for field in BOOLEAN_FIELDS:
+        prefix = f"filter[system_profile][{field}]"
+        for index, value in zip(BOOLEAN_INDICES[field], ("true", "false"), strict=True):
+            for spelling in (value, value.capitalize(), value.upper()):
+                for comparator in ("", "[eq]"):
+                    with subtests.test(field=field, spelling=spelling, comparator=comparator):
+                        assert_profile_filter_results(api_get, f"?{prefix}{comparator}={spelling}", hosts, [index])
+        with subtests.test(field=field, comparator="OR"):
+            assert_profile_filter_results(api_get, f"?{prefix}[]=true&{prefix}[]=false", hosts, BOOLEAN_INDICES[field])
+
+
+def test_profile_mixed_type_conjunction(db_create_host, api_get):
+    match = {"owner_id": UUID_VALUES[0], "number_of_cpus": 10, "is_marketplace": True}
+    profiles = [
+        match,
+        {**match, "owner_id": UUID_VALUES[1]},
+        {**match, "number_of_cpus": 20},
+        {**match, "is_marketplace": False},
+    ]
+    hosts = create_profile_hosts(db_create_host, profiles)
+    query = (
+        f"?filter[system_profile][owner_id][]={UUID_VALUES[0]}"
+        "&filter[system_profile][number_of_cpus]=10&filter[system_profile][is_marketplace][]=True"
+    )
+    assert_profile_filter_results(api_get, query, hosts, [0])
+
+
+def test_profile_legacy_sap_sid_filters(db_create_host, api_get, subtests):
+    hosts = create_profile_hosts(
+        db_create_host,
+        [
+            {"workloads": {"sap": {"sids": ["ABC"]}}},
+            {"workloads": {"sap": {"sids": ["ABC", "C1E"]}}},
+            {},
+        ],
+        display_name="profile-sid-filter",
+    )
+    for comparator in ("[]", "[contains][]"):
+        for values, expected in ((("ABC",), [0, 1]), (("C1E",), [1]), (("ABC", "C1E"), [1])):
+            with subtests.test(comparator=comparator, values=values):
+                query = "?display_name=profile-sid-filter&" + "&".join(
+                    f"filter[system_profile][sap_sids]{comparator}={value}" for value in values
+                )
+                assert_profile_filter_results(api_get, query, hosts, expected)
+
+
+def test_profile_os_rhc_cross_product(db_create_host, api_get, subtests):
+    profiles = []
+    for has_rhc in (False, True):
+        for version in ((8, 6), (7, 10), None):
+            profile = {"rhc_client_id": UUID_VALUES[0]} if has_rhc else {}
+            if version:
+                profile["operating_system"] = {"name": "RHEL", "major": version[0], "minor": version[1]}
+            profiles.append(profile)
+    hosts = create_profile_hosts(db_create_host, profiles)
+    # Use different tag keys as well as a different org: leaking secondary tags cannot hide in a count.
+    for index, profile in enumerate(profiles):
+        db_create_host(
+            extra_data={
+                "org_id": "other-profile-org",
+                "system_profile_facts": profile,
+                "tags": [{"namespace": "profile", "key": f"foreign-{index}", "value": "selected"}],
+            }
+        )
+    for rhc, offset in (("nil", 0), ("not_nil", 3)):
+        for versions, expected in ((("8.6",), [offset]), (("8.6", "7.10"), [offset, offset + 1])):
+            with subtests.test(rhc=rhc, versions=versions):
+                query = "?" + "&".join(
+                    f"filter[system_profile][operating_system][RHEL][version][eq][]={v}" for v in versions
+                )
+                query += f"&filter[system_profile][rhc_client_id][]={rhc}"
+                assert_profile_filter_results(api_get, query, hosts, expected)
+
+
+def test_profile_filter_validation_wiring(db_create_host, api_get, subtests):
+    create_profile_hosts(db_create_host, scalar_profiles()[:1])
+    # The complete 37-field x 9-operation matrix is exercised without HTTP in test_misc.
+    for builder in (build_hosts_url, build_tags_url):
+        for field in (
+            "arch",
+            "owner_id",
+            "captured_date",
+            "host_type",
+            "number_of_cpus",
+            "system_memory_bytes",
+            "sap_system",
+        ):
+            for operation in INVALID_COMPARATORS:
+                with subtests.test(endpoint=builder.__name__, field=field, operation=operation):
+                    query = f"?filter[system_profile][{field}][{operation}]=123"
+                    status, response = api_get(builder(query=query))
+                    assert status == 400
+                    assert "invalid operation" in response["detail"].lower()
+                    assert field in response["detail"]
+        for name, comparator, version in (("Cent", "lt", "7.10"), ("Linux", "gte", "7.5"), ("", "eq", "7")):
+            with subtests.test(endpoint=builder.__name__, name=name):
+                query = (
+                    f"?per_page=100&filter[system_profile][operating_system][{name}]"
+                    f"[version][{comparator}][]={version}"
+                )
+                status, response = api_get(builder(query=query))
+                assert status == 400
+                assert "operating_system" in response["detail"]
+                assert "only supports" in response["detail"]
+                assert all(name in response["detail"] for name in ("RHEL", "CentOS", "CentOS Linux"))
+
+
+def test_profile_bootc_presence_and_value_filters(db_create_host, api_get, subtests):
+    hosts = create_profile_hosts(db_create_host, bootc_profiles())
+    present = {
+        "": list(range(1, 9)),
+        "[booted]": [1, 4, 5, 6, 7, 8],
+        "[rollback]": [2, 7, 8],
+        "[staged]": [3, 4, 7, 8],
+        "[booted][image]": [1, 4, 5, 7, 8],
+        "[booted][image_digest]": [1, 4, 5, 7, 8],
+        "[booted][cached_image]": [1, 4, 6, 7, 8],
+        "[booted][cached_image_digest]": [1, 4, 6, 7, 8],
+        "[rollback][image]": [2, 7, 8],
+        "[staged][image]": [3, 4, 7, 8],
+    }
+    for path, expected in present.items():
+        for comparator in ("[]", "[is]"):
+            for value, indices in (("not_nil", expected), ("nil", sorted(set(range(10)) - set(expected)))):
+                with subtests.test(path=path, comparator=comparator, value=value):
+                    assert_profile_filter_results(
+                        api_get, f"?filter[system_profile][bootc_status]{path}{comparator}={value}", hosts, indices
+                    )
+
+    # Exact leaf mapping, same-leaf OR, and independently discriminating cross-leaf AND.
+    cases = []
+    for kind, node, fields in (
+        ("b", "booted", ("image", "image_digest", "cached_image", "cached_image_digest")),
+        ("r", "rollback", ("image",)),
+        ("s", "staged", ("image",)),
+    ):
+        for field in fields:
+            cases.append(([f"[{node}][{field}][]={bootc_image(kind, 7)[field]}"], [7]))
+    for syntax in ("[]", "[is]"):
+        cases += [
+            ([f"[{node}]{syntax}=nil" for node in ("booted", "rollback", "staged")], [0, 9]),
+            ([f"[{node}]{syntax}=not_nil" for node in ("booted", "rollback", "staged")], [7, 8]),
+            ([f"[booted]{syntax}=not_nil", f"[rollback]{syntax}=nil", f"[staged]{syntax}=not_nil"], [4]),
+            ([f"[booted][image]{syntax}=not_nil", f"[booted][cached_image]{syntax}=not_nil"], [1, 4, 7, 8]),
+            ([f"[booted][image]{syntax}=not_nil", f"[staged][image]{syntax}=not_nil"], [4, 7, 8]),
+        ]
+    cases += [
+        (["[booted][image][]=quay.io/b-1:latest", "[booted][image][]=quay.io/b-7:latest"], [1, 7]),
+        (["[booted][image][]=quay.io/b-4:latest", "[staged][image][]=quay.io/s-4:latest"], [4]),
+        (["[booted][image][]=quay.io/b-4:latest", "[staged][image][]=quay.io/s-7:latest"], []),
+        ([f"[booted][{field}][]={value}" for field, value in bootc_image("b", 7).items()], [7]),
+        (
+            [
+                f"[booted][{field}][]={value}"
+                for field, value in {
+                    **{k: v for k, v in bootc_image("b", 5).items() if not k.startswith("cached")},
+                    **{k: v for k, v in bootc_image("b", 6).items() if k.startswith("cached")},
+                }.items()
+            ],
+            [],
+        ),
+        (
+            [
+                "[staged][image][]=quay.io/s-7:latest",
+                f"[rollback][image_digest][]={bootc_image('r', 7)['image_digest']}",
+                "[booted][cached_image][]=quay.io/bc-7:latest",
+            ],
+            [7],
+        ),
+        (["[booted][image][]=quay.io/b-7:latest", "[booted][image_digest][]=not_nil"], [7]),
+        (["[booted][image][]=quay.io/b-7:latest", "[booted][image_digest][is]=not_nil"], [7]),
+    ]
+    for params, expected in cases:
+        with subtests.test(params=params):
+            query = "?" + "&".join(f"filter[system_profile][bootc_status]{param}" for param in params)
+            assert_profile_filter_results(api_get, query, hosts, expected)
+    for digest, host_type, expected in (
+        ("nil", "nil", [0, 2, 3, 6]),
+        ("not_nil", "nil", [1, 4, 5, 7, 8]),
+        ("nil", "not_nil", [9]),
+        ("nil", "edge", [9]),
+    ):
+        with subtests.test(digest=digest, host_type=host_type):
+            query = (
+                f"?filter[system_profile][bootc_status][booted][image_digest][is]={digest}"
+                f"&filter[system_profile][host_type]={host_type}"
+            )
+            assert_profile_filter_results(api_get, query, hosts, expected)
+
+
+def test_operating_system_enumeration_pagination(db_create_host, api_get, subtests):
+    for major in (7, 8, 9):
+        db_create_host(
+            extra_data={"system_profile_facts": {"operating_system": {"name": "RHEL", "major": major, "minor": 0}}}
+        )
+    url = build_system_profile_operating_system_url()
+    status, baseline = api_get(url)
+    assert status == 200
+    assert baseline["total"] == 3
+    pages = []
+    for page, per_page in ((1, 1), (2, 1), (1, 2)):
+        with subtests.test(page=page, per_page=per_page):
+            status, response = api_get(f"{url}?page={page}&per_page={per_page}")
+            assert status == 200
+            assert response["total"] == baseline["total"]
+            assert response["count"] == len(response["results"]) == per_page
+            pages.append(response["results"])
+    assert pages[0] + pages[1] == pages[2] == baseline["results"][:2]
+
+
+@pytest.mark.parametrize("family", ("static", "dynamic", "mixed"))
+def test_persisted_profile_field_families(mq_create_or_update_host, api_get, family):
+    static, dynamic = round_trip_profile()
+    profile = static if family == "static" else dynamic if family == "dynamic" else {**static, **dynamic}
+    # USER identity avoids synthesizing a system-certificate owner_id in dynamic-only data.
+    host = mq_create_or_update_host(minimal_host(system_profile=deepcopy(profile)), identity=USER_IDENTITY)
+    status, response = api_get(build_system_profile_url(host.id))
+    assert status == 200
+    assert response["results"][0]["id"] == host.id
+    actual = response["results"][0]["system_profile"]
+    for field, expected in profile.items():
+        assert actual[field] == expected, field
+
+
+def test_persisted_profile_add_host_update_delete_lifecycle(
+    mq_create_or_update_host,
+    api_get,
+    api_delete_host,
+    db_get_host,
+    db_get_static_system_profile,
+    db_get_dynamic_system_profile,
+):
+    static, dynamic = round_trip_profile()
+    profile = {**static, **dynamic}
+    payload = minimal_host(insights_id=generate_uuid(), system_profile=deepcopy(profile))
+    host = mq_create_or_update_host(payload, identity=USER_IDENTITY)
+    status, response = api_get(build_system_profile_url(host.id))
+    assert status == 200
+    assert set(profile) <= response["results"][0]["system_profile"].keys()
+    changes = {
+        "arch": "aarch64",
+        "cpu_model": "updated CPU",
+        "running_processes": ["sshd"],
+        "system_memory_bytes": 2**40,
+    }
+    update = minimal_host(insights_id=payload.insights_id, system_profile=changes)
+    updated = mq_create_or_update_host(update, identity=USER_IDENTITY)
+    assert updated.id == host.id
+    status, response = api_get(build_system_profile_url(host.id))
+    assert status == 200
+    assert {field: response["results"][0]["system_profile"][field] for field in changes} == changes
+    status, _ = api_delete_host(host.id)
+    assert status == 200
+    status, _ = api_get(build_hosts_url(host.id))
+    assert status == 404
+    assert db_get_host(host.id) is None
+    assert db_get_static_system_profile(SYSTEM_IDENTITY["org_id"], host.id) is None
+    assert db_get_dynamic_system_profile(SYSTEM_IDENTITY["org_id"], host.id) is None
