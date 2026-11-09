@@ -14,6 +14,7 @@ from requests.adapters import HTTPAdapter
 from api.filtering.app_data_sorting import get_app_name_from_sort
 from api.host_query_db import get_hosts_to_export
 from api.views_validation import VALID_HOST_FILTER_KEYS
+from api.views_validation import is_tag_column_key
 from api.views_validation import validate_view_configuration
 from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
@@ -177,9 +178,13 @@ def _expand_view_columns(view_columns: list[dict]) -> list[dict]:
 
     Each expanded column flows through the same app-authorization, field
     validation, and deduplication rules as a directly selected column.
+    Hidden columns are dropped before expansion so a composite column's
+    ``shown`` flag is not discarded with the parent key.
     """
     expanded: list[dict] = []
     for col in view_columns:
+        if col.get("shown") is False:
+            continue
         key = col.get("key") or ""
         if key in COMPOSITE_VIEW_FIELDS_TO_EXPORT_FIELDS:
             expanded.extend({"key": field} for field in COMPOSITE_VIEW_FIELDS_TO_EXPORT_FIELDS[key])
@@ -217,6 +222,9 @@ def resolve_export_columns(
     app_data_fields: dict[str, list[str]] = {}
 
     for col in _expand_view_columns(view_columns):
+        # Tag values are a later export.
+        if is_tag_column_key(col.get("key") or ""):
+            continue
         key = col.get("key") or ""
 
         if key in CORE_VIEW_FIELDS_TO_EXPORT_FIELDS:
