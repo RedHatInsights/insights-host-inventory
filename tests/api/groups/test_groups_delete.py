@@ -1,14 +1,18 @@
 import contextlib
 import json
+from datetime import UTC
+from datetime import datetime
 from unittest import mock
 
 import pytest
+from dateutil.parser import parse
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.exceptions import ResourceNotFoundException
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_groups_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import mocked_delete_workspace_empty_response
 from tests.helpers.api_utils import mocked_post_workspace_not_found
@@ -107,7 +111,7 @@ def test_delete_non_existent_group_rbac_v2_skips_db_check(
 def test_delete_with_invalid_group_id(api_delete_groups):
     group_id = "notauuid"
 
-    response_status, _ = api_delete_groups(group_id)
+    response_status, _ = api_delete_groups([group_id])
 
     assert_response_status(response_status, expected_status=400)
 
@@ -441,6 +445,7 @@ def test_remove_hosts_from_existing_group(
 
 
 @pytest.mark.parametrize("kessel_groups_enabled", [True, False])
+@pytest.mark.parametrize("bulk", [False, True], ids=["per_group", "bulk"])
 def test_remove_hosts_from_group_timestamp_with_kessel_groups_flag(
     db_create_group,
     db_create_host,
@@ -450,21 +455,45 @@ def test_remove_hosts_from_group_timestamp_with_kessel_groups_flag(
     event_producer,
     mocker,
     kessel_groups_enabled,
+    bulk,
+    api_remove_hosts_from_diff_groups,
+    api_get,
+    db_get_hosts_for_group,
+    db_get_ungrouped_group,
 ):
     mocker.patch.object(event_producer, "write_event")
     mocker.patch("lib.group_repository.is_rbac_v2_enabled", return_value=kessel_groups_enabled)
 
+    creation_start = datetime.now(tz=UTC)
     group = db_create_group("test_group")
     group_id = group.id
-    host_id_list = [str(db_create_host().id) for _ in range(3)]
+    created_on = group.created_on
+    host_id_list = [str(db_create_host().id) for _ in range(1 if bulk else 3)]
 
     for host_id in host_id_list:
         db_create_host_group_assoc(host_id, group_id)
 
     orig_modified_on = db_get_group_by_id(group_id).modified_on
+    creation_end = datetime.now(tz=UTC)
 
-    response_status, _ = api_remove_hosts_from_group(group_id, host_id_list[:1])
+    if bulk:
+        response_status, _ = api_remove_hosts_from_diff_groups(host_id_list[:1])
+    else:
+        response_status, _ = api_remove_hosts_from_group(group_id, host_id_list[:1])
+    operation_end = datetime.now(tz=UTC)
     assert response_status == 204
+    assert {str(host.id) for host in db_get_hosts_for_group(group_id)} == set(host_id_list[1:])
+    ungrouped_id = db_get_ungrouped_group(USER_IDENTITY["org_id"]).id
+    assert {str(host.id) for host in db_get_hosts_for_group(ungrouped_id)} == {host_id_list[0]}
+
+    status, fetched = api_get(build_groups_url(str(group_id)))
+    assert status == 200
+    result = fetched["results"][0]
+    assert result["id"] == str(group_id)
+    assert parse(result["created"]) == created_on
+    assert creation_start < parse(result["created"]) < creation_end
+    # RBAC v2 deliberately leaves updated unchanged on membership changes.
+    assert creation_start < parse(result["updated"]) < operation_end
 
     updated_group = db_get_group_by_id(group_id)
     if kessel_groups_enabled:
