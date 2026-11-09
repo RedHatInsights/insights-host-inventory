@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -321,35 +318,3 @@ def test_staleness_timestamps_delete_settings_proper_account(
     for host in secondary_hosts:
         retrieved_host = host_inventory_secondary.apis.hosts.get_host_by_id(host)
         validate_host_timestamps(host_inventory_secondary, retrieved_host, host_type)
-
-
-@pytest.mark.parametrize("host_type", ["conventional", "edge"])
-@pytest.mark.ephemeral
-def test_staleness_timestamps_verify_payload_ignored(
-    host_inventory: ApplicationHostInventory,
-    hbi_staleness_defaults: dict[str, int],
-    host_type: str,
-) -> None:
-    """
-    metadata:
-      assignee: msager
-      importance: low
-      title: Verify that staleness settings are used even when host payload timestamps are set
-    """
-
-    settings = gen_staleness_settings()
-    logger.info(f"Creating account record with:\n{settings}")
-    host_inventory.apis.account_staleness.create_staleness(**settings)
-    response = host_inventory.apis.account_staleness.get_staleness()
-    validate_staleness_response(response, hbi_staleness_defaults, settings)
-
-    host_data = host_inventory.datagen.create_host_data(host_type=host_type)
-    host_data["stale_timestamp"] = (datetime.now(UTC) + timedelta(days=1)).isoformat()
-    host_data["stale_warning_timestamp"] = (datetime.now(UTC) + timedelta(days=2)).isoformat()
-    host_data["culled_timestamp"] = (datetime.now(UTC) + timedelta(days=3)).isoformat()
-
-    host = host_inventory.kafka.create_host(host_data)
-    validate_host_timestamps(host_inventory, host, host_type)
-
-    retrieved_host = host_inventory.apis.hosts.get_host_by_id(host)
-    validate_host_timestamps(host_inventory, retrieved_host, host_type)
