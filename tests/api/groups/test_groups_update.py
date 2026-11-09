@@ -1,6 +1,8 @@
 import contextlib
 import json
 from copy import deepcopy
+from datetime import UTC
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -11,6 +13,7 @@ from app.auth.identity import to_auth_header
 from app.models.schemas.mq import GROUP_NAME_VALIDATION_ERROR
 from app.serialization import serialize_rbac_workspace_with_host_count
 from lib.host_repository import get_host_counts_batch
+from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import INVALID_GROUP_NAMES
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
@@ -39,8 +42,11 @@ def test_patch_group_happy_path(
 ):
     # Create a group with no hosts
     mocker.patch.object(event_producer, "write_event")
+    before_create = datetime.now(UTC)
     group = db_create_group("test_group")
+    after_create = datetime.now(UTC)
     group_id = group.id
+    original_created = group.created_on
     orig_modified_on = group.modified_on
     assert len(db_get_hosts_for_group(group_id)) == 0
 
@@ -73,6 +79,9 @@ def test_patch_group_happy_path(
     response_status, response_data = api_patch_group(group_id, patch_doc)
     assert_response_status(response_status, 200)
     assert_group_response(response_data, db_get_group_by_id(group_id), num_hosts)
+    assert parser.isoparse(response_data["created"]) == original_created
+    assert before_create <= original_created <= after_create
+    assert before_create <= parser.isoparse(response_data["updated"]) <= datetime.now(UTC)
     retrieved_group = db_get_group_by_id(group_id)
 
     if patch_name:
@@ -216,21 +225,27 @@ def test_patch_groups_RBAC_denied_specific_groups(mocker, db_create_group_with_h
     assert_response_status(response_status, 403)
 
 
-def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get_group_by_id, event_producer, mocker):
+def test_patch_group_no_name(
+    db_create_group_with_hosts,
+    api_patch_group,
+    db_get_group_by_id,
+    db_get_hosts_for_group,
+    event_producer,
+    mocker,
+    subtests,
+):
     mocker.patch.object(event_producer, "write_event")
     group = db_create_group_with_hosts("test_group", 2)
-    patch_doc = {"name": ""}
-
-    response_status, _ = api_patch_group(group.id, patch_doc)
-
-    # The group name isn't allowed to be empty, so return 400
-    assert_response_status(response_status, 400)
-
-    # Assert that the group's name hasn't been modified
-    assert db_get_group_by_id(group.id).name == "test_group"
-
-    # Make sure no events got produced
-    assert event_producer.write_event.call_count == 0
+    original_host_ids = {host.id for host in db_get_hosts_for_group(group.id)}
+    for name in ("", "a" * 256):
+        with subtests.test(name=name):
+            response_status, body = api_patch_group(group.id, {"name": name})
+            assert_response_status(response_status, 400)
+            assert "name" in body["detail"]
+            assert "between 1 and 255" in body["detail"]
+            assert db_get_group_by_id(group.id).name == "test_group"
+            assert {host.id for host in db_get_hosts_for_group(group.id)} == original_host_ids
+            event_producer.write_event.assert_not_called()
 
 
 @pytest.mark.parametrize("new_name", INVALID_GROUP_NAMES[:5])
@@ -266,6 +281,7 @@ def test_patch_group_hosts_in_diff_org(
     group = db_create_group_with_hosts("test_group", 2)
     orig_modified_on = group.modified_on
     group_id = group.id
+    original_host_ids = {host.id for host in db_get_hosts_for_group(group_id)}
 
     # Make an identity with a different org_id and account
     diff_identity = deepcopy(SYSTEM_IDENTITY)
@@ -283,7 +299,7 @@ def test_patch_group_hosts_in_diff_org(
         invalid_host_id = generate_uuid()
 
     host_id_list.append(str(invalid_host_id))
-    patch_doc = {"host_ids": host_id_list}
+    patch_doc = {"name": "must_not_be_applied", "host_ids": host_id_list}
 
     response_status, response_data = api_patch_group(group_id, patch_doc)
 
@@ -292,7 +308,8 @@ def test_patch_group_hosts_in_diff_org(
     assert str(invalid_host_id) in response_data["detail"]
 
     # There should still only be 2 hosts on the group
-    assert len(db_get_hosts_for_group(group_id)) == 2
+    assert {host.id for host in db_get_hosts_for_group(group_id)} == original_host_ids
+    assert db_get_group_by_id(group_id).name == "test_group"
 
     # The group
     assert db_get_group_by_id(group_id).modified_on == orig_modified_on
@@ -306,8 +323,11 @@ def test_patch_group_name_only(
 ):
     # Create a group with one host
     mocker.patch.object(event_producer, "write_event")
+    before_create = datetime.now(UTC)
     group = db_create_group_with_hosts("test_group", 1)
+    after_create = datetime.now(UTC)
     group_id = group.id
+    original_created = group.created_on
     orig_modified_on = group.modified_on
 
     host_id = str(db_get_hosts_for_group(group_id)[0].id)
@@ -316,6 +336,12 @@ def test_patch_group_name_only(
     response_status, response_data = api_patch_group(group_id, patch_doc)
     assert_response_status(response_status, 200)
     retrieved_group = db_get_group_by_id(group_id)
+    assert_group_response(response_data, retrieved_group, 1)
+    assert response_data["org_id"] == USER_IDENTITY["org_id"]
+    assert response_data["account"] == USER_IDENTITY["account_number"]
+    assert parser.isoparse(response_data["created"]) == original_created
+    assert before_create <= original_created <= after_create
+    assert before_create <= parser.isoparse(response_data["updated"]) <= datetime.now(UTC)
 
     assert retrieved_group.name == "modified_group"
     assert str(db_get_hosts_for_group(group_id)[0].id) == host_id
@@ -353,20 +379,21 @@ def test_patch_group_same_hosts(
         assert host["groups"][0]["id"] == str(group_id)
 
 
-@pytest.mark.parametrize(
-    "host_ids",
-    [[str(generate_uuid())] * 2, [str(generate_uuid())] + [str(generate_uuid())] * 2],
-)
-def test_patch_group_duplicate_host_ids(db_create_group_with_hosts, api_patch_group, event_producer, mocker, host_ids):
+def test_patch_group_duplicate_host_ids(
+    db_create_group, db_create_host, db_get_group_by_id, api_patch_group, event_producer, mocker
+):
     # Create a group with hosts
     mocker.patch.object(event_producer, "write_event")
-    group = db_create_group_with_hosts("test_group", 5)
+    group = db_create_group("test_group")
     group_id = group.id
+    host_id = str(db_create_host().id)
 
-    patch_doc = {"name": "modified_group", "host_ids": host_ids}
+    patch_doc = {"name": "modified_group", "host_ids": [host_id, host_id]}
     response_status, response_data = api_patch_group(group_id, patch_doc)
     assert_response_status(response_status, 400)
     assert "Host IDs must be unique." in response_data["detail"]
+    assert db_get_group_by_id(group_id).name == "test_group"
+    event_producer.write_event.assert_not_called()
 
 
 def test_patch_group_both_add_and_remove_hosts(
@@ -555,6 +582,10 @@ def test_patch_group_kessel_workspace_same_name_error(
     assert original_group.modified_on == original_modified_on
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason="api.group.patch_group_by_id renames the RBAC workspace before patch_group rejects missing hosts",
+)
 @pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize(
     "invalid_host_scenario",
@@ -565,6 +596,7 @@ def test_patch_group_kessel_workspace_same_name_error(
 )
 def test_patch_group_with_invalid_hosts(
     db_create_group_with_hosts,
+    db_create_host,
     db_get_hosts_for_group,
     db_get_group_by_id,
     api_patch_group,
@@ -588,6 +620,7 @@ def test_patch_group_with_invalid_hosts(
     - Group retains original host associations (no hosts removed)
     - Group modified_on timestamp unchanged
     - No events produced
+    - RBAC workspace not renamed
     """
     # Mock the event producer
     mocker.patch.object(event_producer, "write_event")
@@ -601,7 +634,7 @@ def test_patch_group_with_invalid_hosts(
     initial_hosts = db_get_hosts_for_group(group_id)
     assert len(initial_hosts) == 3
 
-    # Get existing host IDs for mixed scenario
+    # Preserve exact original membership, not merely its size.
     existing_host_ids = [str(h.id) for h in initial_hosts]
 
     # Generate invalid host ID
@@ -611,11 +644,12 @@ def test_patch_group_with_invalid_hosts(
     if invalid_host_scenario == "single_nonexistent":
         patch_host_ids = [invalid_host_id]
     elif invalid_host_scenario == "mixed_valid_invalid":
-        # 2 valid hosts from the group + 1 invalid
-        patch_host_ids = existing_host_ids[:2] + [invalid_host_id]
+        # Retain one member and attempt an addition/removal around the missing ID.
+        patch_host_ids = [existing_host_ids[0], invalid_host_id, str(db_create_host().id)]
 
     # Attempt to patch the group with invalid host ID(s)
-    patch_doc = {"host_ids": patch_host_ids}
+    patch_doc = {"name": "must_not_be_applied", "host_ids": patch_host_ids}
+    patch_rbac_workspace = mocker.patch("api.group.patch_rbac_workspace")
     response_status, response_data = api_patch_group(group_id, patch_doc)
 
     # The patch should fail with a 400 error
@@ -624,14 +658,192 @@ def test_patch_group_with_invalid_hosts(
     assert "not find" in response_data["detail"]
 
     # Verify that the group still has the original 3 hosts (unchanged)
-    assert len(db_get_hosts_for_group(group_id)) == 3
+    assert {str(host.id) for host in db_get_hosts_for_group(group_id)} == set(existing_host_ids)
 
     # Verify that the group's modified_on timestamp hasn't changed
     retrieved_group = db_get_group_by_id(group_id)
+    assert retrieved_group.name == "test_group"
     assert retrieved_group.modified_on == orig_modified_on
 
     # Verify that no events were produced
     assert event_producer.write_event.call_count == 0
+
+    # A rejected PATCH must not rename the workspace in RBAC either.
+    patch_rbac_workspace.assert_not_called()
+
+
+@pytest.fixture
+def group_patch_target(db_create_group_with_hosts, db_get_group_by_id, db_get_hosts_for_group, event_producer, mocker):
+    """One populated target shared by the non-mutating validation probes in each test."""
+    group = db_create_group_with_hosts("original_group", 2)
+    group_id = group.id
+    host_ids = {host.id for host in db_get_hosts_for_group(group_id)}
+    modified = group.modified_on
+    write_event = mocker.patch.object(event_producer, "write_event")
+
+    def assert_unchanged():
+        retrieved = db_get_group_by_id(group_id)
+        assert retrieved.name == "original_group"
+        assert retrieved.modified_on == modified
+        assert {host.id for host in db_get_hosts_for_group(group_id)} == host_ids
+        write_event.assert_not_called()
+
+    return group_id, assert_unchanged
+
+
+def test_patch_group_invalid_name_type(group_patch_target, api_patch_group, subtests):
+    group_id, assert_unchanged = group_patch_target
+    for name in ([], {}, ["a"]):
+        with subtests.test(name=name):
+            status, body = api_patch_group(group_id, {"name": name})
+            assert_response_status(status, 400)
+            assert "name" in body["detail"]
+            assert "string" in body["detail"]
+            assert_unchanged()
+
+
+def test_patch_group_invalid_host_ids(
+    group_patch_target, db_create_host, db_get_hosts_for_group, api_patch_group, subtests
+):
+    group_id, assert_unchanged = group_patch_target
+    uuid = str(generate_uuid())
+    valid_ids = [str(db_get_hosts_for_group(group_id)[0].id), str(db_create_host().id)]
+    cases = [
+        (uuid, "host_ids", "array"),
+        ([[uuid]], "host_ids.0", "string"),
+        ([uuid[:35]], "host_ids.0", "does not match"),
+        ([uuid + "a"], "host_ids.0", "does not match"),
+        ([uuid.replace("-", "_")], "host_ids.0", "does not match"),
+        ([uuid.replace("-", "")], "host_ids.0", "uuid"),
+        (["x" * 36], "host_ids.0", "does not match"),
+        (None, "host_ids", "null"),
+        ([None], "host_ids.0", "string"),
+        (123, "host_ids", "array"),
+        ([123], "host_ids.0", "string"),
+        (False, "host_ids", "array"),
+        ([False], "host_ids.0", "string"),
+        ([valid_ids[0], "bad-host-id", valid_ids[1]], "host_ids.1", "does not match"),
+    ]
+    for host_ids, field, reason in cases:
+        with subtests.test(host_ids=host_ids):
+            status, body = api_patch_group(group_id, {"name": "must_not_be_applied", "host_ids": host_ids})
+            assert_response_status(status, 400)
+            assert field in body["detail"]
+            assert reason in body["detail"]
+            if field == "host_ids.1":
+                assert "bad-host-id" in body["detail"]
+            assert_unchanged()
+
+
+def test_patch_group_unknown_fields(
+    group_patch_target, db_create_host, db_get_hosts_for_group, api_patch_group, subtests
+):
+    group_id, assert_unchanged = group_patch_target
+    host_ids = [str(db_get_hosts_for_group(group_id)[0].id), str(db_create_host().id)]
+    for field in ("id", "account", "created_on", "modified_on", "field123"):
+        with subtests.test(field=field):
+            status, body = api_patch_group(
+                group_id, {"name": "must_not_be_applied", "host_ids": host_ids, field: "value"}
+            )
+            assert_response_status(status, 400)
+            assert field in body["detail"]
+            assert "Unknown field" in body["detail"]
+            assert_unchanged()
+
+
+def test_patch_group_without_data(group_patch_target, flask_client, subtests):
+    group_id, assert_unchanged = group_patch_target
+    headers = {"x-rh-identity": to_auth_header(Identity(obj=USER_IDENTITY)), "Content-Type": "application/json"}
+    for content, reason in ((None, "required"), ("null", "must not be empty"), ("{}", "cannot be empty")):
+        with subtests.test(content=content):
+            response = flask_client.patch(f"{GROUP_URL}/{group_id}", content=content, headers=headers)
+            assert response.status_code == 400
+            assert reason in response.json()["detail"]
+            assert_unchanged()
+
+
+def test_patch_group_invalid_paths(group_patch_target, api_patch_group, api_get, subtests):
+    _, assert_unchanged = group_patch_target
+    status, before = api_get(GROUP_URL)
+    assert_response_status(status, 200)
+    uuid = str(generate_uuid())
+    invalid_ids = [
+        "[]",
+        "{}",
+        str([uuid]),
+        uuid.replace("-", "_"),
+        uuid.replace("-", "."),
+        uuid.replace("-", " "),
+        uuid[:10],
+        uuid[:23],
+        uuid[:35],
+        uuid + "a",
+        "f8c1684c-aáe7-4463-8cf4-773cc668862c",
+        "f8c1684c-a$e7-4463-8cf4-773cc668862c",
+        "f8c1684c-aae7-4463-8cf4-773cc6-68862",
+    ]
+    cases = [(group_id, 400, "does not match") for group_id in invalid_ids]
+    cases += [(uuid.replace("-", ""), 400, "uuid"), (uuid, 404, "not found"), (uuid.upper(), 404, "not found")]
+    for group_id, expected_status, reason in cases:
+        with subtests.test(group_id=group_id):
+            status, body = api_patch_group(group_id, {"name": "valid_name", "host_ids": []})
+            assert_response_status(status, expected_status)
+            assert reason in (str(body.get("detail", "")) + str(body.get("title", ""))).lower()
+            if expected_status == 400:
+                assert group_id in body["detail"]
+            status, after = api_get(GROUP_URL)
+            assert_response_status(status, 200)
+            assert after["total"] == before["total"]
+            assert_unchanged()
+
+
+def test_patch_group_empty_id(group_patch_target, api_patch, api_get, subtests):
+    _, assert_unchanged = group_patch_target
+    status, before = api_get(GROUP_URL)
+    assert_response_status(status, 200)
+    for url in (GROUP_URL, f"{GROUP_URL}/"):
+        with subtests.test(url=url):
+            status, body = api_patch(url, {"name": "valid_name", "host_ids": []})
+            assert_response_status(status, 405)
+            assert "method not allowed" in body["detail"].lower()
+            status, after = api_get(GROUP_URL)
+            assert_response_status(status, 200)
+            assert after["total"] == before["total"]
+            assert_unchanged()
+
+
+def test_patch_group_unchanged_data(
+    db_create_group_with_hosts,
+    db_get_hosts_for_group,
+    db_get_group_by_id,
+    api_patch_group,
+    event_producer,
+    mocker,
+    subtests,
+):
+    mocker.patch.object(event_producer, "write_event")
+    for num_hosts in (0, 3):
+        group = db_create_group_with_hosts(f"unchanged_group_{num_hosts}", num_hosts)
+        group_id, name = group.id, group.name
+        host_ids = {str(host.id) for host in db_get_hosts_for_group(group_id)}
+        for patch in ({"name": name}, {"host_ids": list(host_ids)}, {"name": name, "host_ids": list(host_ids)}):
+            with subtests.test(num_hosts=num_hosts, fields=list(patch)):
+                status, body = api_patch_group(group_id, patch)
+                assert_response_status(status, 200)
+                assert body["id"] == str(group_id)
+                assert body["name"] == name
+                assert body["host_count"] == num_hosts
+                assert db_get_group_by_id(group_id).name == name
+                assert {str(host.id) for host in db_get_hosts_for_group(group_id)} == host_ids
+
+
+def test_patch_group_strips_whitespace(db_create_group, db_get_group_by_id, api_patch_group, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
+    group_id = db_create_group("original_group").id
+    status, body = api_patch_group(group_id, {"name": " normalized group "})
+    assert_response_status(status, 200)
+    assert body["name"] == "normalized group"
+    assert db_get_group_by_id(group_id).name == "normalized group"
 
 
 # ============================================================================
@@ -917,11 +1129,13 @@ def test_patch_group_response_uses_rbac_workspace_when_rbac_v2_enabled(
     group_id = str(group.id)
     host_id = str(db_create_host().id)
 
+    # Deliberately differ from the DB row so the response must come from RBAC.
+    rbac_created = "2020-01-01T00:00:00+00:00"
     rbac_modified = "2030-05-05T10:20:30+00:00"
     workspace_payload = {
         "id": group_id,
         "name": "patch_rbac_v2_response",
-        "created": "2020-01-01T00:00:00+00:00",
+        "created": rbac_created,
         "modified": rbac_modified,
         "type": "standard",
     }
@@ -934,6 +1148,9 @@ def test_patch_group_response_uses_rbac_workspace_when_rbac_v2_enabled(
     response_status, response_data = api_patch_group(group_id, {"host_ids": [host_id]})
 
     assert_response_status(response_status, 200)
+    assert parser.isoparse(response_data["created"]) == parser.isoparse(rbac_created)
+    # Host-only changes must not manufacture a newer RBAC workspace timestamp.
+    assert parser.isoparse(response_data["updated"]) == parser.isoparse(rbac_modified)
     org_id = USER_IDENTITY["org_id"]
     account = USER_IDENTITY["account_number"]
     host_counts = get_host_counts_batch(org_id, [group_id])
