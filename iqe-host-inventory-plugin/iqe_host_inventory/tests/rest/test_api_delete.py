@@ -3,12 +3,7 @@
 from __future__ import annotations
 
 import logging
-import multiprocessing
-import time
 from collections.abc import Generator
-from copy import deepcopy
-from datetime import UTC
-from datetime import datetime
 
 import pytest
 from dynaconf.utils.boxing import DynaBox
@@ -17,15 +12,10 @@ from iqe.base.auth import AuthType
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
-from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.api_utils import temp_headers
-from iqe_host_inventory.utils.datagen_utils import gen_tag
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
-from iqe_host_inventory.utils.staleness_utils import create_hosts_in_state
-from iqe_host_inventory.utils.tag_utils import convert_tag_to_string
-from iqe_host_inventory_api import ApiException
 from iqe_host_inventory_api.models.host_out import HostOut
 
 pytestmark = [pytest.mark.backend]
@@ -37,57 +27,6 @@ logger = logging.getLogger(__name__)
 def hosts_for_negative_tests(host_inventory: ApplicationHostInventory) -> list[HostOut]:
     """Create hosts for negative tests, these shouldn't get deleted"""
     return host_inventory.upload.create_hosts(3, cleanup_scope="module")
-
-
-@pytest.mark.parametrize("invalid_host_id", ["host", "78", "1.223434"])
-def test_delete_multiple_hosts_with_invalid_id(
-    host_inventory: ApplicationHostInventory,
-    hosts_for_negative_tests: list[HostOut],
-    invalid_host_id: str,
-):
-    """
-    Test Deletion of Multiple Hosts with an Invalid Id in the Request.
-
-    1. Create three hosts
-    2. Issue a delete with an invalid host id intermixed with the others.
-    3. Confirm response status code was 400.
-    4. Confirm no hosts were deleted.
-
-    metadata:
-        assignee: btweed
-        importance: low
-        title: Inventory: Confirm deletion of multiple hosts with an invalid id does not
-            delete anything.
-    """
-    # Put one invalid host_id in the mix
-    bad_host_list = [host.id for host in hosts_for_negative_tests]
-    bad_host_list[1] = invalid_host_id
-
-    # Issue DELETE and expect a 400
-    with raises_apierror(400, match_message="Failed validating"):
-        host_inventory.apis.hosts.delete_by_id_raw(bad_host_list)
-
-    host_inventory.apis.hosts.verify_not_deleted(hosts_for_negative_tests)
-
-
-def test_delete_existing_and_non_existent_hosts(
-    host_inventory: ApplicationHostInventory,
-    hosts_for_negative_tests: list[HostOut],
-):
-    """
-    metadata:
-        assignee: fstavela
-        importance: medium
-        title: Try deleting existing and non-existent hosts in the same request.
-    """
-    # Put one non-existent host_id in the mix
-    bad_host_list = [host.id for host in hosts_for_negative_tests]
-    bad_host_list[1] = generate_uuid()
-
-    # Issue DELETE and expect a 404
-    with raises_apierror(404):
-        host_inventory.apis.hosts.delete_by_id_raw(bad_host_list)
-    host_inventory.apis.hosts.verify_not_deleted(hosts_for_negative_tests)
 
 
 @pytest.mark.smoke
@@ -131,81 +70,6 @@ def test_delete_non_existent_host(
 
     with raises_apierror(404):
         host_inventory.apis.hosts.delete_by_id_raw(unused_uuid)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup_culled")
-def test_delete_culled_host(host_inventory: ApplicationHostInventory):
-    """
-    Confirm that is not possible to delete culled hosts.
-
-    1. Create a host in culled state
-    2. Attempt to remove the host
-    3. Make sure that an error 404 is returned
-
-    metadata:
-        assignee: fstavela
-        importance: low
-        title: Inventory: Confirm that is not possible to delete a culled host
-    """
-    host_data = host_inventory.datagen.create_host_data()
-    host = create_hosts_in_state(host_inventory, [host_data], host_state="culling")[0]
-
-    with raises_apierror(404):
-        host_inventory.apis.hosts.delete_by_id_raw(host)
-
-
-@pytest.mark.concurrency
-@pytest.mark.parametrize("num_concurrent_requests", [5, 10])
-def test_concurrency_delete(
-    application: Application,
-    host_inventory: ApplicationHostInventory,
-    num_concurrent_requests: int,
-):
-    """
-    Test Concurrent DELETE Requests of Same Host.
-
-    1. Create a host
-    2. Issue multiple concurrent DELETE requests for the host's id
-    3. Confirm the host was successfully deleted
-
-    metadata:
-        assignee: fstavela
-        importance: high
-        title: Inventory: Confirm concurrent deletion of same host.
-    """
-    if application.config.current_env.lower() == "prod":
-        # TODO: add prod env blocker
-        pytest.skip("Let us not do stressful/dangerous things against production")
-
-    host = host_inventory.upload.create_host()
-
-    start_time = time.time()
-
-    # Now issue multiple concurrent requests to delete the same host
-    host_inventory.apis.hosts.api_client.pool_threads = multiprocessing.cpu_count()
-    threads = []
-    for _ in range(num_concurrent_requests):
-        thread = host_inventory.apis.hosts.raw_api.api_host_delete_host_by_id(
-            host_id_list=[host.id], async_req=True
-        )
-        threads.append(thread)
-
-    for thread in threads:
-        try:
-            thread.get()
-        except ApiException as exc:
-            assert exc.status in (404, 500)
-
-    host_inventory.apis.hosts.api_client.pool_threads = 1
-
-    # All concurrent deletions complete, try to GET the host
-    # wait for deletion to pass trough the api
-    host_inventory.apis.hosts.wait_for_deleted(host)
-
-    end_time = time.time()
-    total_time = end_time - start_time
-    logger.info("Total time for test execution was %f", total_time)
 
 
 @pytest.mark.smoke
@@ -338,29 +202,6 @@ def test_delete_bulk_registered_with(host_inventory: ApplicationHostInventory):
     host_inventory.apis.hosts.verify_not_deleted(hosts[2])
 
 
-@pytest.mark.ephemeral
-def test_delete_bulk_last_check_in(host_inventory: ApplicationHostInventory):
-    """
-    Test DELETE on /hosts endpoint with combined last_check_in_start and last_check_in_end.
-
-    metadata:
-        assignee: fstavela
-        importance: high
-        title: Delete hosts by combined last_check_in_start and last_check_in_end
-    """
-    host_before = host_inventory.kafka.create_host()
-    time_start = datetime.now(tz=UTC)
-    hosts = host_inventory.kafka.create_random_hosts(3)
-    time_end = datetime.now(tz=UTC)
-    host_after = host_inventory.kafka.create_host()
-
-    host_inventory.apis.hosts.delete_filtered(
-        last_check_in_start=time_start, last_check_in_end=time_end
-    )
-    host_inventory.apis.hosts.wait_for_deleted(hosts)
-    host_inventory.apis.hosts.verify_not_deleted([host_before, host_after])
-
-
 @pytest.mark.smoke
 @pytest.mark.ephemeral
 def test_delete_bulk_group_name(host_inventory: ApplicationHostInventory):
@@ -380,75 +221,6 @@ def test_delete_bulk_group_name(host_inventory: ApplicationHostInventory):
     host_inventory.apis.hosts.delete_filtered(group_name=[group_name])
     host_inventory.apis.hosts.wait_for_deleted(hosts[0])
     host_inventory.apis.hosts.verify_not_deleted(hosts[1:])
-
-
-@pytest.mark.ephemeral
-def test_delete_bulk_system_type(
-    host_inventory: ApplicationHostInventory,
-    setup_hosts_for_deleting_by_system_type_filter: dict[str, list[HostWrapper]],
-):
-    """
-    Test DELETE on /hosts endpoint with 'system_type' parameter.
-
-    metadata:
-        assignee: fstavela
-        importance: high
-        title: Confirm system_type parameter deletes right hosts
-    """
-    prepared_hosts = deepcopy(setup_hosts_for_deleting_by_system_type_filter)
-    expected_hosts = prepared_hosts.pop("edge")
-
-    host_inventory.apis.hosts.delete_filtered(system_type=["edge"])
-    host_inventory.apis.hosts.wait_for_deleted(expected_hosts)
-
-    not_deleted = flatten(hosts for hosts in prepared_hosts.values())
-    host_inventory.apis.hosts.verify_not_deleted(not_deleted)
-
-
-@pytest.mark.ephemeral
-def test_delete_bulk_tags(host_inventory: ApplicationHostInventory):
-    """
-    Test DELETE on /hosts endpoint with 'tags' parameter.
-
-    metadata:
-        assignee: fstavela
-        importance: high
-        title: Inventory: Test DELETE on /hosts with 'tags' parameter
-    """
-    searched_tag = gen_tag()
-    str_tag = convert_tag_to_string(searched_tag)
-    hosts_data = host_inventory.datagen.create_n_hosts_data(4)
-    hosts_data[0]["tags"] = [searched_tag]
-    hosts_data[1]["tags"] = [searched_tag, gen_tag()]
-    hosts_data[2]["tags"] = [gen_tag()]
-    hosts_data[3].pop("tags", None)
-    hosts = host_inventory.kafka.create_hosts(hosts_data=hosts_data)
-
-    host_inventory.apis.hosts.delete_filtered(tags=[str_tag])
-    host_inventory.apis.hosts.wait_for_deleted(hosts[:2])
-    host_inventory.apis.hosts.verify_not_deleted(hosts[2:])
-
-
-@pytest.mark.ephemeral
-def test_delete_bulk_workloads_sap(host_inventory: ApplicationHostInventory):
-    """
-    Test DELETE on /hosts endpoint with system_profile workloads SAP filter.
-
-    metadata:
-        assignee: fstavela
-        importance: high
-        title: Inventory: Test DELETE on /hosts with workloads SAP filter
-    """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(4)
-    hosts_data[0]["system_profile"]["workloads"] = {"sap": {"sap_system": True, "sids": ["H2O"]}}
-    hosts_data[1]["system_profile"]["workloads"] = {"sap": {"sap_system": True}}
-    hosts_data[2]["system_profile"]["workloads"] = {"ansible": {"controller_version": "4.3"}}
-    hosts_data[3]["system_profile"].pop("workloads", None)
-    hosts = host_inventory.kafka.create_hosts(hosts_data=hosts_data)
-
-    host_inventory.apis.hosts.delete_filtered(filter=["[workloads][sap][sap_system][is]=not_nil"])
-    host_inventory.apis.hosts.wait_for_deleted(hosts[:2])
-    host_inventory.apis.hosts.verify_not_deleted(hosts[2:])
 
 
 @pytest.mark.ephemeral

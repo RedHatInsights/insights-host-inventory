@@ -44,35 +44,3 @@ def test_host_checkin(host_inventory: ApplicationHostInventory) -> None:
 
     assert response.status_code == 201
     assert_checkin_response(response.json(), host)
-
-
-@pytest.mark.ephemeral
-def test_host_checkin_with_frequency(host_inventory: ApplicationHostInventory) -> None:
-    """POST /hosts/checkin with an explicit checkin_frequency updates staleness timestamps.
-
-    metadata:
-        assignee: aarif
-        importance: medium
-        title: POST /hosts/checkin with custom checkin_frequency updates staleness timestamps
-    """
-    host = host_inventory.kafka.create_host()
-
-    response = host_inventory.apis.hosts.host_checkin_response(
-        insights_id=host.insights_id,
-        checkin_frequency=60,
-    )
-
-    assert response.status_code == 201
-    assert_checkin_response(response.json(), host)
-
-
-def test_host_checkin_requires_canonical_fact(host_inventory: ApplicationHostInventory) -> None:
-    """POST /hosts/checkin requires at least one canonical fact.
-
-    metadata:
-        assignee: aarif
-        importance: low
-        title: POST /hosts/checkin rejects requests with no canonical facts
-    """
-    response = host_inventory.apis.hosts.host_checkin_response()
-    assert response.status_code == 400

@@ -9,6 +9,7 @@ from uuid import UUID
 import pytest
 from connexion import FlaskApp
 from pytest_mock import MockFixture
+from sqlalchemy import event as sa_event
 
 from api.staleness_query import get_staleness_obj
 from app.config import Config
@@ -245,6 +246,24 @@ def future_mock():
 def event_datetime_mock(mocker):
     mock = mocker.patch("app.queue.events.datetime", **{"now.return_value": now()})
     return mock.now.return_value
+
+
+@pytest.fixture(scope="function")
+def mq_service_host_listeners() -> Generator[None]:
+    """Run MQ ingestion with the Host listeners the MQ service actually has.
+
+    api.staleness registers a Host before_update listener at import time. Connexion
+    imports API modules only when serving requests, so the MQ service never loads it,
+    but any earlier API request in the test process does.
+    """
+    from api.staleness import receive_before_host_update
+
+    registered = sa_event.contains(Host, "before_update", receive_before_host_update)
+    if registered:
+        sa_event.remove(Host, "before_update", receive_before_host_update)
+    yield
+    if registered:
+        sa_event.listen(Host, "before_update", receive_before_host_update)
 
 
 @pytest.fixture(scope="function")

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+from threading import Barrier
 from unittest import mock
 from unittest.mock import patch
 
@@ -14,7 +17,9 @@ from api.host import _delete_host_list
 from app.auth.identity import Identity
 from app.exceptions import OutboxSaveException
 from app.models import Host
+from app.models import db
 from app.queue.event_producer import MessageDetails
+from app.queue.event_producer import _encode_headers
 from app.queue.event_producer import logger as event_producer_logger
 from app.queue.host_mq import OperationResult
 from lib.host_delete import delete_hosts
@@ -23,23 +28,28 @@ from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_custom_rbac_response
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import do_request
 from tests.helpers.db_utils import db_host
+from tests.helpers.mq_utils import HOST_EVENT_HEADER_CASES
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.mq_utils import assert_delete_notification_is_valid
+from tests.helpers.mq_utils import expected_headers
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
-def test_delete_non_existent_host(api_delete_host):
+def test_delete_non_existent_host(api_delete_host, event_producer_mock):
     host_id = generate_uuid()
 
     response_status, _ = api_delete_host(host_id)
 
     assert_response_status(response_status, expected_status=404)
+    assert event_producer_mock.events == []
 
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
@@ -83,12 +93,14 @@ def test_delete_with_missing_host_id_response_includes_only_missing_ids(db_creat
     assert db_get_host(valid_host_id)
 
 
-def test_delete_with_invalid_host_id(api_delete_host):
-    host_id = "notauuid"
-
-    response_status, _ = api_delete_host(host_id)
-
-    assert_response_status(response_status, expected_status=400)
+def test_delete_with_invalid_host_id(api_delete_host, db_create_multiple_hosts, db_get_host, subtests):
+    hosts = db_create_multiple_hosts(how_many=3)
+    for invalid_id in ("host", "78", "1.223434"):
+        with subtests.test(invalid_id=invalid_id):
+            status, data = api_delete_host(f"{hosts[0].id},{invalid_id},{hosts[1].id}")
+            assert status == 400
+            assert invalid_id in data["detail"]
+            assert all(db_get_host(host.id) for host in hosts)
 
 
 def test_create_then_delete(
@@ -112,6 +124,94 @@ def test_create_then_delete(
     )
 
     assert not db_get_host(host.id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock")
+@pytest.mark.parametrize("how_many", (1, 3))
+def test_delete_event_header_contracts(
+    how_many, db_create_host, api_delete_host, event_producer_mock, event_datetime_mock, subtests
+):
+    request_ids = (None, "", "91a80cc0-309c-4cf5-b079-73fe588a9db4")
+    for case_index, (profile, host_type, os_name, is_bootc) in enumerate(HOST_EVENT_HEADER_CASES):
+        for with_insights_id in (False, True):
+            with subtests.test(profile=profile, with_insights_id=with_insights_id):
+                hosts = []
+                for _ in range(how_many):
+                    host = db_create_host(host=db_host(insights_id=generate_uuid() if with_insights_id else None))
+                    host.update_system_profile(deepcopy(profile))
+                    db.session.commit()
+                    hosts.append(host)
+                originals = {}
+                for host in hosts:
+                    # Freeze loaded scalar/profile values before DELETE can mutate the ORM rows.
+                    _ = host.static_system_profile
+                    originals[str(host.id)] = deepcopy(host)
+                request_id = request_ids[case_index % len(request_ids)]
+                headers = {} if request_id is None else {"x-rh-insights-request-id": request_id}
+                event_producer_mock.events.clear()
+                status, _ = api_delete_host(",".join(originals), extra_headers=headers)
+                assert status == 200
+                assert len(event_producer_mock.events) == how_many
+                assert {record.key for record in event_producer_mock.events} == set(originals)
+                for record in event_producer_mock.events:
+                    host = originals[record.key]
+                    assert_delete_event_is_valid(record, host, event_datetime_mock, expected_request_id=request_id)
+                    assert record.headers == expected_headers(
+                        "delete", request_id, str(host.insights_id), "test-reporter", host_type, os_name, is_bootc
+                    )
+                    assert dict(_encode_headers(record.headers))["request_id"] == (
+                        request_id.encode() if request_id else b""
+                    )
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock")
+@pytest.mark.parametrize("how_many", (1, 3))
+def test_delete_event_frontend_contracts(
+    how_many, db_create_host, api_delete_host, event_producer_mock, event_datetime_mock, subtests
+):
+    for with_rhsm_id in (False, True):
+        for origin in (None, "hcc", "hcb", ""):
+            with subtests.test(with_rhsm_id=with_rhsm_id, origin=origin):
+                hosts = [
+                    db_create_host(host=db_host(subscription_manager_id=generate_uuid() if with_rhsm_id else None))
+                    for _ in range(how_many)
+                ]
+                originals = {}
+                for host in hosts:
+                    _ = host.static_system_profile
+                    originals[str(host.id)] = deepcopy(host)
+                headers = {} if origin is None else {"x-rh-frontend-origin": origin}
+                event_producer_mock.events.clear()
+                status, _ = api_delete_host(",".join(originals), extra_headers=headers)
+                assert status == 200
+                assert len(event_producer_mock.events) == how_many
+                assert {record.key for record in event_producer_mock.events} == set(originals)
+                for record in event_producer_mock.events:
+                    assert_delete_event_is_valid(
+                        record, originals[record.key], event_datetime_mock, initiated_by_frontend=origin == "hcc"
+                    )
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+@pytest.mark.parametrize("how_many", (5, 10))
+def test_concurrent_delete_same_host(how_many, db_create_host, db_get_host, flask_app, api_get):
+    host_id = str(db_create_host().id)
+    url = build_hosts_url(host_id)
+    assert api_get(url)[0] == 200  # Initialize middleware before starting independent clients.
+    start = Barrier(how_many)
+
+    def delete_host():
+        with flask_app.test_client() as client:
+            start.wait(timeout=10)
+            return do_request(client.delete, url, USER_IDENTITY)[0]
+
+    with ThreadPoolExecutor(max_workers=how_many) as executor:
+        outcomes = list(executor.map(lambda _: delete_host(), range(how_many)))
+    # The current API explicitly reports exhausted transaction retries as 409,
+    # rather than the legacy IQE smoke's tolerated 500.
+    assert set(outcomes) <= {200, 404, 409}
+    assert 200 in outcomes
+    assert db_get_host(host_id) is None
 
 
 def test_create_then_delete_with_branch_id(
