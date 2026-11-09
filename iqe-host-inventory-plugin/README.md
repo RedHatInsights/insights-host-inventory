@@ -702,8 +702,9 @@ environments first. Here is what we need to do:
 [app-interface deployment config values](https://gitlab.cee.redhat.com/service/app-interface/-/blob/33eebcc3950ba1f06fa98985271adc73ef4e0ccd/data/services/insights/host-inventory/deploy-clowder.yml#L155),
 [feature flags](https://insights-stage.unleash.devshift.net/projects), code image tags, etc.)
 2. [Run tests in ephemeral environment](#running-tests-in-ephemeral-environment) - or check the PR checks from the latest merged PR
-3. Check the results of the latest Stage [testing pipelines](#testing-pipelines), or
-[trigger them manually](#triggering-a-pipeline-manually) (for backend release)
+3. Check the results of the Stage [post-deploy pipelines](#post-deploy-pipelines) (their
+`commit-sha` label should match the commit we want to release), or of the latest scheduled Stage
+[testing pipelines](#testing-pipelines). If needed, [trigger them manually](#triggering-a-pipeline-manually)
 
 When everything passes, we can update Prod deploy config. For code releases, we need to update
 this ref to match the tested version from Stage for backend:
@@ -753,10 +754,12 @@ approve it by adding a `/lgtm` comment.
 Once the MR is merged and the new versions have settled in Prod, we can update feature flag values
 in Prod, if needed.
 
-After any change to Production, we always have to
-[trigger](#triggering-a-pipeline-manually) one of our Prod [testing pipelines](#testing-pipelines)
-to make sure everything is working fine. Also, the engineer who approved the MR is then responsible
-for monitoring the deployment.
+After any change to Production, we always have to make sure everything is working fine. After a
+backend deployment (new code or config values of the backend in app-interface), the Prod
+[post-deploy pipelines](#post-deploy-pipelines) run automatically, so we only need to check their
+results. After other changes, like feature flag changes, we have to
+[trigger](#triggering-a-pipeline-manually) one of our Prod [testing pipelines](#testing-pipelines) manually.
+Also, the engineer who approved the MR is then responsible for monitoring the deployment.
 
 ## Testing pipelines
 
@@ -767,22 +770,35 @@ creates a new Job with a single pod, which runs the tests from the
 | CronJob | Schedule (UTC) | Markers (`-m`) | Account |
 |---|---|---|---|
 | **Stage** (namespace `host-inventory-stage-tests`) | | | |
-| `inventory-stage-testing-pipeline` | 04:00, 22:00 | `not ephemeral and not longrun` | `insights-inventory-qe` |
-| `inventory-stage-extended-testing-pipeline` | 01:45 | `not ephemeral and longrun` | `insights-inventory-qe` |
-| `inventory-stage-secondary-testing-pipeline` | 04:00, 22:00 | `not ephemeral and not service_account and not longrun` (`-k 'not test_notifications_e2e'`) | `insights-inventory-test` |
+| `inventory-stage-testing-pipeline` | 05:00 | `not ephemeral and not longrun` | `insights-inventory-qe` |
+| `inventory-stage-extended-testing-pipeline` | 03:45 | `not ephemeral and longrun` | `insights-inventory-qe` |
+| `inventory-stage-secondary-testing-pipeline` | 05:00 | `not ephemeral and not service_account and not longrun` (`-k 'not test_notifications_e2e'`) | `insights-inventory-test` |
 | **Prod** (namespace `host-inventory-prod-tests`) | | | |
-| `inventory-prod-testing-pipeline` | 06:00, 13:00 | `not ephemeral and not longrun` | `insights-inventory-qe` |
-| `inventory-prod-secondary-testing-pipeline` | 06:00, 13:00 | `not ephemeral and not service_account and not longrun` (`-k 'not test_notifications_e2e'`) | `insights-inventory-testing` |
+| `inventory-prod-testing-pipeline` | 06:00 | `not ephemeral and not longrun` | `insights-inventory-qe` |
+| `inventory-prod-secondary-testing-pipeline` | 05:00 | `not ephemeral and not service_account and not longrun` (`-k 'not test_notifications_e2e'`) | `insights-inventory-testing` |
 | `inventory-prod-outage-testing-pipeline` | every 10 minutes | `outage` | `insights-inventory-testing` |
 
 The `insights-inventory-qe` account has the `hbi.rbac-v2` feature flag enabled, while the
 `insights-inventory-test` (Stage) and `insights-inventory-testing` (Prod) accounts have it disabled.
 
-The extended pipeline starts at 01:45 because its stale host notification test waits for the stale
+The extended pipeline starts at 03:45 because its stale host notification test waits for the stale
 host detection, which runs every full hour.
 
 Runs time out after 3 hours (30 minutes for the outage check). If the previous run of the same
 CronJob is still running, the next scheduled run is skipped.
+
+### Post-deploy pipelines
+
+On top of the scheduled runs, these Jobs run the tests automatically after every successful
+host-inventory deployment to Stage or Prod. They use the same markers and accounts as the matching
+scheduled pipelines:
+
+- Stage: [primary (RBAC v2)](https://console-openshift-console.apps.rosa.appsres09ue1.24ep.p3.openshiftapps.com/k8s/ns/host-inventory-stage-tests/jobs/inventory-stage-post-deploy/),
+[secondary (RBAC v1)](https://console-openshift-console.apps.rosa.appsres09ue1.24ep.p3.openshiftapps.com/k8s/ns/host-inventory-stage-tests/jobs/inventory-stage-secondary-post-deploy/)
+- Prod: [primary (RBAC v2)](https://console-openshift-console.apps.rosa.appsres09ue1.24ep.p3.openshiftapps.com/k8s/ns/host-inventory-prod-tests/jobs/inventory-prod-post-deploy/),
+[secondary (RBAC v1)](https://console-openshift-console.apps.rosa.appsres09ue1.24ep.p3.openshiftapps.com/k8s/ns/host-inventory-prod-tests/jobs/inventory-prod-secondary-post-deploy/)
+
+Each Job has a `commit-sha` label with the deployed commit it tested.
 
 ### Where the pipelines are defined
 
