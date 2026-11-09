@@ -6,7 +6,6 @@ import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
-from iqe_host_inventory.tests.rest.groups.test_groups_mq_events import group_to_mq_dict
 from iqe_host_inventory.utils.api_utils import is_ungrouped_host
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory_api import GroupOut
@@ -22,6 +21,10 @@ def group_to_hosts_api_dict(group: GroupOut | GroupOutWithHostCount) -> dict:
     group_dict.pop("created", None)
     group_dict.pop("updated", None)
     return group_dict
+
+
+def group_to_mq_dict(group: GroupOut | GroupOutWithHostCount) -> dict[str, str]:
+    return {"id": group.id, "name": group.name, "ungrouped": group.ungrouped}
 
 
 @pytest.mark.ephemeral
