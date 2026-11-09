@@ -849,6 +849,47 @@ class TestResolveExportColumns:
             app_name = expected_fields[0].split(":", 1)[0]
             assert app_data == {app_name: [field.split(":", 1)[1] for field in expected_fields]}
 
+    @pytest.mark.parametrize(
+        "composite_key, expanded_fields",
+        [
+            (
+                "advisor:recommendations",
+                ["advisor:critical", "advisor:important", "advisor:moderate", "advisor:low"],
+            ),
+            (
+                "vulnerability:total_cves",
+                [
+                    "vulnerability:critical_cves",
+                    "vulnerability:important_cves",
+                    "vulnerability:moderate_cves",
+                    "vulnerability:low_cves",
+                ],
+            ),
+            (
+                "patch:advisories_rhsa_installable",
+                [
+                    "patch:advisories_rhsa_installable",
+                    "patch:advisories_rhba_installable",
+                    "patch:advisories_rhea_installable",
+                    "patch:advisories_other_installable",
+                ],
+            ),
+        ],
+    )
+    def test_hidden_composite_columns_are_omitted(self, flask_app, composite_key, expanded_fields):
+        """A hidden composite column must not export the fields it expands into."""
+        with flask_app.app.app_context():
+            fields, app_data = resolve_export_columns(
+                [
+                    {"key": "display_name"},
+                    {"key": composite_key, "shown": False},
+                ]
+            )
+
+            assert fields == ["host_id", "display_name", *ALWAYS_APPENDED_EXPORT_FIELDS]
+            assert app_data == {}
+            assert not any(field in fields for field in expanded_fields)
+
     def test_composite_column_dropped_when_app_unauthorized(self, flask_app):
         with flask_app.app.app_context():
             fields, app_data = resolve_export_columns(
