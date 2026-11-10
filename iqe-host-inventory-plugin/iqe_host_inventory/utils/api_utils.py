@@ -61,6 +61,8 @@ _COLLECTION_PARAMS = (
     "recommendation_severity",
     "incident_status",
     "cve_severity",
+    "known_exploit",
+    "security_rule",
 )
 
 

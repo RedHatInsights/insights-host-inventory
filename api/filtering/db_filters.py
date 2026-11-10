@@ -596,12 +596,29 @@ _CVE_SEVERITY_TO_COLUMN = {
 }
 
 
+def _vulnerability_count_conditions(values: list[str], column) -> list:
+    """OR together present, not_present, and not_evaluated for one Vulnerability count."""
+    conditions = []
+    for value in values:
+        if value == "present":
+            conditions.append(column > 0)
+        elif value == "not_present":
+            conditions.append(column == 0)
+        elif value == "not_evaluated":
+            conditions.append(HostAppDataVulnerability.host_id.is_(None))
+    return conditions
+
+
 def _vulnerability_filter(
     cve_severity: list[str] | None,
-    known_exploit: str | None,
-    security_rule: str | None,
+    known_exploit: list[str] | None,
+    security_rule: list[str] | None,
 ) -> tuple[list, type]:
     """Build filters for cve_severity, known_exploit, and security_rule params.
+
+    Values within each param are OR. The three params are AND when more than one is set.
+    not_evaluated is the absence of a vulnerability row (host_id IS NULL), not a column.
+    present is the count > 0. not_present is a published row with the count == 0.
 
     Returns:
         (list of SQLAlchemy filter expressions, HostAppDataVulnerability model class)
@@ -609,22 +626,28 @@ def _vulnerability_filter(
     filters = []
 
     if cve_severity:
-        severity_conditions = [
-            getattr(HostAppDataVulnerability, _CVE_SEVERITY_TO_COLUMN[sev]) > 0 for sev in cve_severity
-        ]
-        filters.append(or_(*severity_conditions))
+        severity_conditions = []
+        for severity in cve_severity:
+            if severity == "not_evaluated":
+                severity_conditions.append(HostAppDataVulnerability.host_id.is_(None))
+            elif severity in _CVE_SEVERITY_TO_COLUMN:
+                severity_conditions.append(getattr(HostAppDataVulnerability, _CVE_SEVERITY_TO_COLUMN[severity]) > 0)
+        if severity_conditions:
+            filters.append(or_(*severity_conditions))
 
     if known_exploit:
-        if known_exploit == "has_known_exploit":
-            filters.append(HostAppDataVulnerability.cves_with_known_exploits > 0)
-        else:
-            filters.append(HostAppDataVulnerability.cves_with_known_exploits == 0)
+        exploit_conditions = _vulnerability_count_conditions(
+            known_exploit, HostAppDataVulnerability.cves_with_known_exploits
+        )
+        if exploit_conditions:
+            filters.append(or_(*exploit_conditions))
 
     if security_rule:
-        if security_rule == "present":
-            filters.append(HostAppDataVulnerability.cves_with_security_rules > 0)
-        else:
-            filters.append(HostAppDataVulnerability.cves_with_security_rules == 0)
+        rule_conditions = _vulnerability_count_conditions(
+            security_rule, HostAppDataVulnerability.cves_with_security_rules
+        )
+        if rule_conditions:
+            filters.append(or_(*rule_conditions))
 
     return filters, HostAppDataVulnerability
 
