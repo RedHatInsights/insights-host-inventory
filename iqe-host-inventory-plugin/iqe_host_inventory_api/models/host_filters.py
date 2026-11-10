@@ -43,8 +43,8 @@ class HostFilters:
         "recommendation_severity": "list[str]",
         "incident_status": "list[str]",
         "cve_severity": "list[str]",
-        "known_exploit": "str",
-        "security_rule": "str",
+        "known_exploit": "list[str]",
+        "security_rule": "list[str]",
     }
 
     attribute_map = {
@@ -473,7 +473,7 @@ class HostFilters:
         :param cve_severity: The cve_severity of this HostFilters.  # noqa: E501
         :type: list[str]
         """
-        allowed_values = ["critical", "important", "moderate", "low"]
+        allowed_values = ["critical", "important", "moderate", "low", "not_evaluated"]
         if self.local_vars_configuration.client_side_validation and not set(cve_severity).issubset(
             set(allowed_values)
         ):
@@ -493,7 +493,7 @@ class HostFilters:
         Filter by Vulnerability known exploit status.  # noqa: E501
 
         :return: The known_exploit of this HostFilters.  # noqa: E501
-        :rtype: str
+        :rtype: list[str]
         """
         return self._known_exploit
 
@@ -501,16 +501,17 @@ class HostFilters:
     def known_exploit(self, known_exploit):
         """Sets the known_exploit of this HostFilters.
 
-        Filter by Vulnerability known exploit status.  # noqa: E501
+        Filter by CVEs with known exploits. Values are OR.  # noqa: E501
 
         :param known_exploit: The known_exploit of this HostFilters.  # noqa: E501
-        :type: str
+        :type: list[str]
         """
-        allowed_values = ["has_known_exploit", "no_known_exploit"]
-        if self.local_vars_configuration.client_side_validation and known_exploit not in allowed_values:
+        allowed_values = ["present", "not_present", "not_evaluated"]
+        if self.local_vars_configuration.client_side_validation and not set(known_exploit).issubset(set(allowed_values)):
             raise ValueError(
-                "Invalid value for `known_exploit` ({}), must be one of {}".format(
-                    known_exploit, allowed_values
+                "Invalid values for `known_exploit` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(known_exploit) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
                 )
             )
 
@@ -523,7 +524,7 @@ class HostFilters:
         Filter by Vulnerability security rule status.
 
         :return: The security_rule of this HostFilters.
-        :rtype: str
+        :rtype: list[str]
         """
         return self._security_rule
 
@@ -531,16 +532,17 @@ class HostFilters:
     def security_rule(self, security_rule):
         """Sets the security_rule of this HostFilters.
 
-        Filter by Vulnerability security rule status.
+        Filter by CVEs with security rules. Values are OR.
 
         :param security_rule: The security_rule of this HostFilters.
-        :type: str
+        :type: list[str]
         """
-        allowed_values = ["present", "not_present"]
-        if self.local_vars_configuration.client_side_validation and security_rule not in allowed_values:
+        allowed_values = ["present", "not_present", "not_evaluated"]
+        if self.local_vars_configuration.client_side_validation and not set(security_rule).issubset(set(allowed_values)):
             raise ValueError(
-                "Invalid value for `security_rule` ({}), must be one of {}".format(
-                    security_rule, allowed_values
+                "Invalid values for `security_rule` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(security_rule) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
                 )
             )
 
