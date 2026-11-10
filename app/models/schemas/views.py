@@ -21,6 +21,9 @@ _VIEW_NAME_VALIDATION = marshmallow_validate.And(
 
 class ColumnSchema(MarshmallowSchema):
     key = fields.Str(required=True, validate=marshmallow_validate.Length(min=1))
+    # Absent means shown. Stored only when a tag column is added and then unchecked,
+    # so existing views keep their original JSON.
+    shown = fields.Bool(required=False)
 
 
 class SortSchema(MarshmallowSchema):

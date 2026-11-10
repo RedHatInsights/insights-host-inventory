@@ -1,7 +1,9 @@
 import json
 from datetime import datetime
+from uuid import UUID
 
 import connexion
+import ujson
 from flask_caching import Cache
 from redis import Redis
 
@@ -185,7 +187,20 @@ def delete_cached_system_keys(insights_id=None, org_id=None, owner_id=None):
         delete_keys(f"insights_id=*_org={org_id}", wildcard=True)
 
 
+def _system_cache_json_default(value):
+    if isinstance(value, UUID):
+        return str(value)
+    raise TypeError(f"Unsupported system cache value: {type(value).__name__}")
+
+
+def _normalize_system_cache_host(host: dict) -> dict:
+    # Keep the existing dictionary cache format while taking an independent,
+    # JSON-compatible snapshot, including UUIDs in nested groups or facts.
+    return ujson.loads(ujson.dumps(host, default=_system_cache_json_default))
+
+
 def set_cached_system(system_key, host, config=None):
+    """Cache a JSON-compatible host without mutating the caller's data."""
     global CACHE_CONFIG
     global CACHE
 
@@ -198,9 +213,10 @@ def set_cached_system(system_key, host, config=None):
         logger.info("Cache is unset when attampting to set value.")
         init_cache(config, None)
     try:
-        CACHE.set(key=system_key, value=host, timeout=config.cache_insights_client_system_timeout_sec)
+        cached_host = _normalize_system_cache_host(host)
+        CACHE.set(key=system_key, value=cached_host, timeout=config.cache_insights_client_system_timeout_sec)
     except Exception as exec:
-        logger.exception("Cache deletion failed", exc_info=exec)
+        logger.exception("Failed to cache system response", exc_info=exec)
 
 
 def delete_cached_system(system_key: str) -> None:

@@ -22,8 +22,10 @@ class MessageDetails:
         self.headers = headers
         self.key = key
         self.topic = topic
+        self.delivered = False
 
     def on_delivered(self, error, message):
+        self.delivered = error is None
         message_to_send = None
         if error:
             if error.code() == KafkaError.MSG_SIZE_TOO_LARGE:
@@ -82,6 +84,7 @@ class EventProducer:
             )
             if wait:
                 self._kafka_producer.flush()
+                return messageDetails.delivered
             else:
                 self._kafka_producer.poll(0)
 

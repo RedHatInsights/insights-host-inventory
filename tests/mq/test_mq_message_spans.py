@@ -342,14 +342,20 @@ def test_process_message_without_span_captures_otel_context(otel_spans, consumer
     assert result.otel_context is not None
 
 
-def test_end_all_deferred_spans_enriches_with_threadctx(otel_spans, consumer, monkeypatch):
-    """Verify that _end_all_deferred_spans enriches spans with rh.org_id and rh.request_id."""
+def test_end_all_deferred_spans_preserves_captured_identity(otel_spans, consumer, monkeypatch):
+    """Ending a deferred span must not borrow a later message's identity."""
     from app.logging import threadctx
 
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
 
+    def handle_message(*_args, **_kwargs):
+        threadctx.org_id = "message_org"
+        threadctx.request_id = "message_req"
+        return OperationResult(None, None, None, None, lambda: None)
+
+    monkeypatch.setattr(consumer, "handle_message", handle_message)
     consumer._process_single_message(FakeMessage())
     result = consumer.processed_rows[0]
     assert result.otel_span is not None
@@ -362,8 +368,8 @@ def test_end_all_deferred_spans_enriches_with_threadctx(otel_spans, consumer, mo
     assert result.otel_span is None
     spans = otel_spans.get_finished_spans()
     assert len(spans) == 1
-    assert spans[0].attributes["rh.org_id"] == "enrichment_org"
-    assert spans[0].attributes["rh.request_id"] == "enrichment_req"
+    assert spans[0].attributes["rh.org_id"] == "message_org"
+    assert spans[0].attributes["rh.request_id"] == "message_req"
 
 
 def test_end_all_deferred_spans_marks_error(otel_spans, consumer, monkeypatch):
