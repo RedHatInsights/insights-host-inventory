@@ -2742,7 +2742,9 @@
         "in": "query",
         "name": "cve_severity",
         "required": false,
-        "description": "Filters hosts by Vulnerability CVE severity. Only hosts with at least one CVE of the specified severity are returned. Multiple values use OR logic (e.g. critical + low returns hosts with either).",
+        "style": "form",
+        "explode": true,
+        "description": "Filters hosts by Vulnerability CVE severity. Repeat the parameter for multiple values (cve_severity=critical&cve_severity=low). Values are OR. critical, important, moderate, and low match hosts whose count for that severity is greater than 0. not_evaluated matches hosts with no Vulnerability data.",
         "schema": {
           "type": "array",
           "items": {
@@ -2751,7 +2753,8 @@
               "critical",
               "important",
               "moderate",
-              "low"
+              "low",
+              "not_evaluated"
             ]
           }
         }
@@ -2760,26 +2763,38 @@
         "in": "query",
         "name": "known_exploit",
         "required": false,
-        "description": "Filters hosts by Vulnerability known exploit status. Mutually exclusive: only one value may be provided. \"has_known_exploit\" returns hosts with cves_with_known_exploits > 0. \"no_known_exploit\" returns hosts with cves_with_known_exploits = 0 (excludes hosts with no Vulnerability data).",
+        "style": "form",
+        "explode": true,
+        "description": "Filters hosts by CVEs with known exploits. Repeat the parameter for multiple values (known_exploit=present&known_exploit=not_evaluated). Values are OR. present matches cves_with_known_exploits greater than 0. not_present matches a published Vulnerability row with that count equal to 0. not_evaluated matches hosts with no Vulnerability data.",
         "schema": {
-          "type": "string",
-          "enum": [
-            "has_known_exploit",
-            "no_known_exploit"
-          ]
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "present",
+              "not_present",
+              "not_evaluated"
+            ]
+          }
         }
       },
       "securityRuleParam": {
         "in": "query",
         "name": "security_rule",
         "required": false,
-        "description": "Filters hosts by Vulnerability security rule status. Mutually exclusive: only one value may be provided. \"present\" returns hosts with cves_with_security_rules > 0. \"not_present\" returns hosts with cves_with_security_rules = 0 (excludes hosts with no Vulnerability data).",
+        "style": "form",
+        "explode": true,
+        "description": "Filters hosts by CVEs with security rules. Repeat the parameter for multiple values (security_rule=present&security_rule=not_evaluated). Values are OR. present matches cves_with_security_rules greater than 0. not_present matches a published Vulnerability row with that count equal to 0. not_evaluated matches hosts with no Vulnerability data.",
         "schema": {
-          "type": "string",
-          "enum": [
-            "present",
-            "not_present"
-          ]
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "present",
+              "not_present",
+              "not_evaluated"
+            ]
+          }
         }
       },
       "hostViewCombinedFilterParam": {
@@ -6340,7 +6355,7 @@
             }
           },
           "cve_severity": {
-            "description": "Filter by Vulnerability CVE severity (OR logic).",
+            "description": "Filter by Vulnerability CVE severity. Values are OR. not_evaluated matches hosts with no Vulnerability data.",
             "type": "array",
             "items": {
               "type": "string",
@@ -6348,25 +6363,34 @@
                 "critical",
                 "important",
                 "moderate",
-                "low"
+                "low",
+                "not_evaluated"
               ]
             }
           },
           "known_exploit": {
-            "description": "Filter by Vulnerability known exploit status.",
-            "type": "string",
-            "enum": [
-              "has_known_exploit",
-              "no_known_exploit"
-            ]
+            "description": "Filter by CVEs with known exploits. Values are OR. present matches a count greater than 0. not_present matches a count equal to 0. not_evaluated matches hosts with no Vulnerability data.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "present",
+                "not_present",
+                "not_evaluated"
+              ]
+            }
           },
           "security_rule": {
-            "description": "Filter by Vulnerability security rule status.",
-            "type": "string",
-            "enum": [
-              "present",
-              "not_present"
-            ]
+            "description": "Filter by CVEs with security rules. Values are OR. present matches a count greater than 0. not_present matches a count equal to 0. not_evaluated matches hosts with no Vulnerability data.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "present",
+                "not_present",
+                "not_evaluated"
+              ]
+            }
           }
         },
         "additionalProperties": false
