@@ -60,10 +60,12 @@ class HostFilters(BaseModel):
     )
     system_type: list[StrictStr] | None = Field(default=None, description="Filter by system type.")
     recommendation_severity: list[StrictStr] | None = Field(
-        default=None, description="Filter by Advisor recommendation severity (OR logic)."
+        default=None,
+        description="Filter by Advisor recommendation severity. Values are OR. not_analyzed matches hosts with no Advisor data.",
     )
-    incident_status: StrictStr | None = Field(
-        default=None, description="Filter by Advisor incident status."
+    incident_status: list[StrictStr] | None = Field(
+        default=None,
+        description="Filter by Advisor incident status. Values are OR. not_analyzed matches hosts with no Advisor data.",
     )
     cve_severity: list[StrictStr] | None = Field(
         default=None, description="Filter by Vulnerability CVE severity (OR logic)."
@@ -125,9 +127,9 @@ class HostFilters(BaseModel):
             return value
 
         for i in value:
-            if i not in {"critical", "important", "moderate", "low"}:
+            if i not in {"critical", "important", "moderate", "low", "not_analyzed"}:
                 raise ValueError(
-                    "each list item must be one of ('critical', 'important', 'moderate', 'low')"
+                    "each list item must be one of ('critical', 'important', 'moderate', 'low', 'not_analyzed')"
                 )
         return value
 
@@ -137,8 +139,11 @@ class HostFilters(BaseModel):
         if value is None:
             return value
 
-        if value not in {"incident", "no_incident"}:
-            raise ValueError("must be one of ('incident', 'no_incident')")
+        for i in value:
+            if i not in {"present", "not_present", "not_analyzed"}:
+                raise ValueError(
+                    "each list item must be one of ('present', 'not_present', 'not_analyzed')"
+                )
         return value
 
     @field_validator("cve_severity")
