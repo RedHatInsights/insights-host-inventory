@@ -68,13 +68,16 @@ class HostFilters(BaseModel):
         description="Filter by Advisor incident status. Values are OR. not_analyzed matches hosts with no Advisor data.",
     )
     cve_severity: list[StrictStr] | None = Field(
-        default=None, description="Filter by Vulnerability CVE severity (OR logic)."
+        default=None,
+        description="Filter by Vulnerability CVE severity. Values are OR. not_evaluated matches hosts with no Vulnerability data.",
     )
-    known_exploit: StrictStr | None = Field(
-        default=None, description="Filter by Vulnerability known exploit status."
+    known_exploit: list[StrictStr] | None = Field(
+        default=None,
+        description="Filter by CVEs with known exploits. Values are OR. not_evaluated matches hosts with no Vulnerability data.",
     )
-    security_rule: StrictStr | None = Field(
-        default=None, description="Filter by Vulnerability security rule status."
+    security_rule: list[StrictStr] | None = Field(
+        default=None,
+        description="Filter by CVEs with security rules. Values are OR. not_evaluated matches hosts with no Vulnerability data.",
     )
     __properties: ClassVar[list[str]] = [
         "hostname_or_id",
@@ -153,9 +156,9 @@ class HostFilters(BaseModel):
             return value
 
         for i in value:
-            if i not in {"critical", "important", "moderate", "low"}:
+            if i not in {"critical", "important", "moderate", "low", "not_evaluated"}:
                 raise ValueError(
-                    "each list item must be one of ('critical', 'important', 'moderate', 'low')"
+                    "each list item must be one of ('critical', 'important', 'moderate', 'low', 'not_evaluated')"
                 )
         return value
 
@@ -165,8 +168,11 @@ class HostFilters(BaseModel):
         if value is None:
             return value
 
-        if value not in {"has_known_exploit", "no_known_exploit"}:
-            raise ValueError("must be one of ('has_known_exploit', 'no_known_exploit')")
+        for i in value:
+            if i not in {"present", "not_present", "not_evaluated"}:
+                raise ValueError(
+                    "each list item must be one of ('present', 'not_present', 'not_evaluated')"
+                )
         return value
 
     @field_validator("security_rule")
@@ -175,8 +181,11 @@ class HostFilters(BaseModel):
         if value is None:
             return value
 
-        if value not in {"present", "not_present"}:
-            raise ValueError("must be one of ('present', 'not_present')")
+        for i in value:
+            if i not in {"present", "not_present", "not_evaluated"}:
+                raise ValueError(
+                    "each list item must be one of ('present', 'not_present', 'not_evaluated')"
+                )
         return value
 
     model_config = ConfigDict(
