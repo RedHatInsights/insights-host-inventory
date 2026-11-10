@@ -411,8 +411,8 @@ class TestCreateExportWithView:
         "host_filters",
         [
             {"recommendation_severity": ["critical"]},
-            {"incident_status": "incident"},
-            {"recommendation_severity": ["critical"], "incident_status": "no_incident"},
+            {"incident_status": ["present"]},
+            {"recommendation_severity": ["critical", "not_analyzed"], "incident_status": ["not_present"]},
         ],
     )
     @mock.patch("app.queue.export_service._handle_export_error")
