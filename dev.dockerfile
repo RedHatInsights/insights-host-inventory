@@ -1,13 +1,14 @@
-FROM registry.access.redhat.com/ubi10/python-312
+# UBI10 does not publish a python-312 S2I image; use full UBI10 + app Python.
+FROM registry.access.redhat.com/ubi10/ubi:latest
 
 ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
 USER 0
-# use general package name instead of a specific one,
-# like "postgresql-10.15-1.module+el8.3.0+8944+1ca16b1f.x86_64",
-# so future security fixes are autamatically picked up.
-RUN dnf install -y postgresql && \
+# PostgreSQL 16 is the default stream on RHEL/UBI 10 (no modules).
+RUN dnf install -y postgresql python3.14 python3.14-pip && \
+    ln -sf /usr/bin/python3.14 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.14 /usr/bin/python && \
     dnf clean all
 
 COPY api/ api/
@@ -38,7 +39,7 @@ USER 1001
 
 ENV PATH="$APP_ROOT/.venv/bin:$PATH"
 
-RUN UV_SPEC=$(python3 scripts/get_uv_pip_specifier.py --build-pin) && pip install "uv${UV_SPEC}" && \
+RUN UV_SPEC=$(python3 scripts/get_uv_pip_specifier.py --build-pin) && python3 -m pip install "uv${UV_SPEC}" && \
     uv sync --frozen
 
 CMD bash -c 'make upgrade_db && make run_inv_mq_service'

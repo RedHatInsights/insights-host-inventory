@@ -5,7 +5,7 @@ This document outlines the steps to create a hermetic build environment by gener
 ## Generate all Lock Files at once
 
 To generate all lock files at once you can run just a single target.
-You need to be on a RHEL 9 subscribed machine for this to be successful.
+You need to be on a RHEL 10 subscribed machine for this to be successful.
 
 ```bash
 make generate-hermetic-lockfiles
@@ -13,7 +13,7 @@ make generate-hermetic-lockfiles
 
 ## Generating RPM Lock Files
 
-To generate the RPM lock file (`rpms.lock.yaml`), you need to run following target on a RHEL 9 machine.
+To generate the RPM lock file (`rpms.lock.yaml`), you need to run following target on a RHEL 10 machine.
 
 ### Prerequisites
 

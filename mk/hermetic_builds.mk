@@ -13,15 +13,15 @@ generate-hermetic-lockfiles: generate-rpms-lockfile generate-requirements-txt ge
 # Generate rpms.in.yaml listing RPM packages installed via yum, dnf, or microdnf from CONTAINERFILE
 # Usage: make generate-rpms-lockfile [CONTAINERFILE=<path>] [BASE_IMAGE=<image>|local]
 #   BASE_IMAGE can be set to 'local' to use the local system's repositories instead of a container image.
-#     It then assumes you're running in the context of the base image already (e.g., in a UBI 9).
+#     It then assumes you're running in the context of the base image already (e.g., in a UBI 10).
 # Example: make generate-rpms-lockfile CONTAINERFILE=Containerfile BASE_IMAGE=registry.access.redhat.com/ubi10/ubi:latest
 #          make generate-rpms-lockfile (uses default CONTAINERFILE=Dockerfile and BASE_IMAGE=registry.access.redhat.com/ubi10/ubi-minimal:latest)
 .PHONY: generate-rpms-lockfile
 generate-rpms-lockfile: rpms.lock.yaml
 
 $(hermetic_builds_dir)/ubi.repo:
-	@if ! grep -q "Red Hat Enterprise Linux release 9" /etc/redhat-release 2>/dev/null; then \
-		echo "Error: This system is not running RHEL 9"; \
+	@if ! grep -q "Red Hat Enterprise Linux release 10" /etc/redhat-release 2>/dev/null; then \
+		echo "Error: This system is not running RHEL 10"; \
 		exit 1; \
 	fi
 	@if [ "$(BASE_IMAGE)" = "local" ]; then \
@@ -29,10 +29,12 @@ $(hermetic_builds_dir)/ubi.repo:
 	else \
 		podman run -it $(BASE_IMAGE) cat /etc/yum.repos.d/ubi.repo > $(hermetic_builds_path)/ubi.repo || { echo "Failed to fetch ubi.repo"; exit 1; }; \
 	fi
-	@sed -i 's/ubi-9-appstream-source-rpms/ubi-9-for-x86_64-appstream-source-rpms/' $(hermetic_builds_path)/ubi.repo
-	@sed -i 's/ubi-9-appstream-rpms/ubi-9-for-x86_64-appstream-rpms/' $(hermetic_builds_path)/ubi.repo
-	@sed -i 's/ubi-9-baseos-source-rpms/ubi-9-for-x86_64-baseos-source-rpms/' $(hermetic_builds_path)/ubi.repo
-	@sed -i 's/ubi-9-baseos-rpms/ubi-9-for-x86_64-baseos-rpms/' $(hermetic_builds_path)/ubi.repo
+	@sed -i 's/ubi-10-appstream-source-rpms/ubi-10-for-x86_64-appstream-source-rpms/' $(hermetic_builds_path)/ubi.repo
+	@sed -i 's/ubi-10-appstream-rpms/ubi-10-for-x86_64-appstream-rpms/' $(hermetic_builds_path)/ubi.repo
+	@sed -i 's/ubi-10-baseos-source-rpms/ubi-10-for-x86_64-baseos-source-rpms/' $(hermetic_builds_path)/ubi.repo
+	@sed -i 's/ubi-10-baseos-rpms/ubi-10-for-x86_64-baseos-rpms/' $(hermetic_builds_path)/ubi.repo
+	@sed -i 's/ubi-10-codeready-builder-source-rpms/ubi-10-for-x86_64-codeready-builder-source-rpms/' $(hermetic_builds_path)/ubi.repo
+	@sed -i 's/ubi-10-codeready-builder-rpms/ubi-10-for-x86_64-codeready-builder-rpms/' $(hermetic_builds_path)/ubi.repo
 	@sed -i 's/\r$$//' $(hermetic_builds_path)/ubi.repo
 	@sed -i '/\[.*x86_64.*\]/,/^\[/ s/enabled[[:space:]]*=[[:space:]]*0/enabled = 1/g' $(hermetic_builds_path)/ubi.repo
 	@ENTITLEMENT_KEY=$$(ls /etc/pki/entitlement/*-key.pem 2>/dev/null | head -n 1); \
@@ -41,21 +43,21 @@ $(hermetic_builds_dir)/ubi.repo:
 		echo "Error: Entitlement key or certificate not found in /etc/pki/entitlement"; \
 		exit 1; \
 	fi; \
-	$(hermetic_builds_path)/generate_repo_config.sh "rhel-9-for-x86_64-baseos-rpms" \
-		'Red Hat Enterprise Linux 9 for x86_64 - BaseOS (RPMs)' \
-		'https://cdn.redhat.com/content/dist/rhel9/9/$$basearch/baseos/os' \
+	$(hermetic_builds_path)/generate_repo_config.sh "rhel-10-for-x86_64-baseos-rpms" \
+		'Red Hat Enterprise Linux 10 for x86_64 - BaseOS (RPMs)' \
+		'https://cdn.redhat.com/content/dist/rhel10/10/$$basearch/baseos/os' \
 		"$$ENTITLEMENT_KEY" "$$ENTITLEMENT_CERT" >> $(hermetic_builds_path)/ubi.repo; \
-	$(hermetic_builds_path)/generate_repo_config.sh "rhel-9-for-x86_64-baseos-source-rpms" \
-		'Red Hat Enterprise Linux 9 for x86_64 - BaseOS (RPMs)' \
-		'https://cdn.redhat.com/content/dist/rhel9/9/$$basearch/baseos/source/SRPMS' \
+	$(hermetic_builds_path)/generate_repo_config.sh "rhel-10-for-x86_64-baseos-source-rpms" \
+		'Red Hat Enterprise Linux 10 for x86_64 - BaseOS (RPMs)' \
+		'https://cdn.redhat.com/content/dist/rhel10/10/$$basearch/baseos/source/SRPMS' \
 		"$$ENTITLEMENT_KEY" "$$ENTITLEMENT_CERT" >> $(hermetic_builds_path)/ubi.repo; \
-	$(hermetic_builds_path)/generate_repo_config.sh "rhel-9-for-x86_64-appstream-rpms" \
-		'Red Hat Enterprise Linux 9 for x86_64 - AppStream (RPMs)' \
-		'https://cdn.redhat.com/content/dist/rhel9/9/$$basearch/appstream/os' \
+	$(hermetic_builds_path)/generate_repo_config.sh "rhel-10-for-x86_64-appstream-rpms" \
+		'Red Hat Enterprise Linux 10 for x86_64 - AppStream (RPMs)' \
+		'https://cdn.redhat.com/content/dist/rhel10/10/$$basearch/appstream/os' \
 		"$$ENTITLEMENT_KEY" "$$ENTITLEMENT_CERT" >> $(hermetic_builds_path)/ubi.repo; \
-	$(hermetic_builds_path)/generate_repo_config.sh "rhel-9-for-x86_64-appstream-source-rpms" \
-		'Red Hat Enterprise Linux 9 for x86_64 - AppStream (RPMs)' \
-		'https://cdn.redhat.com/content/dist/rhel9/9/$$basearch/appstream/source/SRPMS' \
+	$(hermetic_builds_path)/generate_repo_config.sh "rhel-10-for-x86_64-appstream-source-rpms" \
+		'Red Hat Enterprise Linux 10 for x86_64 - AppStream (RPMs)' \
+		'https://cdn.redhat.com/content/dist/rhel10/10/$$basearch/appstream/source/SRPMS' \
 		"$$ENTITLEMENT_KEY" "$$ENTITLEMENT_CERT" >> $(hermetic_builds_path)/ubi.repo;
 
 
@@ -84,7 +86,6 @@ $(hermetic_builds_dir)/rpms.in.yaml: $(CONTAINERFILE) $(hermetic_builds_dir)/ubi
 		echo "packages: [$$(echo "$$packages" | tr '\n' ',' | sed -E 's/,/, /g; s/, $$//')]" > $@; \
 		echo "contentOrigin:" >> $@; \
 		echo "  repofiles: [\"./ubi.repo\"]" >> $@; \
-		echo "moduleEnable: [\"postgresql:16\"]" >> $@; \
 		echo "arches: [x86_64]" >> $@; \
 	fi
 
