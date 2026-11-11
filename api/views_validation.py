@@ -9,6 +9,7 @@ from app.exceptions import ValidationException
 from app.models.host_app_data import get_app_data_models
 from app.models.schemas.views import HostFiltersSchema
 from app.serialization import CORE_VIEW_FIELDS_TO_EXPORT_FIELDS
+from app.validators import verify_uuid_format_draft4
 
 VALID_HOST_FILTER_KEYS = frozenset(HostFiltersSchema._declared_fields.keys())
 
@@ -126,6 +127,31 @@ def _validate_host_filters(host_filters: dict) -> None:
 
     _validate_date_range(host_filters, "last_check_in_start", "last_check_in_end")
     _validate_date_range(host_filters, "updated_start", "updated_end")
+    _validate_workspace_filters(host_filters)
+
+
+def _validate_workspace_filters(host_filters: dict) -> None:
+    workspace_name = host_filters.get("workspace_name")
+    workspace_id = host_filters.get("workspace_id")
+
+    if workspace_name and workspace_id:
+        # Both selectors resolve to the same underlying group filters, which
+        # query_filters() combines with AND semantics — two different
+        # workspaces would silently match nothing.
+        raise ValidationException("Filters 'workspace_name' and 'workspace_id' are mutually exclusive.")
+
+    if workspace_id is None:
+        return
+
+    # Inline export configurations are not schema-loaded, so the value may
+    # arrive in either the canonical list form or as a bare string.
+    values = [workspace_id] if isinstance(workspace_id, str) else workspace_id
+    if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
+        raise ValidationException("'workspace_id' must be a workspace ID (UUID) or a list of workspace IDs.")
+
+    for value in values:
+        if not verify_uuid_format_draft4(value):
+            raise ValidationException(f"'{value}' is not a valid workspace ID (UUID).")
 
 
 def _parse_iso_datetime(field_name: str, value: str) -> datetime:
