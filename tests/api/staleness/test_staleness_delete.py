@@ -55,7 +55,7 @@ def test_delete_existing_staleness_invalidates_cache(mocker, db_create_staleness
         conventional_time_to_delete=30,
     )
     org_id = saved_staleness.org_id
-    invalidate_mock = mocker.patch("api.staleness.invalidate_org_system_cache")
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_staleness_caches")
 
     response_status, _ = api_delete_staleness()
     assert_response_status(response_status, 204)
@@ -63,7 +63,7 @@ def test_delete_existing_staleness_invalidates_cache(mocker, db_create_staleness
 
 
 def test_delete_non_existing_staleness_does_not_invalidate_cache(mocker, api_delete_staleness):
-    invalidate_mock = mocker.patch("api.staleness.invalidate_org_system_cache")
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_staleness_caches")
 
     response_status, _ = api_delete_staleness()
     assert_response_status(response_status, 404)

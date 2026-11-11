@@ -16,7 +16,7 @@ from api import api_operation
 from api import flask_json_response
 from api import json_error_response
 from api import metrics
-from api.cache import invalidate_org_system_cache
+from api.cache import invalidate_org_staleness_caches
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.identity import Identity
@@ -28,7 +28,6 @@ from app.logging import get_logger
 from app.models import Host
 from app.models import Staleness
 from app.models import StalenessSchema
-from app.models.utils import StalenessCache
 from app.serialization import serialize_staleness_response
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness_api
@@ -53,8 +52,7 @@ def _response_if_staleness_equivalent_to_system_defaults(
     if not staleness_equivalent_to_system_defaults(validated_data, identity, sys_defaults=sys_defaults):
         return None
     if remove_staleness_if_exists():
-        StalenessCache.delete(org_id)
-        invalidate_org_system_cache(org_id)
+        invalidate_org_staleness_caches(org_id)
     return flask_json_response(serialize_staleness_response(sys_defaults), success_status)
 
 
@@ -151,8 +149,7 @@ def create_staleness(body):
     try:
         # Create account staleness with validated data
         created_staleness = add_staleness(validated_data)
-        StalenessCache.delete(org_id)
-        invalidate_org_system_cache(org_id)
+        invalidate_org_staleness_caches(org_id)
         log_create_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
         error_message = f"Staleness record for org_id {org_id} already exists."
@@ -173,8 +170,7 @@ def delete_staleness():
     org_id = identity.org_id
     try:
         remove_staleness()
-        StalenessCache.delete(org_id)
-        invalidate_org_system_cache(org_id)
+        invalidate_org_staleness_caches(org_id)
         return flask_json_response(None, HTTPStatus.NO_CONTENT)
     except NoResultFound:
         abort(
@@ -203,12 +199,11 @@ def update_staleness(body):
 
     try:
         updated_staleness = patch_staleness(validated_data)
-        StalenessCache.delete(org_id)
         if updated_staleness is None:
             # since update only return None with no record instead of exception.
             raise NoResultFound
 
-        invalidate_org_system_cache(org_id)
+        invalidate_org_staleness_caches(org_id)
         log_patch_staleness_succeeded(logger, updated_staleness.id)
 
         return flask_json_response(serialize_staleness_response(updated_staleness), HTTPStatus.OK)
