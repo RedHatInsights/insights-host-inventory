@@ -59,7 +59,10 @@ def test_cache_invalidation_insights_client_get_hosts_list_update_host(
     # Update the host to invalidate the cache
     new_display_name = generate_display_name()
     host_inventory_cert_auth.upload.create_host(
-        insights_id=host.insights_id, display_name=new_display_name, cleanup_scope="module"
+        insights_id=host.insights_id,
+        subscription_manager_id=host.subscription_manager_id,
+        display_name=new_display_name,
+        cleanup_scope="module",
     )
     host_inventory_cert_auth.apis.hosts.wait_for_updated(host, display_name=new_display_name)
 
