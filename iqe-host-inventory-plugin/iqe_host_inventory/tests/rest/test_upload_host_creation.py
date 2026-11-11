@@ -147,17 +147,15 @@ def test_create_two_hosts_almost_equal(host_inventory: ApplicationHostInventory)
     assert host.mac_addresses == [mac_address]
 
     logger.info("Creating the host 2nd time")
-    updated_subscription_manager_id = generate_uuid()
+    updated_insights_id = generate_uuid()
     host = host_inventory.upload.create_host(
         display_name=display_name,
-        insights_id=insights_id,
-        subscription_manager_id=updated_subscription_manager_id,
+        insights_id=updated_insights_id,
+        subscription_manager_id=subscription_manager_id,
         mac_address=mac_address,
     )
 
-    host_inventory.apis.hosts.wait_for_updated(
-        host, subscription_manager_id=updated_subscription_manager_id
-    )
+    host_inventory.apis.hosts.wait_for_updated(host, insights_id=updated_insights_id)
 
     logger.info(f"Retrieving hosts by filtering the display_name: {display_name}")
     retrieved_hosts = host_inventory.apis.hosts.get_hosts(display_name=display_name)
@@ -165,8 +163,8 @@ def test_create_two_hosts_almost_equal(host_inventory: ApplicationHostInventory)
 
     assert retrieved_hosts[0].id == host.id
     assert retrieved_hosts[0].display_name == display_name
-    assert retrieved_hosts[0].insights_id == insights_id
-    assert retrieved_hosts[0].subscription_manager_id == updated_subscription_manager_id
+    assert retrieved_hosts[0].insights_id == updated_insights_id
+    assert retrieved_hosts[0].subscription_manager_id == subscription_manager_id
     assert retrieved_hosts[0].mac_addresses == [mac_address]
 
 
