@@ -31,16 +31,16 @@ See its [documentation](https://github.com/konflux-ci/rpm-lockfile-prototype/?ta
 make generate-rpms-lockfile
 ```
 
-- **Input**: Requires `rpms.in.yaml` (creates it automatically) and `BASE_IMAGE` (default: `registry.access.redhat.com/ubi9/ubi-minimal:latest`).
+- **Input**: Requires `rpms.in.yaml` (creates it automatically) and `BASE_IMAGE` (default: `registry.access.redhat.com/ubi10/ubi-minimal:latest`).
 - **Output**: Creates `rpms.lock.yaml` with locked RPM versions.
 - **Optional**: Use a custom `BASE_IMAGE`.
 
 It will do these steps to generate the lock file:
 * Step 1: Generates the `ubi.repo` file
   Creates the `ubi.repo` file, which configures the UBI (Universal Base Image) repositories for RPM packages we want.
-  **Input**: Uses `BASE_IMAGE` (default: `registry.access.redhat.com/ubi9/ubi-minimal:latest`).
+  **Input**: Uses `BASE_IMAGE` (default: `registry.access.redhat.com/ubi10/ubi-minimal:latest`).
   **Output**: Creates `ubi.repo` with enabled x86_64 repositories.
-  **Optional**: Specify a custom image with `BASE_IMAGE`, e.g., `make generate-repo-file BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest`.
+  **Optional**: Specify a custom image with `BASE_IMAGE`, e.g., `make generate-repo-file BASE_IMAGE=registry.access.redhat.com/ubi10/ubi:latest`.
 * Step 2: Generates the `rpms.in.yaml` File
   Extracts RPM packages from the `CONTAINERFILE` and creates `rpms.in.yaml`.
   **Input**: Uses `CONTAINERFILE` (default: `Dockerfile`) to parse `yum`, `dnf`, or `microdnf install` commands.
@@ -87,7 +87,7 @@ make generate-requirements-build-txt
 - **Customization**:
   - Ensure `.hermetic_builds/prep_python_build_container_dependencies.sh` installs `wget` and sets up `pip/pip3` and `python/python3` commands. If the `BASE_IMAGE` or environment changes.
   - Verify both scripts are executable (`chmod +x .hermetic_builds/*.sh`).
-- **Optional**: Specify a custom `BASE_IMAGE`, e.g., `make generate-requirements-build-txt BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest`.
+- **Optional**: Specify a custom `BASE_IMAGE`, e.g., `make generate-requirements-build-txt BASE_IMAGE=registry.access.redhat.com/ubi10/ubi:latest`.
 
 #### Prerequisites
 
@@ -118,4 +118,4 @@ git commit -m "Add generated Python requirements files and hermetic build script
 - **Dependencies**: Ensure `podman` is installed and network access is available for PyPI and GitHub.
 - **Scripts**: The `.hermetic_builds` scripts are user-maintained. Create or update them as needed for your project.
 - **Errors**: Check error messages from `make` targets for guidance (e.g., missing files, container failures).
-- **BASE_IMAGE**: Defaults to `registry.access.redhat.com/ubi9/ubi-minimal:latest`. Adjust as needed for compatibility.
+- **BASE_IMAGE**: Defaults to `registry.access.redhat.com/ubi10/ubi-minimal:latest`. Adjust as needed for compatibility.

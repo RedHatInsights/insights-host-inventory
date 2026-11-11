@@ -1,6 +1,6 @@
 
 # Default value for BASE_IMAGE
-BASE_IMAGE ?= registry.access.redhat.com/ubi9/ubi-minimal:latest
+BASE_IMAGE ?= registry.access.redhat.com/ubi10/ubi-minimal:latest
 # Default value for CONTAINERFILE
 CONTAINERFILE ?= Dockerfile
 
@@ -14,8 +14,8 @@ generate-hermetic-lockfiles: generate-rpms-lockfile generate-requirements-txt ge
 # Usage: make generate-rpms-lockfile [CONTAINERFILE=<path>] [BASE_IMAGE=<image>|local]
 #   BASE_IMAGE can be set to 'local' to use the local system's repositories instead of a container image.
 #     It then assumes you're running in the context of the base image already (e.g., in a UBI 9).
-# Example: make generate-rpms-lockfile CONTAINERFILE=Containerfile BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest
-#          make generate-rpms-lockfile (uses default CONTAINERFILE=Dockerfile and BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest)
+# Example: make generate-rpms-lockfile CONTAINERFILE=Containerfile BASE_IMAGE=registry.access.redhat.com/ubi10/ubi:latest
+#          make generate-rpms-lockfile (uses default CONTAINERFILE=Dockerfile and BASE_IMAGE=registry.access.redhat.com/ubi10/ubi-minimal:latest)
 .PHONY: generate-rpms-lockfile
 generate-rpms-lockfile: rpms.lock.yaml
 
@@ -90,7 +90,7 @@ $(hermetic_builds_dir)/rpms.in.yaml: $(CONTAINERFILE) $(hermetic_builds_dir)/ubi
 
 # Generate rpms.lock.yaml using rpm-lockfile-prototype
 # Usage: make rpms.lock.yaml [BASE_IMAGE=<image>]
-# Example: make rpms.lock.yaml BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest
+# Example: make rpms.lock.yaml BASE_IMAGE=registry.access.redhat.com/ubi10/ubi:latest
 #          make rpms.lock.yaml (uses default BASE_IMAGE)
 $(hermetic_builds_dir)/rpms.lock.yaml: $(hermetic_builds_dir)/rpms.in.yaml
 	@if ! command -v rpm-lockfile-prototype >/dev/null 2>&1; then \
@@ -162,7 +162,7 @@ generate-requirements-build-in: pyproject.toml
 
 # Generate build dependencies requirements-build.txt using pip-tools and pybuild-deps
 # Usage: make generate-requirements-build-txt [BASE_IMAGE=<image>]
-# Example: make generate-requirements-build-txt BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest
+# Example: make generate-requirements-build-txt BASE_IMAGE=registry.access.redhat.com/ubi10/ubi:latest
 .PHONY: generate-requirements-build-txt
 generate-requirements-build-txt: generate-requirements-build-in
 	@if [ ! -f $(hermetic_builds_path)/prep_python_build_container_dependencies.sh ] || [ ! -f $(hermetic_builds_path)/generate_requirements_build.sh ]; then \
