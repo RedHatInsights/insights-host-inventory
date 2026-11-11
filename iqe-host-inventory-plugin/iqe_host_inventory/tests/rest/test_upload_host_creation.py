@@ -116,17 +116,11 @@ def test_create_two_hosts_almost_equal(host_inventory: ApplicationHostInventory)
     JIRA: https://projects.engineering.redhat.com/browse/RHIPLAT1-584
 
     Tests if it is possible to create two hosts with almost
-    the same data (couple of values different) but with the same insights_id
+    the same data (couple of values different) but with the same subscription_manager_id
 
     1. Create a host via archive upload
     2. Modify the payload and attempt to re-create the primary host
     3. Confirm the original host was updated (only one host in total should have been created).
-
-    metadata:
-        assignee: fstavela
-        importance: critical
-        title: Inventory: Confirm duplicate hosts with the same insights_id cannot be
-            created via archive upload (Ingress/Puptoo)
     """
     display_name = generate_display_name()
     insights_id = generate_uuid()
@@ -148,14 +142,14 @@ def test_create_two_hosts_almost_equal(host_inventory: ApplicationHostInventory)
 
     logger.info("Creating the host 2nd time")
     updated_insights_id = generate_uuid()
-    host = host_inventory.upload.create_host(
+    updated_host = host_inventory.upload.create_host(
         display_name=display_name,
         insights_id=updated_insights_id,
         subscription_manager_id=subscription_manager_id,
         mac_address=mac_address,
     )
 
-    host_inventory.apis.hosts.wait_for_updated(host, insights_id=updated_insights_id)
+    host_inventory.apis.hosts.wait_for_updated(updated_host, insights_id=updated_insights_id)
 
     logger.info(f"Retrieving hosts by filtering the display_name: {display_name}")
     retrieved_hosts = host_inventory.apis.hosts.get_hosts(display_name=display_name)
