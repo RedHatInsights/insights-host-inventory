@@ -171,7 +171,6 @@ objects:
       - puptoo
     optionalDependencies:
       - kessel-inventory
-      - kessel-relations
       - kessel-kafkaconnect
       - kessel-inventory-consumer
     deployments:
