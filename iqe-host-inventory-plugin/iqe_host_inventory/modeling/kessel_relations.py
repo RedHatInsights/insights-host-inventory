@@ -8,12 +8,12 @@ from dataclasses import dataclass
 from functools import cached_property
 
 from iqe.base.http import RobustSession
-from kessel.relations.v1beta1.common_pb2 import Relationship
-from kessel.relations.v1beta1.relation_tuples_pb2 import ReadTuplesRequest
-from kessel.relations.v1beta1.relation_tuples_pb2 import ReadTuplesResponse
-from kessel.relations.v1beta1.relation_tuples_pb2 import RelationTupleFilter
-from kessel.relations.v1beta1.relation_tuples_pb2 import SubjectFilter
-from kessel.relations.v1beta1.relation_tuples_pb2_grpc import KesselTupleServiceStub
+from kessel.inventory.v1beta2.read_tuples_request_pb2 import ReadTuplesRequest
+from kessel.inventory.v1beta2.read_tuples_response_pb2 import ReadTuplesResponse
+from kessel.inventory.v1beta2.relation_subject_filter_pb2 import RelationSubjectFilter
+from kessel.inventory.v1beta2.relation_tuple_filter_pb2 import RelationTupleFilter
+from kessel.inventory.v1beta2.relationship_pb2 import Relationship
+from kessel.inventory.v1beta2.tuple_service_pb2_grpc import KesselTupleServiceStub
 from requests.models import Response
 
 from iqe_host_inventory.modeling.groups_api import GROUP_OR_ID
@@ -25,7 +25,7 @@ from iqe_host_inventory.utils.api_utils import accept_when
 
 
 class HostNotSyncedError(HostOperationError):
-    default_message = "Host changes weren't successfully synced to Kessel Relations"
+    default_message = "Host changes weren't successfully synced to Kessel Inventory"
 
 
 EPHEMERAL_ENVS = ("clowder_smoke", "ephemeral", "smoke")
@@ -160,7 +160,7 @@ class HBIKesselRelationsGRPC:
             resource_namespace="hbi",
             resource_type="host",
             relation="workspace",
-            subject_filter=SubjectFilter(subject_namespace="rbac", subject_type="workspace"),
+            subject_filter=RelationSubjectFilter(subject_namespace="rbac", subject_type="workspace"),
         )
         if host_id is not None:
             filter.resource_id = host_id
