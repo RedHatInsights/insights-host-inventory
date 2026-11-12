@@ -3,11 +3,18 @@ from __future__ import annotations
 import os
 from collections.abc import Callable
 from collections.abc import Generator
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 import pytest
 from connexion import FlaskApp
+from flask import Flask
+from flask_migrate import Migrate
+from flask_migrate import upgrade
+from sqlalchemy import Engine
+from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Query
 
 from app.config import Config
@@ -34,6 +41,8 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
 
+MIGRATIONS_DIRECTORY = str(Path(__file__).parents[2] / "migrations")
+
 
 @pytest.fixture(scope="session")
 def database_name() -> Generator[None]:
@@ -58,6 +67,29 @@ def database(database_name: None) -> Generator[str]:  # noqa: ARG001
     yield config.db_uri
 
     drop_database(config.db_uri)
+
+
+@pytest.fixture(scope="session")
+def migrated_database(database: str) -> Generator[Engine]:
+    """A database built by running all Alembic migrations, unlike the db.create_all() test database."""
+    url = make_url(database)
+    url = url.set(database=f"{url.database}-migrated")
+    if database_exists(url):
+        drop_database(url)
+    create_database(url)
+
+    # migrations/env.py reads the target URI and metadata from the current Flask app.
+    migrations_app = Flask(__name__)
+    migrations_app.config["SQLALCHEMY_DATABASE_URI"] = url.render_as_string(hide_password=False)
+    Migrate(migrations_app, db, directory=MIGRATIONS_DIRECTORY)
+    with migrations_app.app_context():
+        upgrade(directory=MIGRATIONS_DIRECTORY)
+
+    engine = create_engine(url)
+    yield engine
+
+    engine.dispose()
+    drop_database(url)
 
 
 @pytest.fixture(scope="function")

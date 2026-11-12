@@ -1,11 +1,18 @@
-"""Raw PostgreSQL contracts, independent of application constructor defaults."""
+"""Raw PostgreSQL contracts, independent of application constructor defaults.
+
+Each contract runs against both the db.create_all() schema the test suite uses and a
+database built by the Alembic migrations, which is what deployments actually run.
+"""
 
 from datetime import UTC
 from datetime import datetime
+from types import SimpleNamespace
 from uuid import UUID
 from uuid import uuid4
 
 import pytest
+from alembic.autogenerate import compare_metadata
+from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
 from sqlalchemy import Table
 from sqlalchemy import select
@@ -14,6 +21,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models import db
 from app.models.constants import INVENTORY_SCHEMA
+from migrations.helpers import include_object
 
 HOST_COLUMNS = [
     "id",
@@ -44,17 +52,28 @@ GROUP_COLUMNS = ["id", "account", "org_id", "name", "created_on", "modified_on"]
 TIMESTAMP = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
 
 
-@pytest.fixture
-def raw_tables(flask_app):  # noqa: ARG001
-    # Reflection avoids Python-side defaults, validators and JSON normalization.
-    metadata = MetaData(schema=INVENTORY_SCHEMA)
-    tables = {
-        name: Table(name, metadata, autoload_with=db.engine, resolve_fks=False)
-        for name in ("hosts", "groups", "hosts_groups")
-    }
-    yield tables
-    # A raw Core failure does not mark ORM state rollback-only; always clear it here.
-    db.session.rollback()
+@pytest.fixture(params=["models", "migrations"])
+def raw_db(request, flask_app):  # noqa: ARG001
+    engine = db.engine if request.param == "models" else request.getfixturevalue("migrated_database")
+    with engine.connect() as conn:
+        # Reflection avoids Python-side defaults, validators and JSON normalization.
+        metadata = MetaData(schema=INVENTORY_SCHEMA)
+        tables = {
+            name: Table(name, metadata, autoload_with=conn, resolve_fks=False)
+            for name in ("hosts", "groups", "hosts_groups")
+        }
+        # Nothing is committed, so neither database needs cleanup.
+        yield SimpleNamespace(conn=conn, tables=tables, migrated=request.param == "migrations")
+        conn.rollback()
+
+
+def test_models_match_migrations(migrated_database):
+    # The same comparison `flask db migrate` autogenerates from; server defaults are not compared.
+    with migrated_database.connect() as conn:
+        context = MigrationContext.configure(
+            conn, opts={"include_schemas": True, "include_object": include_object, "compare_type": True}
+        )
+        assert compare_metadata(context, db.metadata) == []
 
 
 def _host_values(**values):
@@ -78,20 +97,19 @@ def _group_values(**values):
         "name": "schema-test",
         "created_on": TIMESTAMP,
         "modified_on": TIMESTAMP,
-        # Not part of IQE's independent mapping. create_all lacks the migration's
+        # Not part of IQE's independent mapping. The model lacks the migration's
         # server default for this newer required column, so supply test scaffolding.
         "ungrouped": False,
         **values,
     }
 
 
-def test_raw_host_minimal_defaults(raw_tables):
-    hosts = raw_tables["hosts"]
+def test_raw_host_minimal_defaults(raw_db):
+    hosts = raw_db.tables["hosts"]
     values = _host_values(org_id="", reporter="")
-    db.session.execute(hosts.insert().values(**values))
-    db.session.commit()
+    raw_db.conn.execute(hosts.insert().values(**values))
     row = (
-        db.session.execute(select(*(hosts.c[key] for key in HOST_COLUMNS)).where(hosts.c.id == values["id"]))
+        raw_db.conn.execute(select(*(hosts.c[key] for key in HOST_COLUMNS)).where(hosts.c.id == values["id"]))
         .mappings()
         .one()
     )
@@ -100,8 +118,8 @@ def test_raw_host_minimal_defaults(raw_tables):
     assert dict(row) == expected
 
 
-def test_raw_host_maximum_lengths_round_trip(raw_tables):
-    hosts = raw_tables["hosts"]
+def test_raw_host_maximum_lengths_round_trip(raw_db):
+    hosts = raw_db.tables["hosts"]
     reporter = "r" * 255
     tags = {"schema": {"role": ["web", "db"], "empty": []}}
     groups = [
@@ -140,10 +158,9 @@ def test_raw_host_maximum_lengths_round_trip(raw_tables):
         groups=groups,
         per_reporter_staleness={reporter: TIMESTAMP.isoformat()},
     )
-    db.session.execute(hosts.insert().values(**values))
-    db.session.commit()
+    raw_db.conn.execute(hosts.insert().values(**values))
     row = (
-        db.session.execute(select(*(hosts.c[key] for key in HOST_COLUMNS)).where(hosts.c.id == values["id"]))
+        raw_db.conn.execute(select(*(hosts.c[key] for key in HOST_COLUMNS)).where(hosts.c.id == values["id"]))
         .mappings()
         .one()
     )
@@ -151,41 +168,40 @@ def test_raw_host_maximum_lengths_round_trip(raw_tables):
 
 
 @pytest.mark.parametrize("maximum_lengths", [False, True], ids=["minimal", "maximum-lengths"])
-def test_raw_group_round_trip(raw_tables, maximum_lengths):
-    groups = raw_tables["groups"]
+def test_raw_group_round_trip(raw_db, maximum_lengths):
+    groups = raw_db.tables["groups"]
     values = _group_values(name="")
     if maximum_lengths:
         values.update(account="a" * 10, org_id="o" * 36, name="g" * 255)
-    db.session.execute(groups.insert().values(**values))
-    db.session.commit()
+    raw_db.conn.execute(groups.insert().values(**values))
     row = (
-        db.session.execute(select(*(groups.c[key] for key in GROUP_COLUMNS)).where(groups.c.id == values["id"]))
+        raw_db.conn.execute(select(*(groups.c[key] for key in GROUP_COLUMNS)).where(groups.c.id == values["id"]))
         .mappings()
         .one()
     )
     assert dict(row) == {key: values.get(key) for key in GROUP_COLUMNS}
 
 
-def test_raw_association_accepts_independent_group_org(raw_tables):
+def test_raw_association_accepts_independent_group_org(raw_db):
     host = _host_values(per_reporter_staleness={})
     group = _group_values()
-    db.session.execute(raw_tables["hosts"].insert().values(**host))
-    db.session.execute(raw_tables["groups"].insert().values(**group))
+    raw_db.conn.execute(raw_db.tables["hosts"].insert().values(**host))
+    raw_db.conn.execute(raw_db.tables["groups"].insert().values(**group))
     association = {"org_id": host["org_id"], "host_id": host["id"], "group_id": group["id"]}
-    db.session.execute(raw_tables["hosts_groups"].insert().values(**association))
-    db.session.commit()
+    raw_db.conn.execute(raw_db.tables["hosts_groups"].insert().values(**association))
     # Physical FK is group_id-only; this is not an application authorization assertion.
     assert host["org_id"] != group["org_id"]
-    row = db.session.execute(select(raw_tables["hosts_groups"])).mappings().one()
+    row = raw_db.conn.execute(select(raw_db.tables["hosts_groups"])).mappings().one()
     assert dict(row) == association
 
 
-def test_raw_association_foreign_keys(raw_tables, subtests):
+def test_raw_association_foreign_keys(raw_db, subtests):
     host = _host_values(per_reporter_staleness={})
     group = _group_values()
-    db.session.execute(raw_tables["hosts"].insert().values(**host))
-    db.session.execute(raw_tables["groups"].insert().values(**group))
-    db.session.commit()
+    raw_db.conn.execute(raw_db.tables["hosts"].insert().values(**host))
+    raw_db.conn.execute(raw_db.tables["groups"].insert().values(**group))
+    # Migrations partition hosts_groups, so the violation is reported by a partition.
+    association_table = "hosts_groups_p" if raw_db.migrated else "hosts_groups"
     for invalid_key, table, constraint in [
         ("host", "hosts", "fk_hosts_groups_on_hosts"),
         ("group", "groups", "fk_hosts_groups_on_groups"),
@@ -196,12 +212,11 @@ def test_raw_association_foreign_keys(raw_tables, subtests):
         else:
             association["group_id"] = uuid4()
         with subtests.test(invalid_key=invalid_key):
-            with pytest.raises(IntegrityError) as exc:
-                db.session.execute(raw_tables["hosts_groups"].insert().values(**association))
-            db.session.rollback()
+            with pytest.raises(IntegrityError) as exc, raw_db.conn.begin_nested():
+                raw_db.conn.execute(raw_db.tables["hosts_groups"].insert().values(**association))
             diagnostic = exc.value.orig.diag
             assert diagnostic.constraint_name == constraint
-            assert diagnostic.table_name.startswith("hosts_groups")
+            assert diagnostic.table_name.startswith(association_table)
             assert exc.value.orig.pgcode == "23503"
             detail = diagnostic.message_detail
             assert f'table "{table}"' in detail
@@ -211,10 +226,9 @@ def test_raw_association_foreign_keys(raw_tables, subtests):
                 assert str(association[key]) in detail
 
 
-@pytest.mark.usefixtures("raw_tables")
-def test_rhsm_consumer_query_schema_compatibility():
+def test_rhsm_consumer_query_schema_compatibility(raw_db):
     # Same consumer query as IQE, including unqualified relation names and all lateral joins.
-    db.session.execute(text(f'SET LOCAL search_path TO "{INVENTORY_SCHEMA}", public'))
+    raw_db.conn.execute(text(f'SET LOCAL search_path TO "{INVENTORY_SCHEMA}", public'))
     query = """
         select h.id as inventory_id, h.org_id, h.modified_on,
         h.account, h.display_name, h.insights_id, h.subscription_manager_id,
@@ -263,4 +277,4 @@ def test_rhsm_consumer_query_schema_compatibility():
         and h.last_check_in + make_interval(secs => coalesce(s.conventional_time_to_stale,
             104400)) > NOW() - make_interval(secs => coalesce(s.conventional_time_to_delete, 2592000))
     """
-    assert db.session.execute(text(query)).all() == []
+    assert raw_db.conn.execute(text(query)).all() == []
