@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "84ed0ec6c158ff5b354af23265ac1cb5d312b027f289023fb916b087fcdd6128"
+            "sha256": "e024cb8bd7642b2a77231f1753ebf395dfcd4300f1f95ad56fdaa4209dadf7b9"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -98,20 +98,20 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:3f2375b7576de603085d7b7491cf2c4ab5c57d12965a5ce295821cdd4d10e950",
-                "sha256:7685085b8ea679dd858330834c16364c61c5830edb892c5864fb12ed68798708"
+                "sha256:c81dfdaab894cbcba78aa3773fe3fb27a13b576f49ff5552b91190072fc7dac0",
+                "sha256:1342653b8af9dc89f182cb5c0dfd5fa10f430d757c0ebd00326c053a6270d2c4"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.9'",
-            "version": "==1.40.6"
+            "version": "==1.44.1"
         },
         "botocore": {
             "hashes": [
-                "sha256:b253f107617791a29ca81c6f0fca20ac1afdba01869eb43017022bbbb8387f34",
-                "sha256:e132eac967a7526596e31ca571d7f1ef9676c6a9c4f1322446768994ccab64aa"
+                "sha256:e71f6249be2a7324899ba81c5958ac1809a78498ea2c8f60e00fc0e62262ab83",
+                "sha256:7a741074a78e28187c88d9f7f91db18731ea91725455873d863ae63ea35e75f3"
             ],
             "markers": "python_version >= '3.9'",
-            "version": "==1.40.6"
+            "version": "==1.44.1"
         },
         "cachelib": {
             "hashes": [
@@ -123,12 +123,12 @@
         },
         "certifi": {
             "hashes": [
-                "sha256:6b31f564a415d79ee77df69d757bb49a5bb53bd9f756cbbe24394ffd6fc1f4b2",
-                "sha256:8ea99dbdfaaf2ba2f9bac77b9249ef62ec5218e7c2b2e903378ed5fccf765995"
+                "sha256:a9895e6e2758b371e0545e321a3a8fd1fcfd9829ada8824a936dfb16aaaf36cd",
+                "sha256:e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.7'",
-            "version": "==2025.7.14"
+            "version": "==2026.10.23"
         },
         "chardet": {
             "hashes": [
@@ -1170,11 +1170,11 @@
         },
         "s3transfer": {
             "hashes": [
-                "sha256:a981aa7429be23fe6dfc13e80e4020057cbab622b08c0315288758d67cabc724",
-                "sha256:c3fdba22ba1bd367922f27ec8032d6a1cf5f10c934fb5d68cf60fd5a23d936cf"
+                "sha256:8326acc3d056d7f7b8a37110c7d2aea41f67e83f6ae79cd3b5fbcca34c726406",
+                "sha256:24eb7535804306355e31c952a90022bf5b2f9d760f9a11062c7493a217c08553"
             ],
             "markers": "python_version >= '3.9'",
-            "version": "==0.13.1"
+            "version": "==0.19.3"
         },
         "segment-analytics-python": {
             "hashes": [

@@ -58,6 +58,6 @@ cat <<EOF >> ${hermetic_builds_dir}/requirements-extras.in
 setuptools-scm==7.1.0
 tomli==2.0.2
 typing-extensions==4.14.0
-certifi==2025.7.14
+certifi==2026.10.23
 mypy<=1.15.0,>=1.4.1
 EOF
