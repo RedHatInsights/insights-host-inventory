@@ -59,37 +59,37 @@
     },
     "Q4": {
       "quarter": "Q4",
-      "updated": "2026-11-11",
-      "collected_at": "2026-11-11T14:01:17Z",
+      "updated": "2026-11-12",
+      "collected_at": "2026-11-12T14:01:22Z",
       "stale": {
-        "period": "2026-10-01 to 2026-11-11",
+        "period": "2026-10-01 to 2026-11-12",
         "data": {
-          "total": 76,
-          "merged": 69,
+          "total": 81,
+          "merged": 70,
           "closed_no_merge": 3,
-          "still_open": 4,
+          "still_open": 8,
           "bot_closed": 2,
-          "median_ttm": 42.8,
-          "median_ttfr": 0.9,
-          "avg_ttfr": 15,
-          "pct_reviewed_24h": 79.16,
-          "no_review_24h": 4,
+          "median_ttm": 42.849999999999994,
+          "median_ttfr": 0.95,
+          "avg_ttfr": 14.7,
+          "pct_reviewed_24h": 80.26,
+          "no_review_24h": 5,
           "open_15d": 1
         }
       },
       "review": {
-        "period": "2026-10-01 to 2026-11-11",
+        "period": "2026-10-01 to 2026-11-12",
         "data": {
-          "total": 76,
-          "merged": 69,
+          "total": 81,
+          "merged": 70,
           "closed_no_merge": 3,
-          "still_open": 4,
+          "still_open": 8,
           "bot_closed": 4,
-          "median_ttm": 42.8,
-          "median_ttfr": 0.9,
-          "avg_ttfr": 15,
-          "pct_reviewed_24h": 79.16,
-          "no_review_24h": 4,
+          "median_ttm": 42.849999999999994,
+          "median_ttfr": 0.95,
+          "avg_ttfr": 14.7,
+          "pct_reviewed_24h": 80.26,
+          "no_review_24h": 5,
           "open_15d": 1
         }
       }
