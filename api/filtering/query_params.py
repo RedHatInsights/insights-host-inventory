@@ -30,6 +30,8 @@ class HostFilters:
     cve_severity: list[str] | None = None
     known_exploit: list[str] | None = None
     security_rule: list[str] | None = None
+    installable_advisory_type: list[str] | None = None
+    template: str | None = None
 
 
 @dataclass(slots=True)

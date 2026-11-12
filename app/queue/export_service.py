@@ -47,6 +47,7 @@ HEADER_CONTENT_TYPE = {"json": "application/json; charset=utf-8", "csv": "text/c
 _DEDICATED_HOST_FILTER_APPS = {
     "advisor": ("recommendation_severity", "incident_status"),
     "vulnerability": ("cve_severity", "known_exploit", "security_rule"),
+    "patch": ("installable_advisory_type", "template"),
 }
 
 
