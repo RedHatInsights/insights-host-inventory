@@ -6,7 +6,7 @@ import pytest
 from iqe.base.application import Application
 from iqe.base.http import RobustSession
 from iqe_turnpike.tests.config_wrappers import get_primary_turnpike_user
-from kessel.relations.v1beta1.relation_tuples_pb2_grpc import KesselTupleServiceStub
+from kessel.inventory.v1beta2.tuple_service_pb2_grpc import KesselTupleServiceStub
 
 from iqe_host_inventory.modeling.kessel_relations import EPHEMERAL_ENVS
 from iqe_host_inventory.modeling.kessel_relations import HBIKesselRelationsGRPC
@@ -29,13 +29,13 @@ def hbi_turnpike_http_client(
 @pytest.fixture(scope="session")
 def hbi_kessel_relations_grpc(
     application: Application,
-    relations_tuples_grpc: KesselTupleServiceStub,
+    kessel_inventory_tuple_service_grpc: KesselTupleServiceStub,
     hbi_turnpike_http_client: RobustSession | None,
     hbi_turnpike_base_url: str | None,
 ) -> HBIKesselRelationsGRPC:
     return HBIKesselRelationsGRPC(
         env=application.config.current_env,
-        grpc_service=relations_tuples_grpc,
+        grpc_service=kessel_inventory_tuple_service_grpc,
         turnpike_http_client=hbi_turnpike_http_client,
         turnpike_base_url=hbi_turnpike_base_url,
     )

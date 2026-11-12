@@ -62,7 +62,6 @@ start_port_forwards() {
     KESSEL_DB_SVC="svc/kessel-inventory-db"
     KESSEL_API_SVC="svc/kessel-inventory-api"
     KESSEL_API_SVC_METRICS="svc/kessel-inventory-api"
-    KESSEL_RELATIONS_SVC="svc/kessel-relations-api"
 
 
     # feature flag
@@ -75,7 +74,6 @@ start_port_forwards() {
     kubectl port-forward "$HBI_SVC" 8000:8000 -n "$PROJECT_NAME" >/dev/null 2>&1 &
     kubectl port-forward "$KESSEL_API_SVC" 8222:8000 -n "$PROJECT_NAME" >/dev/null 2>&1 &
     kubectl port-forward "$KESSEL_API_SVC_METRICS" 9000:9000 -n "$PROJECT_NAME" >/dev/null 2>&1 &
-    kubectl port-forward "$KESSEL_RELATIONS_SVC" 8333:8000 -n "$PROJECT_NAME" >/dev/null 2>&1 &
     kubectl port-forward "$RBAC_SVC" 8111:8000 -n "$PROJECT_NAME" >/dev/null 2>&1 &
 
     kubectl port-forward "$HBI_DB_SVC" 5432:5432 -n "$PROJECT_NAME" >/dev/null 2>&1 &
