@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/s2i-base:9.8-1793711247 AS kafka_build
+FROM registry.access.redhat.com/ubi9/s2i-base:9.9-1794499817 AS kafka_build
 
 USER 0
 ADD librdkafka .
@@ -6,7 +6,7 @@ RUN ./configure --prefix=/usr && \
     make && \
     make install
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1793862054
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.9-1794467051
 
 ARG pgRepo="https://copr.fedorainfracloud.org/coprs/g/insights/postgresql-16/repo/epel-9/group_insights-postgresql-16-epel-9.repo"
 
