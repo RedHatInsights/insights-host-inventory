@@ -4,7 +4,7 @@
 # Universal IQE image build.
 # Identical file in iqe-core and every plugin repo.
 #
-# Consumes the shared OS foundation (UBI9-minimal, Python, uv, oc, Red Hat
+# Consumes the shared OS foundation (ubi10-minimal, Python, uv, oc, Red Hat
 # certs, env vars) built from iqe-core's Dockerfile.base and published as
 # iqe-base (IQE-4191). The digest is bumped by Renovate.
 # FROM quay.io/redhat-services-prod/insights-management-tenant/iqe-core/iqe-base@sha256:5b79b65196483a4b1d3ebd2da74553232a4f70741c4d50b8b1f5c7b892358d54

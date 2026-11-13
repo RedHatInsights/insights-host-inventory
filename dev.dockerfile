@@ -1,14 +1,14 @@
-FROM registry.access.redhat.com/ubi9/python-312
+# Match app Python; provides HOME/PATH/user 1001 and a writable venv like the old s2i base.
+FROM registry.access.redhat.com/ubi10/python-314-minimal:latest
 
 ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
 USER 0
-# use general package name instead of a specific one,
-# like "postgresql-10.15-1.module+el8.3.0+8944+1ca16b1f.x86_64",
-# so future security fixes are autamatically picked up.
-RUN dnf install -y postgresql && \
-    dnf clean all
+# PostgreSQL 16 is the default stream on RHEL/UBI 10 (no modules).
+# gcc/libpq-devel/python3.14-devel are required for psycopg2 to build from source.
+RUN microdnf install -y postgresql gcc libpq-devel python3.14-devel && \
+    microdnf clean all
 
 COPY api/ api/
 COPY app/ app/

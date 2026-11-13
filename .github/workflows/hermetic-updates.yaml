@@ -13,9 +13,10 @@ env:
 jobs:
   hermetic-updates:
     runs-on: ubuntu-latest
+    # UBI10 does not publish a python-312 S2I image; use the full UBI10 image.
     container:
-      image: registry.access.redhat.com/ubi9/python-312
-      options: "--user root:root -v /usr/bin:/mnt/usrbin"
+      image: registry.access.redhat.com/ubi10/ubi:latest
+      options: "--user root:root"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -28,15 +29,13 @@ jobs:
 
       - name: Install prerequisites
         run: |
-          sed -i 's/include-system-site-packages = false/include-system-site-packages = true/' $APP_ROOT/pyvenv.cfg
-          dnf install -y skopeo python3-dnf
+          dnf install -y skopeo python3 python3-pip python3-dnf make git
           UV_SPEC=$(python3 scripts/get_uv_pip_specifier.py --build-pin) && \
             python3 -m pip install "uv${UV_SPEC}"
           python3 -m pip install https://github.com/konflux-ci/rpm-lockfile-prototype/archive/refs/heads/main.zip
 
       - name: Run the hermetic lockfile updates
         run: |
-          source $APP_ROOT/bin/activate
           make generate-hermetic-lockfiles BASE_IMAGE=local
 
       - name: Check for changes

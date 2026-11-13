@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/s2i-base:9.9-1793855660 AS kafka_build
+FROM registry.access.redhat.com/ubi10/s2i-base:10.3-1793859449 AS kafka_build
 
 USER 0
 ADD librdkafka .
@@ -6,17 +6,15 @@ RUN ./configure --prefix=/usr && \
     make && \
     make install
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
-
-ARG pgRepo="https://copr.fedorainfracloud.org/coprs/g/insights/postgresql-16/repo/epel-9/group_insights-postgresql-16-epel-9.repo"
+FROM registry.access.redhat.com/ubi10/ubi-minimal:latest
 
 USER root
 
 ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
-RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgresql.repo $pgRepo) && \
-    microdnf install --setopt=tsflags=nodocs -y postgresql python3.14 python3.14-pip rsync tar procps-ng make git && \
+# PostgreSQL 16 is the default stream on RHEL/UBI 10 (no modules).
+RUN microdnf install --setopt=tsflags=nodocs -y postgresql python3.14 python3.14-pip rsync tar procps-ng make git && \
     microdnf update -y gnupg2 glib2 libcap && \
     rpm -qa | sort > packages-before-devel-install.txt && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python3.14-devel gcc libatomic cargo rust glibc-devel krb5-libs krb5-devel libffi-devel gcc-c++ make zlib zlib-devel openssl-libs openssl-devel libzstd libzstd-devel unzip which diffutils && \
@@ -82,9 +80,9 @@ ENTRYPOINT [ "dumb-init", "--single-child", "./run_command.sh" ]
 # Define labels for the iop-core-host-inventory
 LABEL url="https://www.redhat.com"
 LABEL name="iop-core-host-inventory" \
-      description="This adds the satellite/iop-core-host-inventory-rhel9 image to the Red Hat container registry. To pull this container image, run the following command: podman pull registry.stage.redhat.io/satellite/iop-core-host-inventory-rhel9" \
-      summary="A new satellite/iop-core-host-inventory-rhel9 container image is now available as a Technology Preview in the Red Hat container registry."
+      description="This adds the satellite/iop-core-host-inventory-rhel10 image to the Red Hat container registry. To pull this container image, run the following command: podman pull registry.stage.redhat.io/satellite/iop-core-host-inventory-rhel10" \
+      summary="A new satellite/iop-core-host-inventory-rhel10 container image is now available as a Technology Preview in the Red Hat container registry."
 LABEL com.redhat.component="iop-core-host-inventory" \
       io.k8s.display-name="IoP Host Inventory" \
-      io.k8s.description="This adds the satellite/iop-core-host-inventory image to the Red Hat container registry. To pull this container image, run the following command: podman pull registry.stage.redhat.io/satellite/iop-core-host-inventory-rhel9" \
+      io.k8s.description="This adds the satellite/iop-core-host-inventory image to the Red Hat container registry. To pull this container image, run the following command: podman pull registry.stage.redhat.io/satellite/iop-core-host-inventory-rhel10" \
       io.openshift.tags="insights satellite iop inventory"
