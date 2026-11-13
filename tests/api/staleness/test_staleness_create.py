@@ -177,3 +177,46 @@ def test_create_staleness_ignores_immutable_fields(api_create_staleness, db_get_
 
     # Verify only conventional fields were saved, immutable fields were ignored
     assert_staleness_row_matches_triple(saved_data, CUSTOM_STALENESS)
+
+
+def test_create_staleness_invalidates_cache(mocker, api_create_staleness):
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_staleness_caches")
+    response_status, response_data = api_create_staleness(CUSTOM_STALENESS)
+    assert_response_status(response_status, 201)
+    invalidate_mock.assert_called_once_with(response_data["org_id"])
+
+
+def test_create_staleness_at_defaults_replaces_custom_row_invalidates_cache(
+    mocker, api_create_staleness, db_create_staleness_culling
+):
+    saved_staleness = db_create_staleness_culling(**CUSTOM_STALENESS)
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_staleness_caches")
+    response_status, response_data = api_create_staleness(_INPUT_DATA)
+    assert_response_status(response_status, 201)
+    invalidate_mock.assert_called_once_with(saved_staleness.org_id)
+
+
+def test_create_staleness_error_does_not_invalidate_cache(mocker, api_create_staleness):
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_staleness_caches")
+    response_status, _ = api_create_staleness({"invalid_field": "val"})
+    assert_response_status(response_status, 400)
+    invalidate_mock.assert_not_called()
+
+
+def test_create_duplicate_staleness_does_not_invalidate_cache(
+    mocker, api_create_staleness, db_create_staleness_culling
+):
+    db_create_staleness_culling(**CUSTOM_STALENESS)
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_staleness_caches")
+
+    response_status, _ = api_create_staleness(CUSTOM_STALENESS)
+    assert_response_status(response_status, 400)
+    invalidate_mock.assert_not_called()
+
+
+def test_create_staleness_at_defaults_without_custom_row_does_not_invalidate_cache(mocker, api_create_staleness):
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_staleness_caches")
+    response_status, response_data = api_create_staleness(_INPUT_DATA)
+    assert_response_status(response_status, 201)
+    assert response_data["id"] == "system_default"
+    invalidate_mock.assert_not_called()

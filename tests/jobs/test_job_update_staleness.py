@@ -115,7 +115,7 @@ def test_run_creates_new_row(flask_app, _staleness_env):
 
     session = db.session
 
-    with patch("jobs.update_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.update_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
@@ -124,7 +124,7 @@ def test_run_creates_new_row(flask_app, _staleness_env):
         assert row.conventional_time_to_stale == CUSTOM_STALE
         assert row.conventional_time_to_stale_warning == CUSTOM_WARNING
         assert row.conventional_time_to_delete == CUSTOM_DELETE
-        mock_cache.delete.assert_called_once_with(CUSTOM_ORG_ID)
+        mock_invalidate.assert_called_once_with(CUSTOM_ORG_ID)
 
 
 def test_run_updates_existing_row(flask_app, _staleness_env, monkeypatch):
@@ -143,7 +143,7 @@ def test_run_updates_existing_row(flask_app, _staleness_env, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.update_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.update_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
@@ -152,7 +152,7 @@ def test_run_updates_existing_row(flask_app, _staleness_env, monkeypatch):
         assert row.conventional_time_to_stale == new_stale
         assert row.conventional_time_to_stale_warning == CUSTOM_WARNING
         assert row.conventional_time_to_delete == CUSTOM_DELETE
-        mock_cache.delete.assert_called_once_with(CUSTOM_ORG_ID)
+        mock_invalidate.assert_called_once_with(CUSTOM_ORG_ID)
 
 
 def test_run_partial_create_uses_system_defaults(flask_app, monkeypatch):
@@ -164,7 +164,7 @@ def test_run_partial_create_uses_system_defaults(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.update_staleness.StalenessCache"):
+    with patch("jobs.update_staleness.invalidate_org_staleness_caches"):
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
@@ -195,7 +195,7 @@ def test_run_partial_update_preserves_existing(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.update_staleness.StalenessCache"):
+    with patch("jobs.update_staleness.invalidate_org_staleness_caches"):
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
@@ -215,12 +215,12 @@ def test_run_dry_run_does_not_write(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.update_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.update_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         assert _get_staleness_row(CUSTOM_ORG_ID) is None
-        mock_cache.delete.assert_not_called()
+        mock_invalidate.assert_not_called()
 
 
 def test_run_missing_org_id_exits(flask_app, monkeypatch):
@@ -275,9 +275,9 @@ def test_run_dry_run_defaults_to_true_when_unset(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.update_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.update_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         assert _get_staleness_row(CUSTOM_ORG_ID) is None
-        mock_cache.delete.assert_not_called()
+        mock_invalidate.assert_not_called()

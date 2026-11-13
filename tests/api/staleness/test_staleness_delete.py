@@ -46,3 +46,25 @@ def test_delete_staleness_rbac_allowed(subtests, mocker, api_delete_staleness, d
 @pytest.mark.usefixtures("enable_rbac")
 def test_delete_staleness_rbac_denied(subtests, mocker, api_delete_staleness):
     run_rbac_test(subtests, mocker, api_delete_staleness, STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES, 403)
+
+
+def test_delete_existing_staleness_invalidates_cache(mocker, db_create_staleness_culling, api_delete_staleness):
+    saved_staleness = db_create_staleness_culling(
+        conventional_time_to_stale=1,
+        conventional_time_to_stale_warning=7,
+        conventional_time_to_delete=30,
+    )
+    org_id = saved_staleness.org_id
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_staleness_caches")
+
+    response_status, _ = api_delete_staleness()
+    assert_response_status(response_status, 204)
+    invalidate_mock.assert_called_once_with(org_id)
+
+
+def test_delete_non_existing_staleness_does_not_invalidate_cache(mocker, api_delete_staleness):
+    invalidate_mock = mocker.patch("api.staleness.invalidate_org_staleness_caches")
+
+    response_status, _ = api_delete_staleness()
+    assert_response_status(response_status, 404)
+    invalidate_mock.assert_not_called()

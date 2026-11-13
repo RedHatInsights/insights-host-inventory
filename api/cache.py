@@ -17,6 +17,7 @@ CACHE_TYPE_REDIS_CACHE = "RedisCache"
 REDIS_CLIENT = None
 STALENESS_L2_CACHE_ENABLED = False
 GENERATION_KEY_SUFFIX = ":gen"
+ORG_GENERATION_KEY_SUFFIX = ":org_gen"
 logger = get_logger("cache")
 
 
@@ -74,6 +75,26 @@ def _generation_key(base_key: str) -> str:
     return f"{CACHE_PREFIX}{base_key}{GENERATION_KEY_SUFFIX}"
 
 
+def _org_generation_key(org_id: str) -> str:
+    return f"{CACHE_PREFIX}org={org_id}{ORG_GENERATION_KEY_SUFFIX}"
+
+
+def _lazy_init_counter(client, key, ttl=None):
+    """Lazily initialise a generation counter to 0 if it does not exist.
+
+    Uses SET NX to avoid overwriting a counter that was concurrently
+    incremented.  Returns the current integer value of the counter.
+    """
+    kwargs = {"nx": True}
+    if ttl is not None:
+        kwargs["ex"] = ttl
+    if client.set(key, 0, **kwargs):
+        return 0
+    # SET NX failed — another process created the key concurrently.
+    current = client.get(key)
+    return int(current) if current is not None else 0
+
+
 def get_system_cache_generation(insights_id, org_id, owner_id):
     """Read the current cache generation counter for a system cache entry.
 
@@ -92,19 +113,64 @@ def get_system_cache_generation(insights_id, org_id, owner_id):
         value = client.get(gen_key)
         if value is not None:
             return int(value)
-        # Key does not exist — lazily initialise to 0 so future GETs are
-        # cache hits instead of misses.  NX prevents overwriting a counter
-        # that was just incremented by a concurrent invalidation.
         gen_ttl = inventory_config().cache_insights_client_system_timeout_sec
-        if client.set(gen_key, 0, ex=gen_ttl, nx=True):
-            return 0
-        # SET NX failed — another process created the key (e.g. INCR from
-        # a concurrent invalidation).  Re-read to get the actual generation.
-        current_value = client.get(gen_key)
-        return int(current_value) if current_value is not None else 0
+        return _lazy_init_counter(client, gen_key, ttl=gen_ttl)
     except Exception as exc:
         logger.exception("Failed to read system cache generation", exc_info=exc)
         return 0
+
+
+def get_org_cache_generation(org_id):
+    """Read the current org-level cache generation counter.
+
+    Returns 0 when Redis is unavailable or the generation key does not exist.
+    When the key is absent, it is lazily initialised to 0 without expiry.
+    """
+    if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE):
+        return 0
+    try:
+        client = _get_redis_client()
+        org_gen_key = _org_generation_key(org_id)
+        value = client.get(org_gen_key)
+        if value is not None:
+            return int(value)
+        return _lazy_init_counter(client, org_gen_key)
+    except Exception as exc:
+        logger.exception("Failed to read org cache generation", exc_info=exc)
+        return 0
+
+
+def get_system_cache_generations(insights_id, org_id, owner_id):
+    """Fetch both the per-system generation and the per-org generation in a single MGET call.
+
+    Returns (generation, org_generation). Returns (0, 0) when Redis is unavailable or on error.
+    """
+    if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE):
+        return (0, 0)
+    try:
+        from app.common import inventory_config
+
+        client = _get_redis_client()
+        base_key = system_cache_key_base(insights_id, org_id, owner_id)
+        sys_gen_key = _generation_key(base_key)
+        org_gen_key = _org_generation_key(org_id)
+
+        values = client.mget([sys_gen_key, org_gen_key])
+        sys_val = values[0] if len(values) > 0 else None
+        org_val = values[1] if len(values) > 1 else None
+
+        if sys_val is not None:
+            sys_gen = int(sys_val)
+        else:
+            gen_ttl = inventory_config().cache_insights_client_system_timeout_sec
+            sys_gen = _lazy_init_counter(client, sys_gen_key, ttl=gen_ttl)
+
+        org_gen = int(org_val) if org_val is not None else _lazy_init_counter(client, org_gen_key)
+
+        return (sys_gen, org_gen)
+    except Exception as exc:
+        logger.exception("Failed to read system cache generations", exc_info=exc)
+        return (0, 0)
 
 
 def _invalidate_system_cache_redis(insights_id, org_id, owner_id):
@@ -140,6 +206,41 @@ def _invalidate_system_cache(insights_id, org_id, owner_id):
         return
 
     _invalidate_system_cache_redis(insights_id, org_id, owner_id)
+
+
+def invalidate_org_system_cache(org_id):
+    """Increment the org-level generation counter, making all current org cache entries unreachable.
+
+    The org generation counter does not have a TTL (it is permanent).
+    """
+    if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE):
+        if not CACHE_CONFIG:
+            logger.info("Not invalidating org cache: CACHE_CONFIG is falsy")
+        else:
+            cache_type = CACHE_CONFIG.get("CACHE_TYPE")
+            logger.info(f"Not invalidating org cache: CACHE_TYPE '{cache_type}' != '{CACHE_TYPE_REDIS_CACHE}'")
+        return
+
+    try:
+        client = _get_redis_client()
+        org_gen_key = _org_generation_key(org_id)
+        new_gen = client.incr(org_gen_key)
+        logger.info("Invalidated org system cache for org_id=%s new_generation=%s", org_id, new_gen)
+    except Exception as exc:
+        logger.exception("Org system cache invalidation failed", exc_info=exc)
+
+
+def invalidate_org_staleness_caches(org_id):
+    """Invalidate both the staleness object cache and the org-level system cache.
+
+    This must be called whenever staleness settings change for an org so that
+    both the StalenessCache (used for staleness lookups) and the system-client
+    cache (used for host responses) are refreshed.
+    """
+    from app.models.utils import StalenessCache
+
+    StalenessCache.delete(org_id)
+    invalidate_org_system_cache(org_id)
 
 
 def _delete_keys_redis(cache_key, wildcard=True):

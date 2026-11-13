@@ -27,11 +27,13 @@ def make_key():
     return key
 
 
-def make_system_cache_key(insights_id, org_id, owner_id, forwarded_identity=None, generation=0):
+def make_system_cache_key(insights_id, org_id, owner_id, forwarded_identity=None, generation=0, org_generation=0):
     if not insights_id or not org_id or not owner_id:
         message = f"Invalid cache key encountered; insights_id={insights_id} org_id={org_id}, owner_id={owner_id}."
         raise Exception(message)  # TODO: Raise a more specific exception
     key = f"{system_cache_key_base(insights_id, org_id, owner_id)}:g{generation}"
+    if org_generation > 0:
+        key = f"{key}:o{org_generation}"
     if forwarded_identity:
         key = f"{key}{SUBMAN_CACHE_KEY_DELIMITER}{forwarded_identity}"
     return key
