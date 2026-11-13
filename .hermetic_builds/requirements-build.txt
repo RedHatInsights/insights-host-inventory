@@ -16,9 +16,9 @@ calver==2025.4.17 \
     --hash=sha256:460702737d620f5c3d4175450485180a1b7f7a422c5db0e6af3e655c7395ec7e \
     --hash=sha256:82f0efe7f71c28167af5ed9712e0d9d6272eb0817acbbf852b8b2404666a0cf2
     # via -r requirements-build.in
-certifi==2025.6.15 \
-    --hash=sha256:2e0c7ce7cb5d8f8634ca55d2ba7e6ec2689a2fd6537d8dec1296a477a4910057 \
-    --hash=sha256:d747aa5a8b9bbbb1bb8c22bb13e22bd1f18e9796defa16bab421f7f7a317323b
+certifi==2026.10.23 \
+    --hash=sha256:e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1 \
+    --hash=sha256:a9895e6e2758b371e0545e321a3a8fd1fcfd9829ada8824a936dfb16aaaf36cd
     # via pipenv
 cffi==1.17.1 \
     --hash=sha256:045d61c734659cc045141be4bae381a41d89b741f795af1dd018bfb532fd0df8 \
