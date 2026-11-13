@@ -38,6 +38,8 @@ VALID_INCIDENT_STATUSES = ("present", "not_present", "not_analyzed")
 VALID_CVE_SEVERITIES = ("critical", "important", "moderate", "low", "not_evaluated")
 VALID_KNOWN_EXPLOIT_STATUSES = ("present", "not_present", "not_evaluated")
 VALID_SECURITY_RULE_STATUSES = ("present", "not_present", "not_evaluated")
+VALID_INSTALLABLE_ADVISORY_TYPES = ("security", "bugfix", "enhancement", "other", "not_evaluated")
+VALID_TEMPLATE_STATUSES = ("present", "not_present")
 
 
 class HostFiltersSchema(MarshmallowSchema):
@@ -76,6 +78,14 @@ class HostFiltersSchema(MarshmallowSchema):
     )
     security_rule = fields.List(
         fields.Str(validate=marshmallow_validate.OneOf(VALID_SECURITY_RULE_STATUSES)),
+        required=False,
+    )
+    installable_advisory_type = fields.List(
+        fields.Str(validate=marshmallow_validate.OneOf(VALID_INSTALLABLE_ADVISORY_TYPES)),
+        required=False,
+    )
+    template = fields.Str(
+        validate=marshmallow_validate.OneOf(VALID_TEMPLATE_STATUSES),
         required=False,
     )
 

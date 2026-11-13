@@ -45,6 +45,8 @@ class HostFilters:
         "cve_severity": "list[str]",
         "known_exploit": "list[str]",
         "security_rule": "list[str]",
+        "installable_advisory_type": "list[str]",
+        "template": "str",
     }
 
     attribute_map = {
@@ -63,6 +65,8 @@ class HostFilters:
         "cve_severity": "cve_severity",
         "known_exploit": "known_exploit",
         "security_rule": "security_rule",
+        "installable_advisory_type": "installable_advisory_type",
+        "template": "template",
     }
 
     def __init__(
@@ -82,6 +86,8 @@ class HostFilters:
         cve_severity=None,
         known_exploit=None,
         security_rule=None,
+        installable_advisory_type=None,
+        template=None,
         local_vars_configuration=None,
     ):
         """HostFilters - a model defined in OpenAPI"""
@@ -104,6 +110,8 @@ class HostFilters:
         self._cve_severity = None
         self._known_exploit = None
         self._security_rule = None
+        self._installable_advisory_type = None
+        self._template = None
         self.discriminator = None
 
         if hostname_or_id is not None:
@@ -136,6 +144,10 @@ class HostFilters:
             self.known_exploit = known_exploit
         if security_rule is not None:
             self.security_rule = security_rule
+        if installable_advisory_type is not None:
+            self.installable_advisory_type = installable_advisory_type
+        if template is not None:
+            self.template = template
 
     @property
     def hostname_or_id(self):
@@ -547,6 +559,67 @@ class HostFilters:
             )
 
         self._security_rule = security_rule
+
+    @property
+    def installable_advisory_type(self):
+        """Gets the installable_advisory_type of this HostFilters.
+
+        Filter by Content installable advisory type.
+
+        :return: The installable_advisory_type of this HostFilters.
+        :rtype: list[str]
+        """
+        return self._installable_advisory_type
+
+    @installable_advisory_type.setter
+    def installable_advisory_type(self, installable_advisory_type):
+        """Sets the installable_advisory_type of this HostFilters.
+
+        Filter by Content installable advisory type. Values are OR.
+
+        :param installable_advisory_type: The installable_advisory_type of this HostFilters.
+        :type: list[str]
+        """
+        allowed_values = ["security", "bugfix", "enhancement", "other", "not_evaluated"]
+        if self.local_vars_configuration.client_side_validation and not set(installable_advisory_type).issubset(
+            set(allowed_values)
+        ):
+            raise ValueError(
+                "Invalid values for `installable_advisory_type` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(installable_advisory_type) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
+                )
+            )
+
+        self._installable_advisory_type = installable_advisory_type
+
+    @property
+    def template(self):
+        """Gets the template of this HostFilters.
+
+        Filter by Content template assignment.
+
+        :return: The template of this HostFilters.
+        :rtype: str
+        """
+        return self._template
+
+    @template.setter
+    def template(self, template):
+        """Sets the template of this HostFilters.
+
+        Filter by Content template assignment.
+
+        :param template: The template of this HostFilters.
+        :type: str
+        """
+        allowed_values = ["present", "not_present"]
+        if self.local_vars_configuration.client_side_validation and template not in allowed_values:
+            raise ValueError(
+                "Invalid value for `template` ({0}), must be one of {1}".format(template, allowed_values)
+            )
+
+        self._template = template
 
     def to_dict(self):
         """Returns the model properties as a dict"""
