@@ -1,15 +1,14 @@
-# UBI10 does not publish a python-312 S2I image; use full UBI10 + app Python.
-FROM registry.access.redhat.com/ubi10/ubi:latest
+# Match app Python; provides HOME/PATH/user 1001 and a writable venv like the old s2i base.
+FROM registry.access.redhat.com/ubi10/python-314-minimal:latest
 
 ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
 USER 0
 # PostgreSQL 16 is the default stream on RHEL/UBI 10 (no modules).
-RUN dnf install -y postgresql python3.14 python3.14-pip && \
-    ln -sf /usr/bin/python3.14 /usr/bin/python3 && \
-    ln -sf /usr/bin/python3.14 /usr/bin/python && \
-    dnf clean all
+# gcc/libpq-devel/python3.14-devel are required for psycopg2 to build from source.
+RUN microdnf install -y postgresql gcc libpq-devel python3.14-devel && \
+    microdnf clean all
 
 COPY api/ api/
 COPY app/ app/
@@ -39,7 +38,7 @@ USER 1001
 
 ENV PATH="$APP_ROOT/.venv/bin:$PATH"
 
-RUN UV_SPEC=$(python3 scripts/get_uv_pip_specifier.py --build-pin) && python3 -m pip install "uv${UV_SPEC}" && \
+RUN UV_SPEC=$(python3 scripts/get_uv_pip_specifier.py --build-pin) && pip install "uv${UV_SPEC}" && \
     uv sync --frozen
 
 CMD bash -c 'make upgrade_db && make run_inv_mq_service'

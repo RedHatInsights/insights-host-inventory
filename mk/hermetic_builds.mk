@@ -17,7 +17,7 @@ generate-hermetic-lockfiles: generate-rpms-lockfile generate-requirements-txt ge
 # Example: make generate-rpms-lockfile CONTAINERFILE=Containerfile BASE_IMAGE=registry.access.redhat.com/ubi10/ubi:latest
 #          make generate-rpms-lockfile (uses default CONTAINERFILE=Dockerfile and BASE_IMAGE=registry.access.redhat.com/ubi10/ubi-minimal:latest)
 .PHONY: generate-rpms-lockfile
-generate-rpms-lockfile: rpms.lock.yaml
+generate-rpms-lockfile: $(hermetic_builds_dir)/rpms.lock.yaml
 
 $(hermetic_builds_dir)/ubi.repo:
 	@if ! grep -q "Red Hat Enterprise Linux release 10" /etc/redhat-release 2>/dev/null; then \
@@ -29,12 +29,10 @@ $(hermetic_builds_dir)/ubi.repo:
 	else \
 		podman run -it $(BASE_IMAGE) cat /etc/yum.repos.d/ubi.repo > $(hermetic_builds_path)/ubi.repo || { echo "Failed to fetch ubi.repo"; exit 1; }; \
 	fi
-	@sed -i 's/ubi-10-appstream-source-rpms/ubi-10-for-x86_64-appstream-source-rpms/' $(hermetic_builds_path)/ubi.repo
-	@sed -i 's/ubi-10-appstream-rpms/ubi-10-for-x86_64-appstream-rpms/' $(hermetic_builds_path)/ubi.repo
-	@sed -i 's/ubi-10-baseos-source-rpms/ubi-10-for-x86_64-baseos-source-rpms/' $(hermetic_builds_path)/ubi.repo
-	@sed -i 's/ubi-10-baseos-rpms/ubi-10-for-x86_64-baseos-rpms/' $(hermetic_builds_path)/ubi.repo
-	@sed -i 's/ubi-10-codeready-builder-source-rpms/ubi-10-for-x86_64-codeready-builder-source-rpms/' $(hermetic_builds_path)/ubi.repo
-	@sed -i 's/ubi-10-codeready-builder-rpms/ubi-10-for-x86_64-codeready-builder-rpms/' $(hermetic_builds_path)/ubi.repo
+	# Normalize both ubi-minimal ([ubi-10-baseos-rpms]) and full ubi
+	# ([ubi-10-for-$basearch-baseos-rpms] / [codeready-builder-for-ubi-10-$basearch-rpms])
+	# section names; leave debug repos untouched.
+	@sed -i -E '/^\[.*debug/! { /^\[/ { s/\$$basearch/x86_64/; s/^\[codeready-builder-for-ubi-10-x86_64-(.*)\]/[ubi-10-for-x86_64-codeready-builder-\1]/; s/^\[ubi-10-(baseos|appstream|codeready-builder)-/[ubi-10-for-x86_64-\1-/ } }' $(hermetic_builds_path)/ubi.repo
 	@sed -i 's/\r$$//' $(hermetic_builds_path)/ubi.repo
 	@sed -i '/\[.*x86_64.*\]/,/^\[/ s/enabled[[:space:]]*=[[:space:]]*0/enabled = 1/g' $(hermetic_builds_path)/ubi.repo
 	@ENTITLEMENT_KEY=$$(ls /etc/pki/entitlement/*-key.pem 2>/dev/null | head -n 1); \
