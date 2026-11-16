@@ -13,6 +13,9 @@ on:
       - 'foreman-*.*'
     # Publish semver tags as releases.
     tags: [ 'v*.*.*' ]
+  merge_group:
+    types: [checks_requested]
+    branches: [main, master]
 
 env:
   # Use docker.io for Docker Hub if empty
