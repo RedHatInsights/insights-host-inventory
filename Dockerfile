@@ -55,6 +55,9 @@ COPY jobs/ jobs/
 
 ENV PIP_NO_CACHE_DIR=1
 ENV UV_COMPILE_BYTECODE=1
+# Workaround GCC failure building grpcio on UBI10 (Kessel SDK dependency).
+# See https://github.com/grpc/grpc/issues/43754
+ENV GRPC_PYTHON_CFLAGS=-march=x86-64-v2
 
 RUN UV_SPEC=$(python3 scripts/get_uv_pip_specifier.py --build-pin) && \
     python3 -m pip install --upgrade pip setuptools wheel && \

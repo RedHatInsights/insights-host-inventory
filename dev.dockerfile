@@ -37,6 +37,9 @@ RUN chown -R 1001:0 ./
 USER 1001
 
 ENV PATH="$APP_ROOT/.venv/bin:$PATH"
+# Workaround GCC failure building grpcio on UBI10 (Kessel SDK dependency).
+# See https://github.com/grpc/grpc/issues/43754
+ENV GRPC_PYTHON_CFLAGS=-march=x86-64-v2
 
 RUN UV_SPEC=$(python3 scripts/get_uv_pip_specifier.py --build-pin) && pip install "uv${UV_SPEC}" && \
     uv sync --frozen
