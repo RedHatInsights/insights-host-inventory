@@ -497,6 +497,42 @@ class TestCreateExportWithView:
             assert mock_handle_error.call_args[0][1] == 403
             assert "Insufficient permissions to filter by advisor" in mock_handle_error.call_args[0][0]
 
+    @pytest.mark.parametrize(
+        "host_filters",
+        [
+            {"installable_advisory_type": ["security"]},
+            {"template": "present"},
+            {"installable_advisory_type": ["not_evaluated"], "template": "not_present"},
+        ],
+    )
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_export_with_view_rejects_unauthorized_patch_host_filters(
+        self, mock_handle_error, flask_app, db_create_view, inventory_config, host_filters
+    ):
+        with (
+            flask_app.app.app_context(),
+            mock.patch("app.queue.export_service.get_allowed_app_services", return_value=set()),
+        ):
+            view = db_create_view(
+                configuration={
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"host": host_filters},
+                },
+                created_by="51234567",
+            )
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={"view_id": str(view.id)},
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 403
+            assert "Insufficient permissions to filter by patch" in mock_handle_error.call_args[0][0]
+
 
 class TestCreateExportWithInlineConfiguration:
     """Inline configuration carries the table's live (possibly unsaved) WYSIWYG state."""
@@ -1310,6 +1346,60 @@ class TestGetHostsToExportWithColumns:
             assert "hosts_app_data_vulnerability" not in joined[0]
             assert "hosts_app_data_patch" not in joined[0]
             assert not any("hosts_app_data_vulnerability" in q for q in queries)
+
+    def test_content_host_filter_joins_patch_and_matches_only_that_host(
+        self, flask_app, db_create_host, db_create_host_app_data
+    ):
+        """Content filters must LEFT JOIN patch. An unjoined table cross-matches other hosts."""
+        with flask_app.app.app_context():
+            security = db_create_host(host=db_host(display_name="security-present"))
+            bugfix = db_create_host(host=db_host(display_name="bugfix-absent"))
+            db_create_host(host=db_host(display_name="no-patch-row"))
+            db_create_host_app_data(
+                str(security.id),
+                "test",
+                "patch",
+                advisories_rhsa_installable=2,
+                advisories_rhba_installable=0,
+                advisories_rhea_installable=0,
+                advisories_other_installable=0,
+                template_uuid=uuid4(),
+            )
+            db_create_host_app_data(
+                str(bugfix.id),
+                "test",
+                "patch",
+                advisories_rhsa_installable=0,
+                advisories_rhba_installable=3,
+                advisories_rhea_installable=0,
+                advisories_other_installable=0,
+                template_uuid=None,
+            )
+            identity = Identity(USER_IDENTITY)
+
+            cases = [
+                ({"installable_advisory_type": ["security"]}, ["security-present"]),
+                ({"installable_advisory_type": ["not_evaluated"]}, ["no-patch-row"]),
+                ({"template": "present"}, ["security-present"]),
+                ({"template": "not_present"}, ["bugfix-absent"]),
+                (
+                    {"installable_advisory_type": ["security"], "template": "present"},
+                    ["security-present"],
+                ),
+            ]
+            for host_filter, expected in cases:
+                with _capture_sql() as queries:
+                    results = list(
+                        get_hosts_to_export(
+                            identity,
+                            export_fields=["host_id", "display_name"],
+                            host_filter=host_filter,
+                        )
+                    )
+
+                assert sorted(r["display_name"] for r in results) == expected
+                joined = [q for q in queries if "LEFT OUTER JOIN" in q.upper() and "hosts_app_data_patch" in q]
+                assert len(joined) == 1
 
     def test_workloads_column_extracts_root_keys(self, flask_app, db_create_host):
         with flask_app.app.app_context():

@@ -38,6 +38,7 @@ from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import WORKLOADS_FIELDS
 from app.models.constants import SystemType
+from app.models.host_app_data import HostAppDataPatch
 from app.models.host_app_data import HostAppDataVulnerability
 from app.models.host_app_data import get_app_data_models
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
@@ -652,6 +653,49 @@ def _vulnerability_filter(
     return filters, HostAppDataVulnerability
 
 
+_INSTALLABLE_ADVISORY_COLUMNS = {
+    "security": "advisories_rhsa_installable",
+    "bugfix": "advisories_rhba_installable",
+    "enhancement": "advisories_rhea_installable",
+    "other": "advisories_other_installable",
+}
+
+
+def _patch_filter(
+    installable_advisory_type: list[str] | None,
+    template: str | None,
+) -> tuple[list, type]:
+    """Build filters for installable_advisory_type and template params.
+
+    Advisory values are OR. template is a single value. The two params are AND when both are set.
+    not_evaluated is the absence of a patch row (host_id IS NULL), not a column.
+    A type matches when its installable count is greater than 0.
+    present is template_uuid set. not_present is a published row with template_uuid null.
+
+    Returns:
+        (list of SQLAlchemy filter expressions, HostAppDataPatch model class)
+    """
+    filters = []
+
+    if installable_advisory_type:
+        advisory_conditions = []
+        for advisory_type in installable_advisory_type:
+            if advisory_type == "not_evaluated":
+                advisory_conditions.append(HostAppDataPatch.host_id.is_(None))
+            elif advisory_type in _INSTALLABLE_ADVISORY_COLUMNS:
+                column = getattr(HostAppDataPatch, _INSTALLABLE_ADVISORY_COLUMNS[advisory_type])
+                advisory_conditions.append(column > 0)
+        if advisory_conditions:
+            filters.append(or_(*advisory_conditions))
+
+    if template == "present":
+        filters.append(HostAppDataPatch.template_uuid.isnot(None))
+    elif template == "not_present":
+        filters.append(and_(HostAppDataPatch.host_id.isnot(None), HostAppDataPatch.template_uuid.is_(None)))
+
+    return filters, HostAppDataPatch
+
+
 def query_filters(
     filters: HostFilters | None = None,
     *,
@@ -688,6 +732,8 @@ def query_filters(
     cve_severity = filters.cve_severity
     known_exploit = filters.known_exploit
     security_rule = filters.security_rule
+    installable_advisory_type = filters.installable_advisory_type
+    template = filters.template
 
     num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
@@ -744,6 +790,11 @@ def query_filters(
         vuln_filters, vuln_model = _vulnerability_filter(cve_severity, known_exploit, security_rule)
         filter_expressions += vuln_filters
         app_data_models_to_join.add(vuln_model)
+
+    if installable_advisory_type or template:
+        patch_filters, patch_model = _patch_filter(installable_advisory_type, template)
+        filter_expressions += patch_filters
+        app_data_models_to_join.add(patch_model)
 
     filter_expressions = [and_(Host.org_id == identity.org_id, *filter_expressions)]
 

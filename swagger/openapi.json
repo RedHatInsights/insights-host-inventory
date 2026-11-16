@@ -309,6 +309,12 @@
           },
           {
             "$ref": "#/components/parameters/securityRuleParam"
+          },
+          {
+            "$ref": "#/components/parameters/installableAdvisoryTypeParam"
+          },
+          {
+            "$ref": "#/components/parameters/templateParam"
           }
         ],
         "responses": {
@@ -2795,6 +2801,40 @@
               "not_evaluated"
             ]
           }
+        }
+      },
+      "installableAdvisoryTypeParam": {
+        "in": "query",
+        "name": "installable_advisory_type",
+        "required": false,
+        "style": "form",
+        "explode": true,
+        "description": "Filters hosts by Content installable advisory type. Repeat the parameter for multiple values (installable_advisory_type=security&installable_advisory_type=bugfix). Values are OR. security, bugfix, enhancement, and other match hosts whose installable count for that type is greater than 0. not_evaluated matches hosts with no Content data.",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "security",
+              "bugfix",
+              "enhancement",
+              "other",
+              "not_evaluated"
+            ]
+          }
+        }
+      },
+      "templateParam": {
+        "in": "query",
+        "name": "template",
+        "required": false,
+        "description": "Filters hosts by Content template assignment. present matches a published Content row whose template_uuid is set. not_present matches a published Content row whose template_uuid is null. A host with no Content data matches neither value.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "present",
+            "not_present"
+          ]
         }
       },
       "hostViewCombinedFilterParam": {
@@ -6399,6 +6439,28 @@
                 "not_evaluated"
               ]
             }
+          },
+          "installable_advisory_type": {
+            "description": "Filter by Content installable advisory type. Values are OR. not_evaluated matches hosts with no Content data.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "security",
+                "bugfix",
+                "enhancement",
+                "other",
+                "not_evaluated"
+              ]
+            }
+          },
+          "template": {
+            "description": "Filter by Content template assignment. present matches a template_uuid. not_present matches a published Content row with no template_uuid.",
+            "type": "string",
+            "enum": [
+              "present",
+              "not_present"
+            ]
           }
         },
         "additionalProperties": false
