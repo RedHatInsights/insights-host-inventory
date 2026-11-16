@@ -60,19 +60,32 @@ class HostFilters(BaseModel):
     )
     system_type: list[StrictStr] | None = Field(default=None, description="Filter by system type.")
     recommendation_severity: list[StrictStr] | None = Field(
-        default=None, description="Filter by Advisor recommendation severity (OR logic)."
+        default=None,
+        description="Filter by Advisor recommendation severity. Values are OR. not_analyzed matches hosts with no Advisor data.",
     )
-    incident_status: StrictStr | None = Field(
-        default=None, description="Filter by Advisor incident status."
+    incident_status: list[StrictStr] | None = Field(
+        default=None,
+        description="Filter by Advisor incident status. Values are OR. not_analyzed matches hosts with no Advisor data.",
     )
     cve_severity: list[StrictStr] | None = Field(
-        default=None, description="Filter by Vulnerability CVE severity (OR logic)."
+        default=None,
+        description="Filter by Vulnerability CVE severity. Values are OR. not_evaluated matches hosts with no Vulnerability data.",
     )
-    known_exploit: StrictStr | None = Field(
-        default=None, description="Filter by Vulnerability known exploit status."
+    known_exploit: list[StrictStr] | None = Field(
+        default=None,
+        description="Filter by CVEs with known exploits. Values are OR. not_evaluated matches hosts with no Vulnerability data.",
     )
-    security_rule: StrictStr | None = Field(
-        default=None, description="Filter by Vulnerability security rule status."
+    security_rule: list[StrictStr] | None = Field(
+        default=None,
+        description="Filter by CVEs with security rules. Values are OR. not_evaluated matches hosts with no Vulnerability data.",
+    )
+    installable_advisory_type: list[StrictStr] | None = Field(
+        default=None,
+        description="Filter by Content installable advisory type. Values are OR. not_evaluated matches hosts with no Content data.",
+    )
+    template: StrictStr | None = Field(
+        default=None,
+        description="Filter by Content template assignment. present matches a template_uuid. not_present matches a published row with no template_uuid.",
     )
     __properties: ClassVar[list[str]] = [
         "hostname_or_id",
@@ -90,6 +103,8 @@ class HostFilters(BaseModel):
         "cve_severity",
         "known_exploit",
         "security_rule",
+        "installable_advisory_type",
+        "template",
     ]
 
     @field_validator("staleness")
@@ -125,9 +140,9 @@ class HostFilters(BaseModel):
             return value
 
         for i in value:
-            if i not in {"critical", "important", "moderate", "low"}:
+            if i not in {"critical", "important", "moderate", "low", "not_analyzed"}:
                 raise ValueError(
-                    "each list item must be one of ('critical', 'important', 'moderate', 'low')"
+                    "each list item must be one of ('critical', 'important', 'moderate', 'low', 'not_analyzed')"
                 )
         return value
 
@@ -137,8 +152,11 @@ class HostFilters(BaseModel):
         if value is None:
             return value
 
-        if value not in {"incident", "no_incident"}:
-            raise ValueError("must be one of ('incident', 'no_incident')")
+        for i in value:
+            if i not in {"present", "not_present", "not_analyzed"}:
+                raise ValueError(
+                    "each list item must be one of ('present', 'not_present', 'not_analyzed')"
+                )
         return value
 
     @field_validator("cve_severity")
@@ -148,9 +166,9 @@ class HostFilters(BaseModel):
             return value
 
         for i in value:
-            if i not in {"critical", "important", "moderate", "low"}:
+            if i not in {"critical", "important", "moderate", "low", "not_evaluated"}:
                 raise ValueError(
-                    "each list item must be one of ('critical', 'important', 'moderate', 'low')"
+                    "each list item must be one of ('critical', 'important', 'moderate', 'low', 'not_evaluated')"
                 )
         return value
 
@@ -160,8 +178,11 @@ class HostFilters(BaseModel):
         if value is None:
             return value
 
-        if value not in {"has_known_exploit", "no_known_exploit"}:
-            raise ValueError("must be one of ('has_known_exploit', 'no_known_exploit')")
+        for i in value:
+            if i not in {"present", "not_present", "not_evaluated"}:
+                raise ValueError(
+                    "each list item must be one of ('present', 'not_present', 'not_evaluated')"
+                )
         return value
 
     @field_validator("security_rule")
@@ -170,8 +191,34 @@ class HostFilters(BaseModel):
         if value is None:
             return value
 
+        for i in value:
+            if i not in {"present", "not_present", "not_evaluated"}:
+                raise ValueError(
+                    "each list item must be one of ('present', 'not_present', 'not_evaluated')"
+                )
+        return value
+
+    @field_validator("installable_advisory_type")
+    def installable_advisory_type_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        for i in value:
+            if i not in {"security", "bugfix", "enhancement", "other", "not_evaluated"}:
+                raise ValueError(
+                    "each list item must be one of ('security', 'bugfix', 'enhancement', 'other', 'not_evaluated')"
+                )
+        return value
+
+    @field_validator("template")
+    def template_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
         if value not in {"present", "not_present"}:
-            raise ValueError("must be one of ('present', 'not_present')")
+            raise ValueError("must be one of enum values ('present', 'not_present')")
         return value
 
     model_config = ConfigDict(
@@ -246,5 +293,7 @@ class HostFilters(BaseModel):
             "cve_severity": obj.get("cve_severity"),
             "known_exploit": obj.get("known_exploit"),
             "security_rule": obj.get("security_rule"),
+            "installable_advisory_type": obj.get("installable_advisory_type"),
+            "template": obj.get("template"),
         })
         return _obj

@@ -40,6 +40,12 @@ _COLLECTION_PARAMS = (
     "tags",
     "registered_with",
     "system_type",
+    "recommendation_severity",
+    "incident_status",
+    "cve_severity",
+    "known_exploit",
+    "security_rule",
+    "installable_advisory_type",
 )
 
 

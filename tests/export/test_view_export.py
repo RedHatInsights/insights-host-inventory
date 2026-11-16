@@ -11,6 +11,7 @@ from sqlalchemy import event
 
 from api.host_query_db import _export_needs_profile_joins
 from api.host_query_db import get_hosts_to_export
+from api.views_validation import validate_view_configuration
 from app.auth.identity import Identity
 from app.models import db
 from app.queue.export_service import ALWAYS_APPENDED_EXPORT_FIELDS
@@ -205,6 +206,27 @@ class TestLoadViewConfig:
             assert "workspace_name" not in host_filter
             assert host_filter["group_name"] == expected
 
+    @pytest.mark.parametrize(
+        "workspace_id,expected",
+        [
+            (["5b58be21-39f5-4c11-9c61-6ce94f5dd274"], ["5b58be21-39f5-4c11-9c61-6ce94f5dd274"]),
+            ("5b58be21-39f5-4c11-9c61-6ce94f5dd274", ["5b58be21-39f5-4c11-9c61-6ce94f5dd274"]),
+        ],
+    )
+    def test_workspace_id_normalized_to_group_ids(self, flask_app, db_create_view, workspace_id, expected):
+        with flask_app.app.app_context():
+            view = db_create_view(
+                configuration={
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"host": {"workspace_id": workspace_id}},
+                },
+                created_by="51234567",
+            )
+            host_filter, _, _, _, _ = _load_view_config(str(view.id), "test", "51234567")
+
+            assert "workspace_id" not in host_filter
+            assert host_filter["group_ids"] == expected
+
     def test_extracts_sort(self, flask_app, db_create_view):
         with flask_app.app.app_context():
             view = db_create_view(
@@ -229,6 +251,38 @@ class TestLoadViewConfig:
 
             assert order_by is None
             assert order_how is None
+
+
+class TestWorkspaceFilterValidation:
+    def test_workspace_id_accepts_bare_string(self, flask_app):
+        """Inline configurations may carry a bare-string workspace_id (rather than a
+        list), mirroring how workspace_name values are normalized."""
+        with flask_app.app.app_context():
+            validate_view_configuration(
+                {
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"host": {"workspace_id": "5b58be21-39f5-4c11-9c61-6ce94f5dd274"}},
+                }
+            )
+
+    def test_workspace_id_accepts_uuid_list(self, flask_app):
+        with flask_app.app.app_context():
+            validate_view_configuration(
+                {
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"host": {"workspace_id": ["5b58be21-39f5-4c11-9c61-6ce94f5dd274"]}},
+                }
+            )
+
+    def test_workspace_name_alone_is_still_valid(self, flask_app):
+        """The legacy name-matched filter keeps working on its own."""
+        with flask_app.app.app_context():
+            validate_view_configuration(
+                {
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"host": {"workspace_name": ["my-group"]}},
+                }
+            )
 
 
 class TestCreateExportWithView:
@@ -411,8 +465,8 @@ class TestCreateExportWithView:
         "host_filters",
         [
             {"recommendation_severity": ["critical"]},
-            {"incident_status": "incident"},
-            {"recommendation_severity": ["critical"], "incident_status": "no_incident"},
+            {"incident_status": ["present"]},
+            {"recommendation_severity": ["critical", "not_analyzed"], "incident_status": ["not_present"]},
         ],
     )
     @mock.patch("app.queue.export_service._handle_export_error")
@@ -442,6 +496,42 @@ class TestCreateExportWithView:
             mock_handle_error.assert_called_once()
             assert mock_handle_error.call_args[0][1] == 403
             assert "Insufficient permissions to filter by advisor" in mock_handle_error.call_args[0][0]
+
+    @pytest.mark.parametrize(
+        "host_filters",
+        [
+            {"installable_advisory_type": ["security"]},
+            {"template": "present"},
+            {"installable_advisory_type": ["not_evaluated"], "template": "not_present"},
+        ],
+    )
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_export_with_view_rejects_unauthorized_patch_host_filters(
+        self, mock_handle_error, flask_app, db_create_view, inventory_config, host_filters
+    ):
+        with (
+            flask_app.app.app_context(),
+            mock.patch("app.queue.export_service.get_allowed_app_services", return_value=set()),
+        ):
+            view = db_create_view(
+                configuration={
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"host": host_filters},
+                },
+                created_by="51234567",
+            )
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={"view_id": str(view.id)},
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 403
+            assert "Insufficient permissions to filter by patch" in mock_handle_error.call_args[0][0]
 
 
 class TestCreateExportWithInlineConfiguration:
@@ -656,6 +746,89 @@ class TestCreateExportWithInlineConfiguration:
             assert mock_handle_error.call_args[0][1] == 400
             assert "sort key" in mock_handle_error.call_args[0][0]
 
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_inline_config_workspace_name_and_id_returns_error(
+        self, mock_handle_error, flask_app, db_create_host, inventory_config
+    ):
+        """workspace_name and workspace_id resolve to the same group filters, which combine
+        with AND semantics — two different workspaces would silently match nothing."""
+        with flask_app.app.app_context():
+            db_create_host()
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={
+                        "configuration": {
+                            "columns": [{"key": "display_name"}],
+                            "filters": {
+                                "host": {
+                                    "workspace_name": ["my-group"],
+                                    "workspace_id": ["5b58be21-39f5-4c11-9c61-6ce94f5dd274"],
+                                }
+                            },
+                        }
+                    },
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 400
+            assert "mutually exclusive" in mock_handle_error.call_args[0][0]
+
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_inline_config_invalid_workspace_id_returns_error(
+        self, mock_handle_error, flask_app, db_create_host, inventory_config
+    ):
+        """A non-UUID workspace_id must fail validation (400), not reach the UUID-backed
+        group_id database filter and fail the export."""
+        with flask_app.app.app_context():
+            db_create_host()
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={
+                        "configuration": {
+                            "columns": [{"key": "display_name"}],
+                            "filters": {"host": {"workspace_id": ["not-a-uuid"]}},
+                        }
+                    },
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 400
+            assert "not a valid workspace ID" in mock_handle_error.call_args[0][0]
+
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_inline_config_workspace_id_wrong_type_returns_error(
+        self, mock_handle_error, flask_app, db_create_host, inventory_config
+    ):
+        """Inline configurations are not schema-loaded, so a non-string workspace_id (e.g.
+        an int) must be rejected at validation rather than break _group_ids_filter."""
+        with flask_app.app.app_context():
+            db_create_host()
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={
+                        "configuration": {
+                            "columns": [{"key": "display_name"}],
+                            "filters": {"host": {"workspace_id": 123}},
+                        }
+                    },
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 400
+            assert "must be a workspace ID" in mock_handle_error.call_args[0][0]
+
 
 class TestResolveExportColumns:
     def test_empty_columns_returns_defaults(self, flask_app):
@@ -849,6 +1022,47 @@ class TestResolveExportColumns:
             app_name = expected_fields[0].split(":", 1)[0]
             assert app_data == {app_name: [field.split(":", 1)[1] for field in expected_fields]}
 
+    @pytest.mark.parametrize(
+        "composite_key, expanded_fields",
+        [
+            (
+                "advisor:recommendations",
+                ["advisor:critical", "advisor:important", "advisor:moderate", "advisor:low"],
+            ),
+            (
+                "vulnerability:total_cves",
+                [
+                    "vulnerability:critical_cves",
+                    "vulnerability:important_cves",
+                    "vulnerability:moderate_cves",
+                    "vulnerability:low_cves",
+                ],
+            ),
+            (
+                "patch:advisories_rhsa_installable",
+                [
+                    "patch:advisories_rhsa_installable",
+                    "patch:advisories_rhba_installable",
+                    "patch:advisories_rhea_installable",
+                    "patch:advisories_other_installable",
+                ],
+            ),
+        ],
+    )
+    def test_hidden_composite_columns_are_omitted(self, flask_app, composite_key, expanded_fields):
+        """A hidden composite column must not export the fields it expands into."""
+        with flask_app.app.app_context():
+            fields, app_data = resolve_export_columns(
+                [
+                    {"key": "display_name"},
+                    {"key": composite_key, "shown": False},
+                ]
+            )
+
+            assert fields == ["host_id", "display_name", *ALWAYS_APPENDED_EXPORT_FIELDS]
+            assert app_data == {}
+            assert not any(field in fields for field in expanded_fields)
+
     def test_composite_column_dropped_when_app_unauthorized(self, flask_app):
         with flask_app.app.app_context():
             fields, app_data = resolve_export_columns(
@@ -892,6 +1106,25 @@ class TestResolveExportColumns:
                 "os_release",
                 *ALWAYS_APPENDED_EXPORT_FIELDS,
             ]
+
+    def test_tag_columns_are_omitted(self, flask_app):
+        with flask_app.app.app_context():
+            fields, app_data = resolve_export_columns(
+                [
+                    {"key": "display_name"},
+                    {"key": "tag:insights-client/env"},
+                    {"key": "tag:owner", "shown": False},
+                    {"key": "operating_system", "shown": False},
+                ]
+            )
+
+            assert fields == [
+                "host_id",
+                "display_name",
+                *ALWAYS_APPENDED_EXPORT_FIELDS,
+            ]
+            assert app_data == {}
+            assert not any(field.startswith("tag:") for field in fields)
 
     def test_updated_view_column_not_duplicated_by_append(self, flask_app):
         """ "updated" is both a view field and an always-appended export field — it must
@@ -1113,6 +1346,60 @@ class TestGetHostsToExportWithColumns:
             assert "hosts_app_data_vulnerability" not in joined[0]
             assert "hosts_app_data_patch" not in joined[0]
             assert not any("hosts_app_data_vulnerability" in q for q in queries)
+
+    def test_content_host_filter_joins_patch_and_matches_only_that_host(
+        self, flask_app, db_create_host, db_create_host_app_data
+    ):
+        """Content filters must LEFT JOIN patch. An unjoined table cross-matches other hosts."""
+        with flask_app.app.app_context():
+            security = db_create_host(host=db_host(display_name="security-present"))
+            bugfix = db_create_host(host=db_host(display_name="bugfix-absent"))
+            db_create_host(host=db_host(display_name="no-patch-row"))
+            db_create_host_app_data(
+                str(security.id),
+                "test",
+                "patch",
+                advisories_rhsa_installable=2,
+                advisories_rhba_installable=0,
+                advisories_rhea_installable=0,
+                advisories_other_installable=0,
+                template_uuid=uuid4(),
+            )
+            db_create_host_app_data(
+                str(bugfix.id),
+                "test",
+                "patch",
+                advisories_rhsa_installable=0,
+                advisories_rhba_installable=3,
+                advisories_rhea_installable=0,
+                advisories_other_installable=0,
+                template_uuid=None,
+            )
+            identity = Identity(USER_IDENTITY)
+
+            cases = [
+                ({"installable_advisory_type": ["security"]}, ["security-present"]),
+                ({"installable_advisory_type": ["not_evaluated"]}, ["no-patch-row"]),
+                ({"template": "present"}, ["security-present"]),
+                ({"template": "not_present"}, ["bugfix-absent"]),
+                (
+                    {"installable_advisory_type": ["security"], "template": "present"},
+                    ["security-present"],
+                ),
+            ]
+            for host_filter, expected in cases:
+                with _capture_sql() as queries:
+                    results = list(
+                        get_hosts_to_export(
+                            identity,
+                            export_fields=["host_id", "display_name"],
+                            host_filter=host_filter,
+                        )
+                    )
+
+                assert sorted(r["display_name"] for r in results) == expected
+                joined = [q for q in queries if "LEFT OUTER JOIN" in q.upper() and "hosts_app_data_patch" in q]
+                assert len(joined) == 1
 
     def test_workloads_column_extracts_root_keys(self, flask_app, db_create_host):
         with flask_app.app.app_context():

@@ -38,6 +38,7 @@ from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import WORKLOADS_FIELDS
 from app.models.constants import SystemType
+from app.models.host_app_data import HostAppDataPatch
 from app.models.host_app_data import HostAppDataVulnerability
 from app.models.host_app_data import get_app_data_models
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
@@ -543,11 +544,18 @@ def _system_type_filter(filters: list[str]) -> list:
     return [or_(*(SYSTEM_TYPE_FILTERS[f] for f in filters))]
 
 
+_ADVISOR_SEVERITY_COLUMNS = ("critical", "important", "moderate", "low")
+
+
 def _advisor_filter(
     recommendation_severity: list[str] | None,
-    incident_status: str | None,
+    incident_status: list[str] | None,
 ) -> tuple[list, type]:
     """Build filters for recommendation_severity and incident_status params.
+
+    Values within each param are OR. The two params are AND when both are set.
+    not_analyzed is the absence of an advisor row (host_id IS NULL), not a column.
+    present is incidents > 0. not_present is a published row with incidents == 0.
 
     Returns:
         (list of SQLAlchemy filter expressions, HostAppDataAdvisor model class)
@@ -557,14 +565,26 @@ def _advisor_filter(
     filters = []
 
     if recommendation_severity:
-        severity_conditions = [getattr(HostAppDataAdvisor, sev) > 0 for sev in recommendation_severity]
-        filters.append(or_(*severity_conditions))
+        severity_conditions = []
+        for severity in recommendation_severity:
+            if severity == "not_analyzed":
+                severity_conditions.append(HostAppDataAdvisor.host_id.is_(None))
+            elif severity in _ADVISOR_SEVERITY_COLUMNS:
+                severity_conditions.append(getattr(HostAppDataAdvisor, severity) > 0)
+        if severity_conditions:
+            filters.append(or_(*severity_conditions))
 
     if incident_status:
-        if incident_status == "incident":
-            filters.append(HostAppDataAdvisor.incidents > 0)
-        else:
-            filters.append(HostAppDataAdvisor.incidents == 0)
+        incident_conditions = []
+        for status in incident_status:
+            if status == "present":
+                incident_conditions.append(HostAppDataAdvisor.incidents > 0)
+            elif status == "not_present":
+                incident_conditions.append(HostAppDataAdvisor.incidents == 0)
+            elif status == "not_analyzed":
+                incident_conditions.append(HostAppDataAdvisor.host_id.is_(None))
+        if incident_conditions:
+            filters.append(or_(*incident_conditions))
 
     return filters, HostAppDataAdvisor
 
@@ -577,12 +597,29 @@ _CVE_SEVERITY_TO_COLUMN = {
 }
 
 
+def _vulnerability_count_conditions(values: list[str], column) -> list:
+    """OR together present, not_present, and not_evaluated for one Vulnerability count."""
+    conditions = []
+    for value in values:
+        if value == "present":
+            conditions.append(column > 0)
+        elif value == "not_present":
+            conditions.append(column == 0)
+        elif value == "not_evaluated":
+            conditions.append(HostAppDataVulnerability.host_id.is_(None))
+    return conditions
+
+
 def _vulnerability_filter(
     cve_severity: list[str] | None,
-    known_exploit: str | None,
-    security_rule: str | None,
+    known_exploit: list[str] | None,
+    security_rule: list[str] | None,
 ) -> tuple[list, type]:
     """Build filters for cve_severity, known_exploit, and security_rule params.
+
+    Values within each param are OR. The three params are AND when more than one is set.
+    not_evaluated is the absence of a vulnerability row (host_id IS NULL), not a column.
+    present is the count > 0. not_present is a published row with the count == 0.
 
     Returns:
         (list of SQLAlchemy filter expressions, HostAppDataVulnerability model class)
@@ -590,24 +627,73 @@ def _vulnerability_filter(
     filters = []
 
     if cve_severity:
-        severity_conditions = [
-            getattr(HostAppDataVulnerability, _CVE_SEVERITY_TO_COLUMN[sev]) > 0 for sev in cve_severity
-        ]
-        filters.append(or_(*severity_conditions))
+        severity_conditions = []
+        for severity in cve_severity:
+            if severity == "not_evaluated":
+                severity_conditions.append(HostAppDataVulnerability.host_id.is_(None))
+            elif severity in _CVE_SEVERITY_TO_COLUMN:
+                severity_conditions.append(getattr(HostAppDataVulnerability, _CVE_SEVERITY_TO_COLUMN[severity]) > 0)
+        if severity_conditions:
+            filters.append(or_(*severity_conditions))
 
     if known_exploit:
-        if known_exploit == "has_known_exploit":
-            filters.append(HostAppDataVulnerability.cves_with_known_exploits > 0)
-        else:
-            filters.append(HostAppDataVulnerability.cves_with_known_exploits == 0)
+        exploit_conditions = _vulnerability_count_conditions(
+            known_exploit, HostAppDataVulnerability.cves_with_known_exploits
+        )
+        if exploit_conditions:
+            filters.append(or_(*exploit_conditions))
 
     if security_rule:
-        if security_rule == "present":
-            filters.append(HostAppDataVulnerability.cves_with_security_rules > 0)
-        else:
-            filters.append(HostAppDataVulnerability.cves_with_security_rules == 0)
+        rule_conditions = _vulnerability_count_conditions(
+            security_rule, HostAppDataVulnerability.cves_with_security_rules
+        )
+        if rule_conditions:
+            filters.append(or_(*rule_conditions))
 
     return filters, HostAppDataVulnerability
+
+
+_INSTALLABLE_ADVISORY_COLUMNS = {
+    "security": "advisories_rhsa_installable",
+    "bugfix": "advisories_rhba_installable",
+    "enhancement": "advisories_rhea_installable",
+    "other": "advisories_other_installable",
+}
+
+
+def _patch_filter(
+    installable_advisory_type: list[str] | None,
+    template: str | None,
+) -> tuple[list, type]:
+    """Build filters for installable_advisory_type and template params.
+
+    Advisory values are OR. template is a single value. The two params are AND when both are set.
+    not_evaluated is the absence of a patch row (host_id IS NULL), not a column.
+    A type matches when its installable count is greater than 0.
+    present is template_uuid set. not_present is a published row with template_uuid null.
+
+    Returns:
+        (list of SQLAlchemy filter expressions, HostAppDataPatch model class)
+    """
+    filters = []
+
+    if installable_advisory_type:
+        advisory_conditions = []
+        for advisory_type in installable_advisory_type:
+            if advisory_type == "not_evaluated":
+                advisory_conditions.append(HostAppDataPatch.host_id.is_(None))
+            elif advisory_type in _INSTALLABLE_ADVISORY_COLUMNS:
+                column = getattr(HostAppDataPatch, _INSTALLABLE_ADVISORY_COLUMNS[advisory_type])
+                advisory_conditions.append(column > 0)
+        if advisory_conditions:
+            filters.append(or_(*advisory_conditions))
+
+    if template == "present":
+        filters.append(HostAppDataPatch.template_uuid.isnot(None))
+    elif template == "not_present":
+        filters.append(and_(HostAppDataPatch.host_id.isnot(None), HostAppDataPatch.template_uuid.is_(None)))
+
+    return filters, HostAppDataPatch
 
 
 def query_filters(
@@ -646,6 +732,8 @@ def query_filters(
     cve_severity = filters.cve_severity
     known_exploit = filters.known_exploit
     security_rule = filters.security_rule
+    installable_advisory_type = filters.installable_advisory_type
+    template = filters.template
 
     num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
@@ -702,6 +790,11 @@ def query_filters(
         vuln_filters, vuln_model = _vulnerability_filter(cve_severity, known_exploit, security_rule)
         filter_expressions += vuln_filters
         app_data_models_to_join.add(vuln_model)
+
+    if installable_advisory_type or template:
+        patch_filters, patch_model = _patch_filter(installable_advisory_type, template)
+        filter_expressions += patch_filters
+        app_data_models_to_join.add(patch_model)
 
     filter_expressions = [and_(Host.org_id == identity.org_id, *filter_expressions)]
 

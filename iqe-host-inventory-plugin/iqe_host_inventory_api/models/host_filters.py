@@ -41,10 +41,12 @@ class HostFilters:
         "updated_end": "datetime",
         "system_type": "list[str]",
         "recommendation_severity": "list[str]",
-        "incident_status": "str",
+        "incident_status": "list[str]",
         "cve_severity": "list[str]",
-        "known_exploit": "str",
-        "security_rule": "str",
+        "known_exploit": "list[str]",
+        "security_rule": "list[str]",
+        "installable_advisory_type": "list[str]",
+        "template": "str",
     }
 
     attribute_map = {
@@ -63,6 +65,8 @@ class HostFilters:
         "cve_severity": "cve_severity",
         "known_exploit": "known_exploit",
         "security_rule": "security_rule",
+        "installable_advisory_type": "installable_advisory_type",
+        "template": "template",
     }
 
     def __init__(
@@ -82,6 +86,8 @@ class HostFilters:
         cve_severity=None,
         known_exploit=None,
         security_rule=None,
+        installable_advisory_type=None,
+        template=None,
         local_vars_configuration=None,
     ):
         """HostFilters - a model defined in OpenAPI"""
@@ -104,6 +110,8 @@ class HostFilters:
         self._cve_severity = None
         self._known_exploit = None
         self._security_rule = None
+        self._installable_advisory_type = None
+        self._template = None
         self.discriminator = None
 
         if hostname_or_id is not None:
@@ -136,6 +144,10 @@ class HostFilters:
             self.known_exploit = known_exploit
         if security_rule is not None:
             self.security_rule = security_rule
+        if installable_advisory_type is not None:
+            self.installable_advisory_type = installable_advisory_type
+        if template is not None:
+            self.template = template
 
     @property
     def hostname_or_id(self):
@@ -407,7 +419,7 @@ class HostFilters:
         :param recommendation_severity: The recommendation_severity of this HostFilters.  # noqa: E501
         :type: list[str]
         """
-        allowed_values = ["critical", "important", "moderate", "low"]
+        allowed_values = ["critical", "important", "moderate", "low", "not_analyzed"]
         if self.local_vars_configuration.client_side_validation and not set(recommendation_severity).issubset(
             set(allowed_values)
         ):
@@ -427,7 +439,7 @@ class HostFilters:
         Filter by Advisor incident status.  # noqa: E501
 
         :return: The incident_status of this HostFilters.  # noqa: E501
-        :rtype: str
+        :rtype: list[str]
         """
         return self._incident_status
 
@@ -435,16 +447,19 @@ class HostFilters:
     def incident_status(self, incident_status):
         """Sets the incident_status of this HostFilters.
 
-        Filter by Advisor incident status.  # noqa: E501
+        Filter by Advisor incident status. Values are OR.  # noqa: E501
 
         :param incident_status: The incident_status of this HostFilters.  # noqa: E501
-        :type: str
+        :type: list[str]
         """
-        allowed_values = ["incident", "no_incident"]
-        if self.local_vars_configuration.client_side_validation and incident_status not in allowed_values:
+        allowed_values = ["present", "not_present", "not_analyzed"]
+        if self.local_vars_configuration.client_side_validation and not set(incident_status).issubset(
+            set(allowed_values)
+        ):
             raise ValueError(
-                "Invalid value for `incident_status` ({}), must be one of {}".format(
-                    incident_status, allowed_values
+                "Invalid values for `incident_status` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(incident_status) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
                 )
             )
 
@@ -470,7 +485,7 @@ class HostFilters:
         :param cve_severity: The cve_severity of this HostFilters.  # noqa: E501
         :type: list[str]
         """
-        allowed_values = ["critical", "important", "moderate", "low"]
+        allowed_values = ["critical", "important", "moderate", "low", "not_evaluated"]
         if self.local_vars_configuration.client_side_validation and not set(cve_severity).issubset(
             set(allowed_values)
         ):
@@ -490,7 +505,7 @@ class HostFilters:
         Filter by Vulnerability known exploit status.  # noqa: E501
 
         :return: The known_exploit of this HostFilters.  # noqa: E501
-        :rtype: str
+        :rtype: list[str]
         """
         return self._known_exploit
 
@@ -498,16 +513,17 @@ class HostFilters:
     def known_exploit(self, known_exploit):
         """Sets the known_exploit of this HostFilters.
 
-        Filter by Vulnerability known exploit status.  # noqa: E501
+        Filter by CVEs with known exploits. Values are OR.  # noqa: E501
 
         :param known_exploit: The known_exploit of this HostFilters.  # noqa: E501
-        :type: str
+        :type: list[str]
         """
-        allowed_values = ["has_known_exploit", "no_known_exploit"]
-        if self.local_vars_configuration.client_side_validation and known_exploit not in allowed_values:
+        allowed_values = ["present", "not_present", "not_evaluated"]
+        if self.local_vars_configuration.client_side_validation and not set(known_exploit).issubset(set(allowed_values)):
             raise ValueError(
-                "Invalid value for `known_exploit` ({}), must be one of {}".format(
-                    known_exploit, allowed_values
+                "Invalid values for `known_exploit` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(known_exploit) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
                 )
             )
 
@@ -520,7 +536,7 @@ class HostFilters:
         Filter by Vulnerability security rule status.
 
         :return: The security_rule of this HostFilters.
-        :rtype: str
+        :rtype: list[str]
         """
         return self._security_rule
 
@@ -528,20 +544,82 @@ class HostFilters:
     def security_rule(self, security_rule):
         """Sets the security_rule of this HostFilters.
 
-        Filter by Vulnerability security rule status.
+        Filter by CVEs with security rules. Values are OR.
 
         :param security_rule: The security_rule of this HostFilters.
-        :type: str
+        :type: list[str]
         """
-        allowed_values = ["present", "not_present"]
-        if self.local_vars_configuration.client_side_validation and security_rule not in allowed_values:
+        allowed_values = ["present", "not_present", "not_evaluated"]
+        if self.local_vars_configuration.client_side_validation and not set(security_rule).issubset(set(allowed_values)):
             raise ValueError(
-                "Invalid value for `security_rule` ({}), must be one of {}".format(
-                    security_rule, allowed_values
+                "Invalid values for `security_rule` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(security_rule) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
                 )
             )
 
         self._security_rule = security_rule
+
+    @property
+    def installable_advisory_type(self):
+        """Gets the installable_advisory_type of this HostFilters.
+
+        Filter by Content installable advisory type.
+
+        :return: The installable_advisory_type of this HostFilters.
+        :rtype: list[str]
+        """
+        return self._installable_advisory_type
+
+    @installable_advisory_type.setter
+    def installable_advisory_type(self, installable_advisory_type):
+        """Sets the installable_advisory_type of this HostFilters.
+
+        Filter by Content installable advisory type. Values are OR.
+
+        :param installable_advisory_type: The installable_advisory_type of this HostFilters.
+        :type: list[str]
+        """
+        allowed_values = ["security", "bugfix", "enhancement", "other", "not_evaluated"]
+        if self.local_vars_configuration.client_side_validation and not set(installable_advisory_type).issubset(
+            set(allowed_values)
+        ):
+            raise ValueError(
+                "Invalid values for `installable_advisory_type` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(installable_advisory_type) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
+                )
+            )
+
+        self._installable_advisory_type = installable_advisory_type
+
+    @property
+    def template(self):
+        """Gets the template of this HostFilters.
+
+        Filter by Content template assignment.
+
+        :return: The template of this HostFilters.
+        :rtype: str
+        """
+        return self._template
+
+    @template.setter
+    def template(self, template):
+        """Sets the template of this HostFilters.
+
+        Filter by Content template assignment.
+
+        :param template: The template of this HostFilters.
+        :type: str
+        """
+        allowed_values = ["present", "not_present"]
+        if self.local_vars_configuration.client_side_validation and template not in allowed_values:
+            raise ValueError(
+                "Invalid value for `template` ({0}), must be one of {1}".format(template, allowed_values)
+            )
+
+        self._template = template
 
     def to_dict(self):
         """Returns the model properties as a dict"""
