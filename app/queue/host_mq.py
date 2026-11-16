@@ -40,7 +40,7 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from api.cache import delete_cached_system
 from api.cache import delete_cached_system_keys
-from api.cache import get_system_cache_generation
+from api.cache import get_system_cache_generations
 from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
 from api.staleness_query import get_staleness_obj
@@ -1438,8 +1438,10 @@ def cache_ingested_system(output_host: dict, insights_id: str | None, *, created
         # Pass owner_id so this increments one generation counter.
         delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
 
-    generation = get_system_cache_generation(insights_id, org_id, owner_id)
-    system_key = make_system_cache_key(insights_id, org_id, owner_id, generation=generation)
+    generation, org_generation = get_system_cache_generations(insights_id, org_id, owner_id)
+    system_key = make_system_cache_key(
+        insights_id, org_id, owner_id, generation=generation, org_generation=org_generation
+    )
     if multiple_hosts:
         delete_cached_system(system_key)
         return

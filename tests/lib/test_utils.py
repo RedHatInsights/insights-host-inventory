@@ -10,9 +10,14 @@ from yaml import safe_load
 
 from api.cache import CACHE_PREFIX
 from api.cache import GENERATION_KEY_SUFFIX
+from api.cache import ORG_GENERATION_KEY_SUFFIX
 from api.cache import _invalidate_system_cache_redis
+from api.cache import _org_generation_key
 from api.cache import delete_cached_system_keys
+from api.cache import get_org_cache_generation
 from api.cache import get_system_cache_generation
+from api.cache import get_system_cache_generations
+from api.cache import invalidate_org_system_cache
 from api.cache_key import make_system_cache_key
 from api.system_cache_key import system_cache_key_base
 from app.models import InputGroupSchema
@@ -265,6 +270,38 @@ def test_make_system_cache_key_with_generation_and_forwarded_identity():
     assert key == (f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}:g3_subman={forwarded_identity}")
 
 
+def test_make_system_cache_key_with_org_generation_zero():
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = "abc"
+    key = make_system_cache_key(insights_id, org_id, owner_id, generation=5, org_generation=0)
+    assert key == f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}:g5"
+
+
+def test_make_system_cache_key_with_org_generation_positive():
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = "abc"
+    key = make_system_cache_key(insights_id, org_id, owner_id, generation=5, org_generation=3)
+    assert key == f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}:g5:o3"
+
+
+def test_make_system_cache_key_with_org_generation_and_forwarded_identity():
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = "abc"
+    forwarded_identity = generate_uuid()
+    key = make_system_cache_key(
+        insights_id,
+        org_id,
+        owner_id,
+        forwarded_identity=forwarded_identity,
+        generation=3,
+        org_generation=2,
+    )
+    assert key == (f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}:g3:o2_subman={forwarded_identity}")
+
+
 @patch("api.cache._invalidate_system_cache")
 def test_delete_cached_system_keys_increments_generation(invalidate_mock):
     insights_id = generate_uuid()
@@ -353,6 +390,143 @@ def test_invalidate_system_cache_redis_increments_generation(redis_client_mock, 
     pipe_mock.expire.assert_called_once_with(expected_gen_key, cache_ttl)
 
 
+def test_org_generation_key_format():
+    assert _org_generation_key("12345") == "flask_cache_org=12345:org_gen"
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_get_org_cache_generation_returns_stored_value(redis_client_mock):
+    org_id = "test_org"
+    redis_client_mock.get.return_value = b"4"
+
+    assert get_org_cache_generation(org_id) == 4
+    redis_client_mock.set.assert_not_called()
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_get_org_cache_generation_inits_counter_when_key_missing(redis_client_mock):
+    org_id = "test_org"
+    redis_client_mock.get.return_value = None
+    redis_client_mock.set.return_value = True
+
+    assert get_org_cache_generation(org_id) == 0
+
+    expected_org_gen_key = f"{CACHE_PREFIX}org={org_id}{ORG_GENERATION_KEY_SUFFIX}"
+    redis_client_mock.set.assert_called_once_with(expected_org_gen_key, 0, nx=True)
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_get_org_cache_generation_rereads_on_concurrent_invalidation(redis_client_mock):
+    org_id = "test_org"
+    redis_client_mock.get.side_effect = [None, b"2"]
+    redis_client_mock.set.return_value = False
+
+    assert get_org_cache_generation(org_id) == 2
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "NullCache"})
+def test_get_org_cache_generation_returns_zero_when_redis_disabled():
+    assert get_org_cache_generation("test_org") == 0
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_invalidate_org_system_cache_increments_counter(redis_client_mock):
+    org_id = "test_org"
+    expected_org_gen_key = f"{CACHE_PREFIX}org={org_id}{ORG_GENERATION_KEY_SUFFIX}"
+
+    invalidate_org_system_cache(org_id)
+
+    redis_client_mock.incr.assert_called_once_with(expected_org_gen_key)
+    redis_client_mock.expire.assert_not_called()
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "NullCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_invalidate_org_system_cache_disabled_when_not_redis(redis_client_mock):
+    invalidate_org_system_cache("test_org")
+    redis_client_mock.incr.assert_not_called()
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_get_system_cache_generations_returns_stored_values(redis_client_mock):
+    insights_id = generate_uuid()
+    org_id = "test_org"
+    owner_id = "abc"
+    redis_client_mock.mget.return_value = [b"3", b"5"]
+
+    sys_gen, org_gen = get_system_cache_generations(insights_id, org_id, owner_id)
+    assert sys_gen == 3
+    assert org_gen == 5
+
+    base_key = system_cache_key_base(insights_id, org_id, owner_id)
+    expected_sys_key = f"{CACHE_PREFIX}{base_key}{GENERATION_KEY_SUFFIX}"
+    expected_org_key = f"{CACHE_PREFIX}org={org_id}{ORG_GENERATION_KEY_SUFFIX}"
+    redis_client_mock.mget.assert_called_once_with([expected_sys_key, expected_org_key])
+    redis_client_mock.set.assert_not_called()
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+@patch("app.common.inventory_config")
+def test_get_system_cache_generations_lazy_inits_missing_keys(inventory_config_mock, redis_client_mock):
+    insights_id = generate_uuid()
+    org_id = "test_org"
+    owner_id = "abc"
+    cache_ttl = 129600
+    inventory_config_mock.return_value.cache_insights_client_system_timeout_sec = cache_ttl
+
+    redis_client_mock.mget.return_value = [None, None]
+    redis_client_mock.set.return_value = True
+
+    sys_gen, org_gen = get_system_cache_generations(insights_id, org_id, owner_id)
+    assert sys_gen == 0
+    assert org_gen == 0
+
+    base_key = system_cache_key_base(insights_id, org_id, owner_id)
+    expected_sys_key = f"{CACHE_PREFIX}{base_key}{GENERATION_KEY_SUFFIX}"
+    expected_org_key = f"{CACHE_PREFIX}org={org_id}{ORG_GENERATION_KEY_SUFFIX}"
+
+    assert redis_client_mock.set.call_count == 2
+    redis_client_mock.set.assert_any_call(expected_sys_key, 0, ex=cache_ttl, nx=True)
+    redis_client_mock.set.assert_any_call(expected_org_key, 0, nx=True)
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+@patch("app.common.inventory_config")
+def test_get_system_cache_generations_rereads_on_race(inventory_config_mock, redis_client_mock):
+    insights_id = generate_uuid()
+    org_id = "test_org"
+    owner_id = "abc"
+    cache_ttl = 129600
+    inventory_config_mock.return_value.cache_insights_client_system_timeout_sec = cache_ttl
+
+    redis_client_mock.mget.return_value = [None, None]
+    redis_client_mock.set.return_value = False
+    redis_client_mock.get.side_effect = [b"1", b"2"]
+
+    sys_gen, org_gen = get_system_cache_generations(insights_id, org_id, owner_id)
+    assert sys_gen == 1
+    assert org_gen == 2
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "NullCache"})
+def test_get_system_cache_generations_returns_zeros_when_redis_disabled():
+    assert get_system_cache_generations(generate_uuid(), "test_org", "abc") == (0, 0)
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_get_system_cache_generations_handles_redis_error(redis_client_mock):
+    redis_client_mock.mget.side_effect = Exception("Redis connection lost")
+    assert get_system_cache_generations(generate_uuid(), "test_org", "abc") == (0, 0)
+
+
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
 def test_get_flag_value_builds_context_from_org_id(_enable_unleash):
     """Test get_flag_value() builds orgId context from org_id parameter."""
@@ -398,3 +572,25 @@ def test_get_flag_value_org_specific_targeting(_enable_unleash, org_id, expected
 
         context = call_args[1]["context"]
         assert context == {"orgId": org_id}
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_get_org_cache_generation_handles_redis_error(redis_client_mock):
+    redis_client_mock.get.side_effect = Exception("Redis connection lost")
+    assert get_org_cache_generation("test_org") == 0
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_invalidate_org_system_cache_handles_redis_error(redis_client_mock):
+    redis_client_mock.incr.side_effect = Exception("Redis connection lost")
+    # Should log exception and not raise
+    invalidate_org_system_cache("test_org")
+
+
+@patch("api.cache.CACHE_CONFIG", None)
+def test_org_cache_functions_handle_none_cache_config():
+    assert get_org_cache_generation("test_org") == 0
+    assert get_system_cache_generations("test-uuid", "test_org", "owner") == (0, 0)
+    invalidate_org_system_cache("test_org")

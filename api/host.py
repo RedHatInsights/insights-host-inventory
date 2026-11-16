@@ -15,7 +15,7 @@ from api import metrics
 from api import pagination_params
 from api.cache import CACHE
 from api.cache import delete_cached_system_keys
-from api.cache import get_system_cache_generation
+from api.cache import get_system_cache_generations
 from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
 from api.filtering.db_filters import update_query_for_owner_id
@@ -153,13 +153,14 @@ def get_host_list(
     if is_cached_insights_client_system_query:
         owner_id = current_identity.system.get("cn")
         forwarded_identity = get_satellite_forwarded_identity(current_identity)
-        generation = get_system_cache_generation(insights_id, current_identity.org_id, owner_id)
+        generation, org_generation = get_system_cache_generations(insights_id, current_identity.org_id, owner_id)
         system_key = make_system_cache_key(
             insights_id,
             current_identity.org_id,
             owner_id,
             forwarded_identity=forwarded_identity,
             generation=generation,
+            org_generation=org_generation,
         )
         stored_system = CACHE.get(system_key)
         if stored_system:

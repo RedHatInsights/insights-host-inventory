@@ -129,12 +129,12 @@ def test_run_deletes_near_default_rows(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.cleanup_custom_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.cleanup_custom_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         assert _get_staleness_row(org_id) is None
-        mock_cache.delete.assert_called_once_with(org_id)
+        mock_invalidate.assert_called_once_with(org_id)
 
 
 def test_run_keeps_custom_rows(flask_app, monkeypatch):
@@ -148,12 +148,12 @@ def test_run_keeps_custom_rows(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.cleanup_custom_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.cleanup_custom_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         assert _get_staleness_row(org_id) is not None
-        mock_cache.delete.assert_not_called()
+        mock_invalidate.assert_not_called()
 
 
 def test_run_mixed_rows(flask_app, monkeypatch):
@@ -169,13 +169,13 @@ def test_run_mixed_rows(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.cleanup_custom_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.cleanup_custom_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         assert _get_staleness_row(near_org) is None
         assert _get_staleness_row(custom_org) is not None
-        mock_cache.delete.assert_called_once_with(near_org)
+        mock_invalidate.assert_called_once_with(near_org)
 
 
 def test_run_dry_run_does_not_delete(flask_app, monkeypatch):
@@ -189,12 +189,12 @@ def test_run_dry_run_does_not_delete(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.cleanup_custom_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.cleanup_custom_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         assert _get_staleness_row(org_id) is not None
-        mock_cache.delete.assert_not_called()
+        mock_invalidate.assert_not_called()
 
 
 def test_run_dry_run_defaults_to_true_when_unset(flask_app, monkeypatch):
@@ -208,12 +208,12 @@ def test_run_dry_run_defaults_to_true_when_unset(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.cleanup_custom_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.cleanup_custom_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         assert _get_staleness_row(org_id) is not None
-        mock_cache.delete.assert_not_called()
+        mock_invalidate.assert_not_called()
 
 
 def test_run_no_rows_does_nothing(flask_app, monkeypatch):
@@ -223,10 +223,10 @@ def test_run_no_rows_does_nothing(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.cleanup_custom_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.cleanup_custom_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
-    mock_cache.delete.assert_not_called()
+    mock_invalidate.assert_not_called()
 
 
 def test_run_custom_tolerance_tighter(flask_app, monkeypatch):
@@ -246,12 +246,12 @@ def test_run_custom_tolerance_tighter(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.cleanup_custom_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.cleanup_custom_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         assert _get_staleness_row(org_id) is not None
-        mock_cache.delete.assert_not_called()
+        mock_invalidate.assert_not_called()
 
 
 def test_run_custom_tolerance_wider(flask_app, monkeypatch):
@@ -271,12 +271,12 @@ def test_run_custom_tolerance_wider(flask_app, monkeypatch):
 
     session = db.session
 
-    with patch("jobs.cleanup_custom_staleness.StalenessCache") as mock_cache:
+    with patch("jobs.cleanup_custom_staleness.invalidate_org_staleness_caches") as mock_invalidate:
         run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         assert _get_staleness_row(org_id) is None
-        mock_cache.delete.assert_called_once_with(org_id)
+        mock_invalidate.assert_called_once_with(org_id)
 
 
 def test_run_invalid_tolerance_exits(flask_app, monkeypatch):
