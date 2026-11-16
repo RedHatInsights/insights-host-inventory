@@ -18,6 +18,10 @@ jobs:
       image: registry.access.redhat.com/ubi10/ubi:latest
       options: "--user root:root"
     steps:
+      # ubi10/ubi does not ship git; actions/checkout needs it.
+      - name: Install git
+        run: dnf install -y git
+
       - name: Checkout repository
         uses: actions/checkout@v7
 
@@ -29,7 +33,7 @@ jobs:
 
       - name: Install prerequisites
         run: |
-          dnf install -y skopeo python3 python3-pip python3-dnf make git
+          dnf install -y skopeo python3 python3-pip python3-dnf make
           UV_SPEC=$(python3 scripts/get_uv_pip_specifier.py --build-pin) && \
             python3 -m pip install "uv${UV_SPEC}"
           python3 -m pip install https://github.com/konflux-ci/rpm-lockfile-prototype/archive/refs/heads/main.zip
