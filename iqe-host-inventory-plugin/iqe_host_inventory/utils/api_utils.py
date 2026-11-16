@@ -64,6 +64,7 @@ _COLLECTION_PARAMS = (
     "known_exploit",
     "security_rule",
     "installable_advisory_type",
+    "last_scan_result",
 )
 
 
