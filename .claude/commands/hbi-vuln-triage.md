@@ -46,13 +46,13 @@ For **Python package** vulnerabilities (Package Type = python):
 For **RPM package** vulnerabilities (Package Type = rpm):
 
 1. Read the `Dockerfile` to understand:
-   - Which base image is used (e.g., `ubi9/ubi-minimal:latest`)
+   - Which base image is used (e.g., `ubi10/ubi-minimal:latest`)
    - Which packages are explicitly installed
    - Which devel packages are removed in the cleanup step
 2. Determine if a simple rebuild would pull updated RPMs from the base image.
 3. Flag any `-devel` packages (e.g., `openssl-devel`) that are installed but NOT removed in the Dockerfile cleanup step — these ship unnecessarily in the final image.
 
-For vulnerabilities in **external images** (e.g., `registry.access.redhat.com/ubi9/nginx-124`):
+For vulnerabilities in **external images** (e.g., `registry.access.redhat.com/ubi10/nginx-124`):
 
 1. Note these are NOT controlled by HBI — they are upstream Red Hat images.
 2. Recommend checking if Red Hat has published an updated image.
