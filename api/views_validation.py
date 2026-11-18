@@ -116,7 +116,14 @@ def _validate_filters(filters: dict) -> None:
     validate_filter_structure(filters)
 
 
-_DATE_FIELDS = ("last_check_in_start", "last_check_in_end", "updated_start", "updated_end")
+_DATE_FIELDS = (
+    "last_check_in_start",
+    "last_check_in_end",
+    "updated_start",
+    "updated_end",
+    "last_scan_start",
+    "last_scan_end",
+)
 
 
 def _validate_host_filters(host_filters: dict) -> None:
@@ -127,6 +134,7 @@ def _validate_host_filters(host_filters: dict) -> None:
 
     _validate_date_range(host_filters, "last_check_in_start", "last_check_in_end")
     _validate_date_range(host_filters, "updated_start", "updated_end")
+    _validate_date_range(host_filters, "last_scan_start", "last_scan_end")
     _validate_workspace_filters(host_filters)
 
 

@@ -533,6 +533,43 @@ class TestCreateExportWithView:
             assert mock_handle_error.call_args[0][1] == 403
             assert "Insufficient permissions to filter by patch" in mock_handle_error.call_args[0][0]
 
+    @pytest.mark.parametrize(
+        "host_filters",
+        [
+            {"last_scan_result": ["present"]},
+            {"last_scan_result": ["not_scanned"]},
+            {"last_scan_start": "2026-01-01T00:00:00+00:00"},
+            {"last_scan_end": "2026-01-01T00:00:00+00:00", "last_scan_result": ["not_present"]},
+        ],
+    )
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_export_with_view_rejects_unauthorized_malware_host_filters(
+        self, mock_handle_error, flask_app, db_create_view, inventory_config, host_filters
+    ):
+        with (
+            flask_app.app.app_context(),
+            mock.patch("app.queue.export_service.get_allowed_app_services", return_value=set()),
+        ):
+            view = db_create_view(
+                configuration={
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"host": host_filters},
+                },
+                created_by="51234567",
+            )
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={"view_id": str(view.id)},
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 403
+            assert "Insufficient permissions to filter by malware" in mock_handle_error.call_args[0][0]
+
 
 class TestCreateExportWithInlineConfiguration:
     """Inline configuration carries the table's live (possibly unsaved) WYSIWYG state."""
@@ -1399,6 +1436,34 @@ class TestGetHostsToExportWithColumns:
 
                 assert sorted(r["display_name"] for r in results) == expected
                 joined = [q for q in queries if "LEFT OUTER JOIN" in q.upper() and "hosts_app_data_patch" in q]
+                assert len(joined) == 1
+
+    def test_malware_host_filter_joins_malware_and_matches_only_that_host(
+        self, flask_app, db_create_host, db_create_host_app_data
+    ):
+        """Malware filters must LEFT JOIN malware. An unjoined table cross-matches other hosts."""
+        with flask_app.app.app_context():
+            scanned = db_create_host(host=db_host(display_name="matches"))
+            db_create_host(host=db_host(display_name="not-scanned"))
+            db_create_host_app_data(str(scanned.id), "test", "malware", last_matches=2)
+            identity = Identity(USER_IDENTITY)
+
+            cases = [
+                ({"last_scan_result": ["present"]}, ["matches"]),
+                ({"last_scan_result": ["not_scanned"]}, ["not-scanned"]),
+            ]
+            for host_filter, expected in cases:
+                with _capture_sql() as queries:
+                    results = list(
+                        get_hosts_to_export(
+                            identity,
+                            export_fields=["host_id", "display_name"],
+                            host_filter=host_filter,
+                        )
+                    )
+
+                assert sorted(r["display_name"] for r in results) == expected
+                joined = [q for q in queries if "LEFT OUTER JOIN" in q.upper() and "hosts_app_data_malware" in q]
                 assert len(joined) == 1
 
     def test_workloads_column_extracts_root_keys(self, flask_app, db_create_host):
