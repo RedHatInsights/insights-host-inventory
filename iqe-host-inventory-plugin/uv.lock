@@ -1949,7 +1949,7 @@ wheels = [
 
 [[package]]
 name = "iqe-core"
-version = "26.11.2.0"
+version = "26.11.11.1"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -2028,11 +2028,12 @@ dependencies = [
     { name = "widgetastic-core" },
 ]
 wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-core/26.11.02.0/iqe_core-26.11.2.0-py3-none-any.whl", hash = "sha256:0d4d8364dda3e52b4a48bcc9ef4563d5fcfd855185d121a9a5f5d72f3ffecf84", size = 641076, upload-time = "2026-11-02T17:24:36.286Z" },
+    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-core/26.11.11.1/iqe_core-26.11.11.1-py3-none-any.whl", hash = "sha256:5961fe48907c5f287751bb94566f654725d27f23a90b057843cd78a5d1aefcfd", size = 641674, upload-time = "2026-11-11T16:43:11.17Z" },
 ]
 
 [package.optional-dependencies]
 imposed-constraints = [
+    { name = "boto3" },
     { name = "cloudbridge" },
     { name = "google-api-python-client" },
     { name = "gssapi" },
@@ -2069,8 +2070,9 @@ dependencies = [
     { name = "google-auth" },
     { name = "iqe-bindings" },
     { name = "iqe-core", extra = ["imposed-constraints"] },
-    { name = "iqe-kessel-sync-plugin" },
+    { name = "iqe-kessel-inventory-plugin" },
     { name = "iqe-turnpike-plugin" },
+    { name = "kessel-sdk" },
     { name = "lxml" },
     { name = "ocdeployer" },
     { name = "psycopg2-binary" },
@@ -2097,8 +2099,9 @@ requires-dist = [
     { name = "google-auth" },
     { name = "iqe-bindings", specifier = ">=26.6.30.0" },
     { name = "iqe-core", extras = ["imposed-constraints"], specifier = ">=26.11.2.0" },
-    { name = "iqe-kessel-sync-plugin" },
+    { name = "iqe-kessel-inventory-plugin", specifier = ">26.11.4.0" },
     { name = "iqe-turnpike-plugin" },
+    { name = "kessel-sdk", specifier = ">=2.10.0" },
     { name = "lxml" },
     { name = "ocdeployer" },
     { name = "psycopg2-binary" },
@@ -2117,18 +2120,19 @@ dev = [
 ]
 
 [[package]]
-name = "iqe-kessel-sync-plugin"
-version = "26.9.18.0"
+name = "iqe-kessel-inventory-plugin"
+version = "26.11.11.0"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
 dependencies = [
+    { name = "googleapis-common-protos" },
+    { name = "grpcio" },
+    { name = "grpcio-status" },
+    { name = "grpcio-tools" },
     { name = "iqe-core", extra = ["imposed-constraints"] },
-    { name = "iqe-rbac-plugin" },
-    { name = "iqe-relations-api-plugin" },
-    { name = "iqe-turnpike-plugin" },
-    { name = "pytest-assume" },
+    { name = "kessel-sdk", extra = ["auth"] },
 ]
 wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-kessel-sync-plugin/26.9.18.0/iqe_kessel_sync_plugin-26.9.18.0-py3-none-any.whl", hash = "sha256:71c3de334e63c8033c5178c896997a91b4f423f41f1b19bce559ce5d216d6809", size = 21376, upload-time = "2026-09-18T13:11:30.428Z" },
+    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-kessel-inventory-plugin/26.11.11.0/iqe_kessel_inventory_plugin-26.11.11.0-py3-none-any.whl", hash = "sha256:ed8ecf270f62331e75386676b69b23a3ff09d3abc7c551ef365e9fe675d1f9cd", size = 14943, upload-time = "2026-11-16T14:55:44.813Z" },
 ]
 
 [[package]]
@@ -2147,39 +2151,6 @@ wheels = [
 ]
 
 [[package]]
-name = "iqe-rbac-plugin"
-version = "26.10.29.0"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-dependencies = [
-    { name = "faker" },
-    { name = "iqe-core", extra = ["imposed-constraints"] },
-    { name = "iqe-report-portal-plugin" },
-    { name = "iqe-service-accounts-plugin" },
-    { name = "lazy-imports" },
-    { name = "nulltype" },
-    { name = "pytest-lazy-fixture" },
-    { name = "tenacity" },
-]
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-rbac-plugin/26.10.29.0/iqe_rbac_plugin-26.10.29.0-py3-none-any.whl", hash = "sha256:379056158a46c79462d8cf57988a2ae06e3516986a0e31ae381bd008291dca34", size = 1166097, upload-time = "2026-10-29T17:06:33.433Z" },
-]
-
-[[package]]
-name = "iqe-relations-api-plugin"
-version = "26.9.18.0"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-dependencies = [
-    { name = "grpcio" },
-    { name = "grpcio-status" },
-    { name = "grpcio-tools" },
-    { name = "iqe-core", extra = ["imposed-constraints"] },
-    { name = "relations-grpc-clients-python-kessel-project" },
-]
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-relations-api-plugin/26.9.18.0/iqe_relations_api_plugin-26.9.18.0-py3-none-any.whl", hash = "sha256:57e43cf36b54b6f807b89ff2f86c2570a501239241e007e87347941d94a006b2", size = 112535, upload-time = "2026-09-18T13:11:04.824Z" },
-]
-
-[[package]]
 name = "iqe-report-portal-plugin"
 version = "2026.8.4.0"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
@@ -2192,18 +2163,6 @@ dependencies = [
 ]
 wheels = [
     { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-report-portal-plugin/2026.8.4.0/iqe_report_portal_plugin-2026.8.4.0-py3-none-any.whl", hash = "sha256:00102d7aa36206961c85a248a6683441bc9bae60708a286bed9d03a15d383637" },
-]
-
-[[package]]
-name = "iqe-service-accounts-plugin"
-version = "26.1.19.0"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-dependencies = [
-    { name = "faker" },
-    { name = "iqe-core" },
-]
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-service-accounts-plugin/26.1.19.0/iqe_service_accounts_plugin-26.1.19.0-py2.py3-none-any.whl", hash = "sha256:c3980be26ff843448493c9094e8c78ab6eac24067b6ad4db3a39f915f3e396fe" },
 ]
 
 [[package]]
@@ -2365,6 +2324,27 @@ dependencies = [
 sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/jwcrypto/1.6.1/jwcrypto-1.6.1.tar.gz", hash = "sha256:a1e1570da5c2e35dbcd375ec1d2891a24de8eb35ee2c1fe8e91978efb72cfe90", size = 116287, upload-time = "2026-09-15T21:22:33.286Z" }
 wheels = [
     { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/jwcrypto/1.6.1/jwcrypto-1.6.1-py3-none-any.whl", hash = "sha256:77e856818e514cb3d64a1043b6885a7d52f5cc37773f5e944de02103c8d3a54f", size = 121267, upload-time = "2026-09-15T21:22:32.27Z" },
+]
+
+[[package]]
+name = "kessel-sdk"
+version = "2.11.1"
+source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
+dependencies = [
+    { name = "grpcio" },
+    { name = "protobuf" },
+    { name = "types-protobuf" },
+]
+sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/kessel-sdk/2.11.1/kessel_sdk-2.11.1.tar.gz", hash = "sha256:c1c1b8ff9ca31c8179f768ab797ad9f59b599c31aec9115ef8a4395a9b173693", size = 114314, upload-time = "2026-11-12T21:16:27.089Z" }
+wheels = [
+    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/kessel-sdk/2.11.1/kessel_sdk-2.11.1-py3-none-any.whl", hash = "sha256:f38b4cf2259768367cb1e939b3df1730beb95aa04b14a27785dc6ba77f5ea6b6", size = 232920, upload-time = "2026-11-12T21:16:25.595Z" },
+]
+
+[package.optional-dependencies]
+auth = [
+    { name = "google-auth" },
+    { name = "requests" },
+    { name = "requests-oauthlib" },
 ]
 
 [[package]]
@@ -3144,15 +3124,6 @@ wheels = [
 ]
 
 [[package]]
-name = "nulltype"
-version = "2.3.1"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/nulltype/2.3.1/nulltype-2.3.1.zip", hash = "sha256:64aa3cb2ab5e904d1b37175b9b922bea268c13f9ce32e3d373313150ab5ef272", size = 20119, upload-time = "2018-06-03T22:01:01.45Z" }
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/nulltype/2.3.1/nulltype-2.3.1-py2.py3-none-any.whl", hash = "sha256:16ae565745118e37e0558441f5821c76351d8c3a789640b5bca277cf65b2271b", size = 11054, upload-time = "2018-06-03T22:01:04.03Z" },
-]
-
-[[package]]
 name = "numpy"
 version = "2.5.4"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
@@ -3500,7 +3471,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
 ]
 sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/pexpect/4.9.0/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -4197,19 +4168,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pytest-assume"
-version = "2.4.3"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-dependencies = [
-    { name = "pytest" },
-    { name = "six" },
-]
-sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/pytest-assume/2.4.3/pytest-assume-2.4.3.tar.gz", hash = "sha256:983e90537660fd7aa18bb554693523020272e7edeee3e40435593297bcc6347e", size = 8695, upload-time = "2021-06-24T17:13:00.321Z" }
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/pytest-assume/2.4.3/pytest_assume-2.4.3-py3-none-any.whl", hash = "sha256:09074220213b87cf1f400609701a44b75078b4e69588c7227e061ff9b3ecf54b", size = 5980, upload-time = "2021-06-24T17:12:59.186Z" },
-]
-
-[[package]]
 name = "pytest-cov"
 version = "7.1.0"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
@@ -4251,18 +4209,6 @@ dependencies = [
 sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/pytest-ibutsu/3.1.7/pytest_ibutsu-3.1.7.tar.gz", hash = "sha256:cd6048af760163c7646fcd10570a46210e96f4c4bacf78c42c7d85ce59ac172f", size = 23018, upload-time = "2026-07-17T15:28:48.602Z" }
 wheels = [
     { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/pytest-ibutsu/3.1.7/pytest_ibutsu-3.1.7-py3-none-any.whl", hash = "sha256:78c06dcc30f266c3132c5c3553fc726755911691d4f85f1f6ba762573576dd21", size = 25560, upload-time = "2026-07-17T15:28:47.645Z" },
-]
-
-[[package]]
-name = "pytest-lazy-fixture"
-version = "0.6.3"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-dependencies = [
-    { name = "pytest" },
-]
-sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/pytest-lazy-fixture/0.6.3/pytest-lazy-fixture-0.6.3.tar.gz", hash = "sha256:0e7d0c7f74ba33e6e80905e9bfd81f9d15ef9a790de97993e34213deb5ad10ac", size = 7878, upload-time = "2020-02-01T18:04:02.321Z" }
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/pytest-lazy-fixture/0.6.3/pytest_lazy_fixture-0.6.3-py3-none-any.whl", hash = "sha256:e0b379f38299ff27a653f03eaa69b08a6fd4484e46fd1c9907d984b9f9daeda6", size = 4948, upload-time = "2020-02-01T18:04:00.347Z" },
 ]
 
 [[package]]
@@ -4612,21 +4558,6 @@ wheels = [
 ]
 
 [[package]]
-name = "relations-grpc-clients-python-kessel-project"
-version = "0.3.11"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-dependencies = [
-    { name = "googleapis-common-protos" },
-    { name = "grpcio" },
-    { name = "grpcio-tools" },
-    { name = "protobuf" },
-]
-sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/relations-grpc-clients-python-kessel-project/0.3.11/relations_grpc_clients_python_kessel_project-0.3.11.tar.gz", hash = "sha256:c1d5b7490567e37f6804be03fbd6e22289eb95a387c752d72d2bd3e11fe0fea4", size = 33876, upload-time = "2025-07-22T14:22:45.198Z" }
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/relations-grpc-clients-python-kessel-project/0.3.11/relations_grpc_clients_python_kessel_project-0.3.11-py3-none-any.whl", hash = "sha256:55ea31ffaee4040356682ff9a3fb1129a5ad86a9d905e4d7181131c71ceec94c", size = 41589, upload-time = "2025-07-22T14:22:44.187Z" },
-]
-
-[[package]]
 name = "reportportal-client"
 version = "5.7.12"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
@@ -4802,8 +4733,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
 dependencies = [
-    { name = "cryptography" },
-    { name = "jeepney" },
+    { name = "cryptography", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "jeepney", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
 ]
 sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/secretstorage/3.5.0/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
@@ -5130,6 +5061,15 @@ wheels = [
 [package.optional-dependencies]
 click = [
     { name = "click" },
+]
+
+[[package]]
+name = "types-protobuf"
+version = "6.32.1.20260221"
+source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
+sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/types-protobuf/6.32.1.20260221/types_protobuf-6.32.1.20260221.tar.gz", hash = "sha256:6d5fb060a616bfb076cbb61b4b3c3969f5fc8bec5810f9a2f7e648ee5cbcbf6e", size = 64408, upload-time = "2026-02-21T03:55:13.916Z" }
+wheels = [
+    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/types-protobuf/6.32.1.20260221/types_protobuf-6.32.1.20260221-py3-none-any.whl", hash = "sha256:da7cdd947975964a93c30bfbcc2c6841ee646b318d3816b033adc2c4eb6448e4", size = 77956, upload-time = "2026-02-21T03:55:12.894Z" },
 ]
 
 [[package]]
