@@ -13,6 +13,7 @@ from jobs.github_app import build_app_jwt
 from jobs.github_app import normalize_private_key
 from jobs.system_profile_validator import _get_git_response
 from jobs.system_profile_validator import _get_latest_self_comment_datetime_for_pr
+from jobs.system_profile_validator import _github_app
 from jobs.system_profile_validator import _post_git_response
 from jobs.system_profile_validator import _rate_limiter
 from jobs.system_profile_validator import main
@@ -71,7 +72,7 @@ def test_installation_token_uses_configured_id_and_caches_it(monkeypatch, mocker
     )
 
     assert client.headers()["Authorization"] == "Bearer ghs_test"
-    client.headers()
+    assert client.headers()["Authorization"] == "Bearer ghs_test"
 
     mock_get.assert_not_called()
     mock_post.assert_called_once()
@@ -131,32 +132,46 @@ def test_headers_require_github_app_credentials(monkeypatch):
         client.headers()
 
 
-def test_get_git_response_refreshes_token_on_401(mocker):
+def _stub_installation_tokens(monkeypatch, mocker, private_key_pem: str, tokens: list[str]) -> None:
+    monkeypatch.setenv("GITHUB_APP_ID", "12345")
+    monkeypatch.setenv("GITHUB_APP_PRIVATE_KEY", private_key_pem)
+    monkeypatch.setenv("GITHUB_APP_INSTALLATION_ID", "99")
+    _github_app.invalidate()
+    mocker.patch(
+        "jobs.github_app.post",
+        side_effect=[_response(201, {"token": token, "expires_at": "2099-01-01T00:00:00Z"}) for token in tokens],
+    )
+
+
+def test_get_git_response_refreshes_token_on_401(mocker, monkeypatch, private_key_pem):
     _reset_rate_limiter()
-    mocker.patch("jobs.system_profile_validator._github_headers", return_value={"Authorization": "Bearer test-token"})
-    invalidate = mocker.patch("jobs.system_profile_validator._github_app.invalidate")
+    _stub_installation_tokens(monkeypatch, mocker, private_key_pem, ["ghs_rejected", "ghs_fresh"])
     unauthorized = MagicMock(status_code=401, headers={}, text="Bad credentials", content=b"")
     success = MagicMock(status_code=200, headers={"X-RateLimit-Remaining": "10", "X-RateLimit-Limit": "5000"})
     success.content = b'{"ok": true}'
-    mocker.patch("jobs.system_profile_validator.get", side_effect=[unauthorized, success])
+    mock_get = mocker.patch("jobs.system_profile_validator.get", side_effect=[unauthorized, success])
 
     assert _get_git_response("/x") == {"ok": True}
-    invalidate.assert_called_once()
+    assert [call.kwargs["headers"]["Authorization"] for call in mock_get.call_args_list] == [
+        "Bearer ghs_rejected",
+        "Bearer ghs_fresh",
+    ]
 
 
-def test_post_retries_once_after_401(mocker):
-    mocker.patch("jobs.system_profile_validator._github_headers", return_value={"Authorization": "Bearer test-token"})
-    invalidate = mocker.patch("jobs.system_profile_validator._github_app.invalidate")
+def test_post_retries_once_after_401(mocker, monkeypatch, private_key_pem):
+    _stub_installation_tokens(monkeypatch, mocker, private_key_pem, ["ghs_rejected", "ghs_fresh"])
     denied = MagicMock(status_code=401)
     posted = MagicMock(status_code=201)
     mock_post = mocker.patch("jobs.system_profile_validator.post", side_effect=[denied, posted])
 
     assert _post_git_response("/repos/o/r/issues/1/comments", "hello") is posted
-    invalidate.assert_called_once()
-    assert mock_post.call_count == 2
+    assert [call.kwargs["headers"]["Authorization"] for call in mock_post.call_args_list] == [
+        "Bearer ghs_rejected",
+        "Bearer ghs_fresh",
+    ]
 
 
-def test_self_comment_matches_github_app_bot_and_ignores_dippy_bot(mocker):
+def test_self_comment_matches_app_bot_or_legacy_dippy_bot(mocker):
     mocker.patch("jobs.system_profile_validator._github_app.bot_login", return_value="bugkiller-agent[bot]")
     mocker.patch(
         "jobs.system_profile_validator._get_git_response",
@@ -169,7 +184,7 @@ def test_self_comment_matches_github_app_bot_and_ignores_dippy_bot(mocker):
 
     found = _get_latest_self_comment_datetime_for_pr("RedHatInsights", "insights-host-inventory", "1")
 
-    assert found == parser.isoparse("2026-01-03T00:00:00Z")
+    assert found == parser.isoparse("2026-01-05T00:00:00Z")
 
 
 def test_main_skips_replica_and_requires_credentials_otherwise(monkeypatch):

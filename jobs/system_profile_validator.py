@@ -35,6 +35,8 @@ SP_SPEC_PATH = "swagger/system_profile.spec.yaml"
 VALIDATE_DAYS = int(getenv("VALIDATE_DAYS", 3))
 GIT_MAX_RETRIES = int(getenv("GIT_MAX_RETRIES", 3))
 _GITHUB_TIMEOUT_SECONDS = 30
+# Comments posted by the replaced user account still count as this job's own.
+_LEGACY_COMMENT_LOGINS = frozenset({"dippy-bot"})
 _github_app = GitHubAppClient(REPO_OWNER, REPO_NAME)
 
 logger = get_logger(LOGGER_NAME)
@@ -212,10 +214,10 @@ def _get_latest_commit_datetime_for_pr(owner: str, repo: str, pr_number: str) ->
 
 def _get_latest_self_comment_datetime_for_pr(owner: str, repo: str, pr_number: str) -> datetime | None:
     pr_comments = _get_git_response(f"/repos/{owner}/{repo}/issues/{pr_number}/comments")
-    bot_login = _github_app.bot_login()
+    own_logins = {_github_app.bot_login(), *_LEGACY_COMMENT_LOGINS}
     for comment in reversed(pr_comments):
         user = comment.get("user") or {}
-        if user.get("login") == bot_login:
+        if user.get("login") in own_logins:
             return parser.isoparse(comment["created_at"])
     return None
 
