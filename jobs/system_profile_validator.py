@@ -12,7 +12,6 @@ from dateutil import parser
 from requests import Response
 from requests import get
 from requests import post
-from requests.auth import HTTPBasicAuth
 from yaml import parser as yamlParser
 
 from app.config import Config
@@ -20,6 +19,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from jobs.common import excepthook
 from jobs.common import job_setup
+from jobs.github_app import GitHubAppClient
 from lib.system_profile_validate import TestResult
 from lib.system_profile_validate import get_schema
 from lib.system_profile_validate import get_schema_from_url
@@ -32,10 +32,10 @@ LOGGER_NAME = "inventory_sp_validator"
 REPO_OWNER = "RedHatInsights"
 REPO_NAME = "insights-host-inventory"
 SP_SPEC_PATH = "swagger/system_profile.spec.yaml"
-GIT_USER = getenv("GIT_USER", "")
-GIT_TOKEN = getenv("GIT_TOKEN", "")
 VALIDATE_DAYS = int(getenv("VALIDATE_DAYS", 3))
 GIT_MAX_RETRIES = int(getenv("GIT_MAX_RETRIES", 3))
+_GITHUB_TIMEOUT_SECONDS = 30
+_github_app = GitHubAppClient(REPO_OWNER, REPO_NAME)
 
 logger = get_logger(LOGGER_NAME)
 
@@ -106,12 +106,24 @@ class _GitHubRateLimiter:
 _rate_limiter = _GitHubRateLimiter()
 
 
+def _github_headers() -> dict[str, str]:
+    return _github_app.headers()
+
+
 def _get_git_response(path: str, max_retries: int = GIT_MAX_RETRIES) -> dict:
     """Make a GET request to GitHub API with global rate-limit awareness."""
     _rate_limiter.wait_if_needed()
 
     for attempt in range(max_retries + 1):
-        response = get(f"https://api.github.com{path}", auth=HTTPBasicAuth(GIT_USER, GIT_TOKEN))
+        response = get(
+            f"https://api.github.com{path}",
+            headers=_github_headers(),
+            timeout=_GITHUB_TIMEOUT_SECONDS,
+        )
+        if response.status_code == 401 and attempt < max_retries:
+            logger.warning("GitHub API rejected the installation token; refreshing")
+            _github_app.invalidate()
+            continue
         _rate_limiter.update_from_response(response)
 
         if _rate_limiter.remaining is not None and _rate_limiter.limit is not None:
@@ -149,7 +161,22 @@ def _get_git_response(path: str, max_retries: int = GIT_MAX_RETRIES) -> dict:
 
 
 def _post_git_response(path: str, content: str) -> Response:
-    return post(f"https://api.github.com{path}", auth=HTTPBasicAuth(GIT_USER, GIT_TOKEN), json={"body": content})
+    response = post(
+        f"https://api.github.com{path}",
+        headers=_github_headers(),
+        json={"body": content},
+        timeout=_GITHUB_TIMEOUT_SECONDS,
+    )
+    if response.status_code == 401:
+        logger.warning("GitHub API rejected the installation token; refreshing and retrying the comment")
+        _github_app.invalidate()
+        response = post(
+            f"https://api.github.com{path}",
+            headers=_github_headers(),
+            json={"body": content},
+            timeout=_GITHUB_TIMEOUT_SECONDS,
+        )
+    return response
 
 
 def _validation_results_plaintext(test_results: dict[str, TestResult]) -> str:
@@ -185,8 +212,10 @@ def _get_latest_commit_datetime_for_pr(owner: str, repo: str, pr_number: str) ->
 
 def _get_latest_self_comment_datetime_for_pr(owner: str, repo: str, pr_number: str) -> datetime | None:
     pr_comments = _get_git_response(f"/repos/{owner}/{repo}/issues/{pr_number}/comments")
+    bot_login = _github_app.bot_login()
     for comment in reversed(pr_comments):
-        if comment["user"]["login"] == GIT_USER:
+        user = comment.get("user") or {}
+        if user.get("login") == bot_login:
             return parser.isoparse(comment["created_at"])
     return None
 
@@ -271,6 +300,12 @@ def main(logger: Logger, config: Config):
     if config.replica_namespace:
         logger.info("Running in replica cluster - skipping schema validation")
         sys.exit(0)
+
+    if not getenv("GITHUB_APP_ID", "").strip() or not getenv("GITHUB_APP_PRIVATE_KEY", "").strip():
+        logger.error(
+            "GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY must be set to the bugkiller-agent GitHub App credentials"
+        )
+        sys.exit(1)
 
     # Get list of PRs that require validation
     logger.info("Starting validation check.")
