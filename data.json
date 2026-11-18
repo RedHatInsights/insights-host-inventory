@@ -59,10 +59,10 @@
     },
     "Q4": {
       "quarter": "Q4",
-      "updated": "2026-11-17",
-      "collected_at": "2026-11-17T14:01:18Z",
+      "updated": "2026-11-18",
+      "collected_at": "2026-11-18T14:01:04Z",
       "stale": {
-        "period": "2026-10-01 to 2026-11-17",
+        "period": "2026-10-01 to 2026-11-18",
         "data": {
           "total": 85,
           "merged": 78,
@@ -78,7 +78,7 @@
         }
       },
       "review": {
-        "period": "2026-10-01 to 2026-11-17",
+        "period": "2026-10-01 to 2026-11-18",
         "data": {
           "total": 85,
           "merged": 78,
