@@ -44,6 +44,8 @@ from api.cache import get_system_cache_generation
 from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
 from api.staleness_query import get_staleness_obj
+from app.audit import capture_audit_context
+from app.audit import log_audit_event
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.auth.identity import create_mock_identity_with_org_id
@@ -891,7 +893,18 @@ class IngressMessageConsumer(HostMessageConsumer):
 
         sp_fields_to_log = extract_host_dict_sp_to_log(host_data)
         try:
-            identity = _get_identity(host_data, platform_metadata)
+            try:
+                identity = _get_identity(host_data, platform_metadata)
+            except ValidationException, ValueError, KeyError, TypeError, AttributeError:
+                # SEC-MON-REQ-1 EOI-7: rejected message identity is not a verified actor.
+                log_audit_event(
+                    action="AUTHENTICATE",
+                    resource_type="host_ingestion",
+                    outcome="failure",
+                    context=capture_audit_context(request_id=getattr(threadctx, "request_id", None)),
+                    reason="invalid_credentials",
+                )
+                raise
             input_host = deserialize_host(host_data)
 
             # New hosts don't have an id, so create one
@@ -899,7 +912,19 @@ class IngressMessageConsumer(HostMessageConsumer):
 
             # Validate payload's owner_id against identity CN
             if identity.identity_type == IdentityType.SYSTEM:
-                _validate_payload_owner_id(input_host, identity)
+                try:
+                    _validate_payload_owner_id(input_host, identity)
+                except ValidationException:
+                    # SEC-MON-REQ-1 EOI-8: validated system cannot change another owner.
+                    log_audit_event(
+                        action="INGEST",
+                        resource_type="host",
+                        resource_id=input_host.id,
+                        outcome="failure",
+                        context=capture_audit_context(identity, request_id=getattr(threadctx, "request_id", None)),
+                        reason="owner_mismatch",
+                    )
+                    raise
 
             log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
             processed_hosts = [result.row for result in self.processed_rows if result is not None]

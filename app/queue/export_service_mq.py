@@ -6,6 +6,8 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
 
+from app.audit import capture_audit_context
+from app.audit import log_audit_event
 from app.common import inventory_config
 from app.logging import get_logger
 from app.queue import metrics
@@ -123,6 +125,30 @@ def parse_export_service_message(message):
         parsed_export_msg = ExportEventSchema().load(parsed_message)
         return parsed_export_msg
     except ValidationError as e:
+        # SEC-MON-REQ-1 EOI-7: credential schema rejection occurs before create_export.
+        # Only target/correlation fields that passed schema validation are used;
+        # other applications and unrelated schema failures are not auth events.
+        data_errors = e.messages.get("data", {}) if isinstance(e.messages, dict) else {}
+        resource_errors = data_errors.get("resource_request", {}) if isinstance(data_errors, dict) else {}
+        valid_event = e.valid_data if isinstance(e.valid_data, dict) else {}
+        valid_data = valid_event.get("data", {})
+        resource = valid_data.get("resource_request", {}) if isinstance(valid_data, dict) else {}
+        if (
+            valid_event.get("source") == EXPORT_EVENT_SOURCE
+            and isinstance(resource, dict)
+            and resource.get("application") == EXPORT_SERVICE_APPLICATION
+            and isinstance(resource_errors, dict)
+            and "x-rh-identity" in resource_errors
+        ):
+            export_id = resource.get("export_request_uuid")
+            log_audit_event(
+                action="AUTHENTICATE",
+                resource_type="export",
+                resource_id=export_id,
+                outcome="failure",
+                context=capture_audit_context(request_id=str(export_id) if export_id is not None else None),
+                reason="invalid_credentials",
+            )
         logger.error(
             "Input validation error while parsing export event message:%s", e, extra={"operation": parsed_message}
         )  # logger.error is used to avoid printing out the same traceback twice
