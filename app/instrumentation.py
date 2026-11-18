@@ -13,7 +13,6 @@ from app.queue.metrics import notification_event_producer_failure
 from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.metrics import rbac_fetching_failure
-from lib.metrics import pendo_fetching_failure
 
 
 def message_produced(logger, message, headers):
@@ -320,11 +319,6 @@ def rbac_group_permission_denied(logger, group_ids, required_permission):
 def log_db_access_failure(logger, message, host_data):
     logger.error("Failure to access database %s", message)
     metrics.db_communication_error.labels("OperationalError", host_data.get("insights_id", message)).inc()
-
-
-def pendo_failure(logger, error_message=None):
-    logger.error("Failed to send Pendo data: %s", error_message)
-    pendo_fetching_failure.inc()
 
 
 # get resource_types
