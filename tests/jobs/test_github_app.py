@@ -171,20 +171,47 @@ def test_post_retries_once_after_401(mocker, monkeypatch, private_key_pem):
     ]
 
 
-def test_self_comment_matches_app_bot_or_legacy_dippy_bot(mocker):
+def _comment(login: str | None, created_at: str, body: str) -> dict:
+    return {"user": None if login is None else {"login": login}, "created_at": created_at, "body": body}
+
+
+_RESULTS_BODY = "Here are the System Profile validation results using Prod data.\nsatellite:\n\tPass: 1\n"
+_PARSE_ERROR_BODY = (
+    "An error occurred while trying to parse the schema in this PR. Please verify the syntax and formatting."
+)
+
+
+def test_self_comment_ignores_unrelated_bugkiller_comments(mocker):
     mocker.patch("jobs.system_profile_validator._github_app.bot_login", return_value="bugkiller-agent[bot]")
     mocker.patch(
         "jobs.system_profile_validator._get_git_response",
         return_value=[
-            {"user": {"login": "bugkiller-agent[bot]"}, "created_at": "2026-01-03T00:00:00Z"},
-            {"user": None, "created_at": "2026-01-04T00:00:00Z"},
-            {"user": {"login": "dippy-bot"}, "created_at": "2026-01-05T00:00:00Z"},
+            _comment("dippy-bot", "2026-01-03T00:00:00Z", _RESULTS_BODY),
+            _comment(None, "2026-01-04T00:00:00Z", _RESULTS_BODY),
+            _comment("bugkiller-agent[bot]", "2026-01-05T00:00:00Z", "Implemented the spec and pushed the branch."),
+            _comment("someone", "2026-01-06T00:00:00Z", _RESULTS_BODY),
         ],
     )
 
     found = _get_latest_self_comment_datetime_for_pr("RedHatInsights", "insights-host-inventory", "1")
 
-    assert found == parser.isoparse("2026-01-05T00:00:00Z")
+    assert found == parser.isoparse("2026-01-03T00:00:00Z")
+
+
+def test_self_comment_uses_latest_validation_comment_from_either_login(mocker):
+    mocker.patch("jobs.system_profile_validator._github_app.bot_login", return_value="bugkiller-agent[bot]")
+    mocker.patch(
+        "jobs.system_profile_validator._get_git_response",
+        return_value=[
+            _comment("dippy-bot", "2026-01-03T00:00:00Z", _RESULTS_BODY),
+            _comment("bugkiller-agent[bot]", "2026-01-05T00:00:00Z", _RESULTS_BODY),
+            _comment("bugkiller-agent[bot]", "2026-01-06T00:00:00Z", _PARSE_ERROR_BODY),
+        ],
+    )
+
+    found = _get_latest_self_comment_datetime_for_pr("RedHatInsights", "insights-host-inventory", "1")
+
+    assert found == parser.isoparse("2026-01-06T00:00:00Z")
 
 
 def test_main_skips_replica_and_requires_credentials_otherwise(monkeypatch):

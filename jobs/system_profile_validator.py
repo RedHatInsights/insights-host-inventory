@@ -37,6 +37,9 @@ GIT_MAX_RETRIES = int(getenv("GIT_MAX_RETRIES", 3))
 _GITHUB_TIMEOUT_SECONDS = 30
 # Comments posted by the replaced user account still count as this job's own.
 _LEGACY_COMMENT_LOGINS = frozenset({"dippy-bot"})
+_VALIDATION_RESULTS_PREFIX = "Here are the System Profile validation results using Prod data."
+_VALIDATION_PARSE_ERROR_PREFIX = "An error occurred while trying to parse the schema in this PR."
+_VALIDATION_COMMENT_PREFIXES = (_VALIDATION_RESULTS_PREFIX, _VALIDATION_PARSE_ERROR_PREFIX)
 _github_app = GitHubAppClient(REPO_OWNER, REPO_NAME)
 
 logger = get_logger(LOGGER_NAME)
@@ -190,7 +193,7 @@ def _validation_results_plaintext(test_results: dict[str, TestResult]) -> str:
 
 def _generate_comment_from_results(test_results: dict) -> str:
     return (
-        f"Here are the System Profile validation results using Prod data.\n"
+        f"{_VALIDATION_RESULTS_PREFIX}\n"
         f"Validating against the {REPO_OWNER}/{REPO_NAME} master spec:\n```\n"
         f"{_validation_results_plaintext(test_results[f'{REPO_OWNER}/{REPO_NAME}'])}\n```\n"
         f"Validating against this PR's spec:\n```\n"
@@ -212,12 +215,17 @@ def _get_latest_commit_datetime_for_pr(owner: str, repo: str, pr_number: str) ->
     return parser.isoparse(latest_commit["commit"]["author"]["date"])
 
 
+def _is_own_validation_comment(comment: dict, own_logins: set[str]) -> bool:
+    user = comment.get("user") or {}
+    body = comment.get("body") or ""
+    return user.get("login") in own_logins and body.startswith(_VALIDATION_COMMENT_PREFIXES)
+
+
 def _get_latest_self_comment_datetime_for_pr(owner: str, repo: str, pr_number: str) -> datetime | None:
     pr_comments = _get_git_response(f"/repos/{owner}/{repo}/issues/{pr_number}/comments")
     own_logins = {_github_app.bot_login(), *_LEGACY_COMMENT_LOGINS}
     for comment in reversed(pr_comments):
-        user = comment.get("user") or {}
-        if user.get("login") in own_logins:
+        if _is_own_validation_comment(comment, own_logins):
             return parser.isoparse(comment["created_at"])
     return None
 
@@ -278,7 +286,7 @@ def _validate_schema_for_pr_and_generate_comment(pr_number: str, config: Config)
     except yamlParser.ParserError as pe:
         logger.error(pe)
         return (
-            "An error occurred while trying to parse the schema in this PR. "
+            f"{_VALIDATION_PARSE_ERROR_PREFIX} "
             "Please verify the syntax and formatting, and see the pod logs for further details."
         )
 
