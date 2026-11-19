@@ -12,6 +12,8 @@ from connexion.middleware import MiddlewarePosition
 from connexion.options import SwaggerUIOptions
 from connexion.resolver import Resolver
 from flask import abort
+from logstash_formatter import LogstashFormatterV1
+from marshmallow import ValidationError
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 
@@ -288,7 +290,7 @@ def test_bulk_tag_identity_failure_is_audited_without_changing_response(client, 
     (event,) = map(json.loads, audit_output.getvalue().splitlines())
     assert event["action"] == "AUTHENTICATE"
     assert event["principal"] is None
-    assert event["reason"] == "invalid_credentials"
+    assert event["reason"] == ("invalid_credentials" if credentials else "missing_credentials")
     assert "secret" not in audit_output.getvalue()
 
 
@@ -442,7 +444,20 @@ def test_export_schema_credential_rejection_is_audited(audit_output, credential)
     assert event["request_id"] == EXPORT_ID
     assert event["principal"] is None
     assert event["org_id"] is None
+    assert event["reason"] == ("missing_credentials" if credential == "missing" else "invalid_credentials")
     assert "untrusted-org" not in audit_output.getvalue()
+
+
+@pytest.mark.parametrize("error", [ValidationError("credential-secret"), RuntimeError("credential-secret")])
+def test_export_parse_failures_do_not_log_credentials(monkeypatch, caplog, error):
+    monkeypatch.setattr(export_service_mq.ExportEventSchema, "load", Mock(side_effect=error))
+
+    with pytest.raises(type(error)) as raised:
+        export_service_mq.parse_export_service_message(json.dumps({"x-rh-identity": "credential-secret"}))
+
+    assert raised.value is error
+    (record,) = (record for record in caplog.records if record.name == export_service_mq.logger.name)
+    assert "credential-secret" not in LogstashFormatterV1().format(record)
 
 
 @pytest.mark.parametrize("case", ["other_app", "other_source", "unrelated_schema"])

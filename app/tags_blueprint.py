@@ -107,7 +107,7 @@ def bulk_tag_hosts():
                 resource_id=request.path,
                 outcome="failure",
                 context=capture_audit_context(),
-                reason="invalid_credentials",
+                reason="invalid_credentials" if "x-rh-identity" in request.headers else "missing_credentials",
             )
             raise
         if not identity.org_id:

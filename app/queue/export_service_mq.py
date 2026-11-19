@@ -147,16 +147,17 @@ def parse_export_service_message(message):
                 resource_id=export_id,
                 outcome="failure",
                 context=capture_audit_context(request_id=str(export_id) if export_id is not None else None),
-                reason="invalid_credentials",
+                reason="invalid_credentials"
+                if "x-rh-identity" in parsed_message["data"]["resource_request"]
+                else "missing_credentials",
             )
-        logger.error(
-            "Input validation error while parsing export event message:%s", e, extra={"operation": parsed_message}
-        )  # logger.error is used to avoid printing out the same traceback twice
+        # Raw messages and exception details may contain rejected credentials.
+        logger.error("Input validation error while parsing export event message")
 
         metrics.export_service_message_parsing_failure.labels("invalid").inc()
         raise
     except Exception:
-        logger.exception("Error parsing export event message", extra={"operation": parsed_message})
+        logger.error("Error parsing export event message")
 
         metrics.export_service_message_parsing_failure.labels("error").inc()
         raise
