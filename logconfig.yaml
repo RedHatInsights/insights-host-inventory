@@ -21,6 +21,11 @@ loggers:
   inventory:
     level: INFO
     propagate: true
+  inventory.audit:
+    level: INFO
+    handlers:
+    - audit
+    propagate: false
   urllib3:
     level: WARNING
     propagate: true
@@ -32,6 +37,10 @@ loggers:
     propagate: true
 
 handlers:
+  audit:
+    class: logging.StreamHandler
+    formatter: audit
+    stream: ext://sys.stdout
   logstash:
     class: logging.StreamHandler
 #    formatter: logstash
@@ -45,6 +54,8 @@ handlers:
     filters:
     - contextual
 formatters:
+  audit:
+    "()": app.audit.AuditFormatter
   human_readable:
     format: "[%(asctime)s] [%(process)d] [%(thread)d] [%(name)s] [%(levelname)s] %(message)s"
   logstash:
