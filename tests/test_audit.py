@@ -182,6 +182,22 @@ def test_failure_and_system_actor_support_uuid_or_unknown_resource(audit_output)
     assert failure["reason"] == "permission_denied"
 
 
+def test_unknown_reason_does_not_leak_or_suppress_the_event(audit_output):
+    audit.log_audit_event(
+        action="UPDATE",
+        resource_type="host",
+        outcome="failure",
+        context=audit.capture_audit_context(),
+        reason=str(ValueError("credential-secret")),
+    )
+
+    output = audit_output.getvalue()
+    event = json.loads(output)
+    assert event["reason"] == "unspecified_reason"
+    assert event["outcome"] == "failure"
+    assert "credential-secret" not in output
+
+
 def test_deferred_context_preserves_actor_tenant_request_and_original_trace(audit_output, otel_provider):
     provider, _ = otel_provider()
     tracer = provider.get_tracer("audit-test")

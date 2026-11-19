@@ -22,6 +22,38 @@ from app.logging import get_logger
 
 logger = get_logger("audit")
 
+_SAFE_AUDIT_REASONS = frozenset(
+    {
+        "already_processed",
+        "delete_failed",
+        "export_failed",
+        "export_headers_failed",
+        "group_mutation_failed",
+        "host_data_validation_failed",
+        "host_not_found",
+        "ingestion_failed",
+        "invalid_credentials",
+        "invalid_export_request",
+        "invalid_host_data",
+        "invalid_message",
+        "missing_application_header",
+        "missing_credentials",
+        "mutation_failed",
+        "no_data",
+        "owner_mismatch",
+        "permission_denied",
+        "projection_write_failed",
+        "publication_unavailable",
+        "result_preparation_failed",
+        "system_profile_update_failed",
+        "tag_update_failed",
+        "transaction_failed",
+        "unknown_application",
+        "unspecified_reason",
+        "workspace_request_failed",
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class AuditContext:
@@ -139,6 +171,6 @@ def log_audit_event(
             "resource_type": resource_type,
             "resource_id": str(resource_id) if resource_id is not None else None,
             "outcome": outcome,
-            "reason": reason,
+            "reason": reason if reason is None or reason in _SAFE_AUDIT_REASONS else "unspecified_reason",
         },
     )
