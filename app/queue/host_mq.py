@@ -56,7 +56,6 @@ from app.auth.identity import IdentityType
 from app.auth.identity import create_mock_identity_with_org_id
 from app.common import inventory_config
 from app.config import DEFAULT_INSIGHTS_ID
-from app.exceptions import HostMutationRejected
 from app.exceptions import InventoryException
 from app.exceptions import OutboxSaveException
 from app.exceptions import ValidationException
@@ -268,6 +267,7 @@ class OperationResult:
 
 class HBIMessageConsumerBase:
     _has_upstream_trace: ClassVar[bool] = False
+    _isolate_message_writes: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -284,7 +284,6 @@ class HBIMessageConsumerBase:
         self._is_retry = False
         self._messages_pending_retry: list | None = None
         self._producer_ctx: OtelContext | None = None
-        self._rollback_on_message_error = False
 
     @property
     def success_metric(self):
@@ -418,8 +417,9 @@ class HBIMessageConsumerBase:
         if OTEL_MQ_ENABLED:
             self._producer_ctx = self._extract_producer_context(msg)
 
-        token = self._process_message_core(msg)
+        token = None
         try:
+            token = self._process_message_core(msg)
             db.session.flush()
         finally:
             if token:
@@ -481,22 +481,27 @@ class HBIMessageConsumerBase:
         Returns the context token so callers can detach after flushing.
         """
         initialize_thread_local_storage(None)
-        self._rollback_on_message_error = False
         span, token = self._start_deferred_message_span(msg)
         start_ns = None if span else time.time_ns()
+        result = None
         try:
-            result = self.handle_message(msg.value(), headers=msg.headers())
-            self._enrich_span_from_threadctx(span)
-            if isinstance(result, OperationResult):
-                result.request_id = getattr(threadctx, "request_id", None)
-                result.org_id = getattr(threadctx, "org_id", None)
-                result.otel_context = otel_context_api.get_current()
-                result.otel_span = span
+            # Workspace handlers own their commits; batched host writes own a savepoint.
+            with db.session.begin_nested() if self._isolate_message_writes else nullcontext():
+                result = self.handle_message(msg.value(), headers=msg.headers())
+                self._enrich_span_from_threadctx(span)
+                if isinstance(result, OperationResult):
+                    result.request_id = getattr(threadctx, "request_id", None)
+                    result.org_id = getattr(threadctx, "org_id", None)
+                    result.otel_context = otel_context_api.get_current()
+                    result.otel_span = span
+                if self._isolate_message_writes:
+                    # Flush before releasing the savepoint, including normalized rows/outbox state.
+                    db.session.flush()
+                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                self.success_metric.inc()
             self.processed_rows.append(result)
-            metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-            self.success_metric.inc()
         except OperationalError as oe:
-            self._record_processing_error(span, msg, start_ns or 0, oe)
+            self._record_processing_error(span, msg, start_ns or 0, oe, result)
             if span:
                 self._enrich_span_from_threadctx(span)
                 span.end()
@@ -505,12 +510,10 @@ class HBIMessageConsumerBase:
             # Deadlocks are retriable; let event_loop handle retry instead of exiting.
             if is_deadlock_error(oe):
                 raise
-            if self._rollback_on_message_error:
-                raise  # Let _run_batch roll back pending host mutations before exiting.
             logger.error(f"Could not access DB {str(oe)}")
             sys.exit(3)
         except Exception as exc:
-            self._record_processing_error(span, msg, start_ns or 0, exc)
+            self._record_processing_error(span, msg, start_ns or 0, exc, result)
             if span:
                 self._enrich_span_from_threadctx(span)
                 span.end()
@@ -518,16 +521,26 @@ class HBIMessageConsumerBase:
                 otel_context_api.detach(token)
             self.failure_metric.inc()
             logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
-            if self._rollback_on_message_error:
-                raise  # A failed write must never be flushed/committed as a rejected message.
+            if isinstance(exc, (InvalidRequestError, StaleDataError, IntegrityError, UniqueViolation)):
+                raise  # Preserve the event loop's existing database retry policy.
+            # Keep an acknowledgement entry even when every message in the batch is rejected.
+            self.processed_rows.append(None)
         else:
             if span is None and OTEL_MQ_SLOW_MESSAGE_MS > 0:
                 self._emit_slow_message_span(msg, start_ns or 0, time.time_ns())
             return token
         return None
 
-    def _record_processing_error(self, span, msg: Message, start_ns: int, exc: Exception) -> None:
+    def _record_processing_error(
+        self, span, msg: Message, start_ns: int, exc: Exception, result: OperationResult | None = None
+    ) -> None:
         """Record error on live span or emit retroactive error span."""
+        if self._isolate_message_writes:
+            StalenessCache.clear()
+            UngroupedGroupCache.clear()
+        if isinstance(result, OperationResult):
+            for event in result.audit_events:
+                event.emit("failure", reason="transaction_failed")
         if span is not None:
             self._mark_span_error(span, exc)
         else:
@@ -746,49 +759,41 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
         self._initialize_message_context(request_id, org_id=org_id)
         identity = create_mock_identity_with_org_id(org_id)
         identity.account_number = validated_operation_msg["account_number"]
-        audit_context = capture_audit_context(system_actor="workspace-consumer", org_id=org_id, request_id=request_id)
-        if not self._should_emit_message_span():
-            producer = otel_extract(carrier=decode_kafka_headers(headers))
-            span = trace_api.get_current_span(producer).get_span_context()
-            audit_context = replace(
-                audit_context, trace_id=f"{span.trace_id:032x}" if span.is_valid else None, span_id=None
-            )
+        audit_context = with_message_audit_trace(
+            capture_audit_context(system_actor="workspace-consumer", org_id=org_id, request_id=request_id),
+            decode_kafka_headers(headers),
+            local_span=self._should_emit_message_span(),
+        )
         logger.info(f"Received {operation} message for workspace ID {workspace['id']}")
 
         if operation == "create":
             event = AuditEvent("CREATE", "group", str(workspace["id"]), audit_context)
             events = [event]
-            try:
-                # Workspace update/delete already own per-message commits. CREATE must
-                # use the same boundary so a later rollback cannot relabel committed work.
-                with audit_operation(events), session_guard(db.session, close=False):
-                    try:
-                        with db.session.begin_nested():
-                            group = group_repository.add_group(
-                                group_name=workspace["name"],
-                                org_id=org_id,
-                                account=identity.account_number,
-                                group_id=workspace["id"],
-                                ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
-                                created_on=workspace.get("created"),
-                                modified_on=workspace.get("modified"),
-                            )
-                    except IntegrityError, UniqueViolation:
-                        events.clear()  # Idempotent duplicate; no committed mutation.
-                        logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation")
-                        return None
-                result = OperationResult(
-                    group,
-                    None,
-                    None,
-                    EventType.created,
-                    partial(log_create_group_via_mq, logger, workspace["id"]),
-                )
-                return result
-
-            except Exception:
-                self._rollback_on_message_error = True
-                raise
+            # Workspace update/delete already own per-message commits. CREATE must
+            # use the same boundary so a later rollback cannot relabel committed work.
+            with audit_operation(events), session_guard(db.session, close=False):
+                try:
+                    with db.session.begin_nested():
+                        group = group_repository.add_group(
+                            group_name=workspace["name"],
+                            org_id=org_id,
+                            account=identity.account_number,
+                            group_id=workspace["id"],
+                            ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
+                            created_on=workspace.get("created"),
+                            modified_on=workspace.get("modified"),
+                        )
+                except IntegrityError, UniqueViolation:
+                    events.clear()  # Idempotent duplicate; no committed mutation.
+                    logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation")
+                    return None
+            return OperationResult(
+                group,
+                None,
+                None,
+                EventType.created,
+                partial(log_create_group_via_mq, logger, workspace["id"]),
+            )
 
         elif operation == "update":
             group_to_update = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
@@ -845,33 +850,32 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
 
 class HostMessageConsumer(HBIMessageConsumerBase):
     _has_upstream_trace = True
-    _audit_trace_override: trace_api.SpanContext | None = None
+    _isolate_message_writes = True
+    _audit_system_actor = "ingress-consumer"
+    _audit_skip_noop = False
+    _audit_headers: dict[str, str] | None = None
 
     def _capture_host_audit_context(self, identity: Identity | None, metadata: dict) -> AuditContext:
         request_id = metadata.get("request_id")
         if identity is None:
             context = capture_audit_context(request_id=request_id)
-        elif isinstance(self, SystemProfileMessageConsumer) or "b64_identity" not in metadata:
+        elif self._audit_skip_noop or "b64_identity" not in metadata:
             # Org-only SP and payload-derived RHSM identities do not authenticate an originator.
-            actor = "system-profile-consumer" if isinstance(self, SystemProfileMessageConsumer) else "ingress-consumer"
-            context = capture_audit_context(system_actor=actor, org_id=identity.org_id, request_id=request_id)
+            context = capture_audit_context(
+                system_actor=self._audit_system_actor, org_id=identity.org_id, request_id=request_id
+            )
         else:
             context = capture_audit_context(identity, request_id=request_id)
-        if self._audit_trace_override is not None:
-            span = self._audit_trace_override
-            context = replace(context, trace_id=f"{span.trace_id:032x}" if span.is_valid else None, span_id=None)
+        if self._audit_headers is not None:
+            context = with_message_audit_trace(
+                context, self._audit_headers, local_span=self._should_emit_message_span()
+            )
         return context
 
     @metrics.ingress_message_handler_time.time()
     @override
     def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
-        self._audit_trace_override = None
-        if not self._should_emit_message_span():
-            # Audit correlation does not require tracing or a per-message span to be enabled.
-            # Clear unrelated ambient batch traces when the producer supplied no valid context.
-            decoded = decode_kafka_headers(headers)
-            producer = otel_extract(carrier={k: v for k, v in decoded.items() if k in ("traceparent", "tracestate")})
-            self._audit_trace_override = trace_api.get_current_span(producer).get_span_context()
+        self._audit_headers = decode_kafka_headers(headers)
         validated_operation_msg = parse_operation_message(message, HostOperationSchema)
         platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
@@ -898,7 +902,6 @@ class HostMessageConsumer(HBIMessageConsumerBase):
                 host_row, operation_result, identity, success_logger = self.process_message(
                     host, platform_metadata, validated_operation_msg.get("operation_args", {})
                 )
-                self._rollback_on_message_error = True
                 event_type = operation_results_to_event_type(operation_result)
                 audit_context = self._capture_host_audit_context(identity, platform_metadata)
                 action = "CREATE" if event_type == EventType.created else "UPDATE"
@@ -911,7 +914,7 @@ class HostMessageConsumer(HBIMessageConsumerBase):
                     event.emit("failure", reason="result_preparation_failed")
                     raise
                 result.persisted_host_ids = [host_row.id]
-                if not isinstance(self, SystemProfileMessageConsumer) or any(
+                if not self._audit_skip_noop or any(
                     db.session.is_modified(row)
                     for row in (host_row, host_row.static_system_profile, host_row.dynamic_system_profile)
                     if row is not None
@@ -1012,8 +1015,7 @@ class IngressMessageConsumer(HostMessageConsumer):
                 # Set owner_id on the persisted host
                 if identity.identity_type == IdentityType.SYSTEM:
                     _set_owner(host_row, identity)
-            except Exception as exc:
-                self._rollback_on_message_error = not isinstance(exc, HostMutationRejected)
+            except Exception:
                 # SEC-MON-REQ-1 EOI-1/11: writes can fail before a deferred result exists.
                 # The generated input UUID may not identify the deduplicated host.
                 AuditEvent(
@@ -1053,6 +1055,9 @@ class IngressMessageConsumer(HostMessageConsumer):
 
 
 class SystemProfileMessageConsumer(HostMessageConsumer):
+    _audit_system_actor = "system-profile-consumer"
+    _audit_skip_noop = True
+
     # Overrides parent: system-profile updates come from rhsm-conduit directly, not from ingress
     _has_upstream_trace = False
 
@@ -1081,8 +1086,7 @@ class SystemProfileMessageConsumer(HostMessageConsumer):
             identity = create_mock_identity_with_org_id(input_host.org_id)
             try:
                 output_host, update_result = host_repository.update_system_profile(input_host, identity)
-            except Exception as exc:
-                self._rollback_on_message_error = not isinstance(exc, HostMutationRejected)
+            except Exception:
                 # SEC-MON-REQ-1 EOI-1/11: no fabricated human or unresolved host UUID.
                 AuditEvent(
                     "UPDATE",
@@ -1112,6 +1116,8 @@ class SystemProfileMessageConsumer(HostMessageConsumer):
 
 
 class HostAppMessageConsumer(HBIMessageConsumerBase):
+    _isolate_message_writes = True
+
     """Consumer for host application data from downstream services (Advisor, Vulnerability, Patch, etc.)."""
 
     _has_upstream_trace = True
@@ -1208,7 +1214,6 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             )
 
         changed_ids: list[UUID] = []
-        self._rollback_on_message_error = True
         try:
             persisted_ids = self._upsert_hosts(model_class, application, org_id, valid_hosts_list, changed_ids)
         except Exception:

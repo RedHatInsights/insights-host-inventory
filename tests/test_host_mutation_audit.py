@@ -14,6 +14,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from api import host as host_api
+from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.models import Host
 from app.models import db
@@ -157,7 +158,7 @@ def test_reaper_interruption_preserves_committed_chunk_and_rolls_back_attempt(
     assert_reaper_event(committed, culled_audit_hosts, outcome="success")
     assert_reaper_event(interrupted, culled_audit_hosts, outcome="failure")
     assert committed["resource_id"] != interrupted["resource_id"]
-    assert interrupted["reason"] == "delete_failed"
+    assert interrupted["reason"] == "interrupted"
     assert {str(host.id) for host in Host.query.all()} == set(culled_audit_hosts) - {committed["resource_id"]}
 
 
@@ -676,8 +677,10 @@ def test_tag_failure_discards_partial_mutation(api_post, db_create_host, db_get_
 
 
 @pytest.mark.parametrize("consumer_class", [host_mq.IngressMessageConsumer, host_mq.SystemProfileMessageConsumer])
-def test_ingestion_partial_failure_aborts_batch(
+@pytest.mark.parametrize("failure", [RuntimeError, ValidationException])
+def test_ingestion_partial_failure_is_isolated(
     consumer_class,
+    failure,
     flask_app,
     event_producer_mock,
     notification_event_producer_mock,
@@ -686,43 +689,47 @@ def test_ingestion_partial_failure_aborts_batch(
     audit_output,
     monkeypatch,
 ):
-    host = db_create_host(extra_data={"system_profile_facts": {"number_of_cpus": 1}})
+    healthy, host = [db_create_host(extra_data={"system_profile_facts": {"number_of_cpus": 1}}) for _ in range(2)]
     host_id, original_name = str(host.id), host.display_name
     consumer = consumer_class(MagicMock(), flask_app, event_producer_mock, notification_event_producer_mock)
-    host_data = minimal_host(
-        org_id=USER_IDENTITY["org_id"],
-        insights_id=str(host.insights_id),
-        system_profile={"number_of_cpus": 4},
-    ).data()
-    if consumer_class is host_mq.SystemProfileMessageConsumer:
-        host_data["id"] = host_id
-    metadata = get_platform_metadata(identity=USER_IDENTITY)
-    msg = MagicMock()
-    msg.value.return_value = json.dumps(wrap_message(host_data, platform_metadata=metadata))
-    msg.headers.return_value = []
-    msg.topic.return_value = "platform.inventory.host-ingress"
+    messages = []
+    for target in (healthy, host):
+        host_data = minimal_host(
+            org_id=USER_IDENTITY["org_id"],
+            insights_id=str(target.insights_id),
+            system_profile={"number_of_cpus": 4},
+        ).data()
+        if consumer_class is host_mq.SystemProfileMessageConsumer:
+            host_data["id"] = str(target.id)
+        metadata = get_platform_metadata(identity=USER_IDENTITY)
+        msg = MagicMock()
+        msg.value.return_value = json.dumps(wrap_message(host_data, platform_metadata=metadata))
+        msg.headers.return_value = []
+        msg.topic.return_value = "platform.inventory.host-ingress"
+        msg.error.return_value = None
+        messages.append(msg)
 
-    def update(profile_host, _data):
-        profile_host.display_name = "private-partial-update"
-        profile_host.static_system_profile.number_of_cpus = 99
-        raise RuntimeError("private-mutation-error")
-
-    # Ingress also constructs an unattached input Host. Fail only for the persisted row.
     original_update = Host._add_or_update_normalized_system_profiles
 
     def update_persisted(profile_host, data):
-        if profile_host in db.session:
-            return update(profile_host, data)
+        if profile_host in db.session and str(profile_host.id) == host_id:
+            profile_host.display_name = "private-partial-update"
+            profile_host.static_system_profile.number_of_cpus = 99
+            raise failure("private-mutation-error")
         return original_update(profile_host, data)
 
     monkeypatch.setattr(Host, "_add_or_update_normalized_system_profiles", update_persisted)
-    with pytest.raises(RuntimeError, match="private-mutation-error"):
-        consumer._run_batch([msg])
-    (event,) = records(audit_output)
-    assert event["outcome"] == "failure"
+    consumer.consumer.consume.return_value = messages
+    consumer.event_loop(MagicMock(side_effect=[False, True]))
+
+    events = records(audit_output)
+    assert len(events) == 2
+    (success,) = (event for event in events if event["outcome"] == "success")
+    assert success["resource_id"] == str(healthy.id)
     assert db_get_host(host_id).display_name == original_name
     assert db_get_host(host_id).static_system_profile.number_of_cpus == 1
-    consumer.consumer.commit.assert_not_called()
+    assert db_get_host(str(healthy.id)).static_system_profile.number_of_cpus == 4
+    consumer.consumer.commit.assert_called_once_with(asynchronous=False)
     assert "private-" not in audit_output.getvalue()
 
 

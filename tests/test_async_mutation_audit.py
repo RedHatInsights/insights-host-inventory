@@ -7,6 +7,8 @@ from uuid import uuid4
 
 import pytest
 from datagen_utils import generate_host_app_data
+from opentelemetry import propagate
+from opentelemetry.propagators.composite import CompositePropagator
 from requests.exceptions import ConnectionError
 
 from app import audit
@@ -45,6 +47,7 @@ def message(app, org_id, hosts, *, index=1):
         ("traceparent", f"00-{index:032x}-{index:016x}-00".encode()),
     ]
     msg.topic.return_value = "platform.inventory.host-apps"
+    msg.error.return_value = None
     return msg
 
 
@@ -128,7 +131,7 @@ def test_projection_exact_replay_has_no_mutation_event(app, flask_app, db_create
     assert consumer.processed_rows[0].persisted_host_ids == [host.id]
 
 
-def test_projection_error_after_write_rolls_back_other_messages(
+def test_projection_error_after_write_rolls_back_only_failed_message(
     flask_app, db_create_host, audit_output, monkeypatch, otel_provider
 ):
     provider, _ = otel_provider()
@@ -151,17 +154,43 @@ def test_projection_error_after_write_rolls_back_other_messages(
         return result
 
     monkeypatch.setattr(host_app_repository, "upsert_host_app_data", upsert)
-    with pytest.raises(RuntimeError, match="private-error-after-write"):
-        consumer._run_batch(messages)
+    consumer.consumer.consume.return_value = messages
+    consumer.event_loop(MagicMock(side_effect=[False, True]))
     events = records(audit_output)
-    assert len(events) == 2 and all(event["outcome"] == "failure" for event in events)
+    assert len(events) == 2
     for event in events:
         index = int(event["org_id"].removeprefix("org-"))
         assert_processor(event, org_id=f"org-{index}", index=index)
+        assert event["outcome"] == ("success" if index == 1 else "failure")
     for app in ("malware", "remediations"):
         model, _ = consumer.APPLICATION_MAP[ConsumerApplication(app)]
-        assert db.session.query(model).count() == 0
+        assert db.session.query(model).count() == (1 if app == "malware" else 0)
+    consumer.consumer.commit.assert_called_once_with(asynchronous=False)
     assert "private-" not in audit_output.getvalue()
+
+
+@pytest.mark.parametrize("bad_only", [False, True])
+def test_projection_data_error_is_rejected_without_blocking_offsets(flask_app, db_create_host, audit_output, bad_only):
+    host = db_create_host()
+    healthy = db_create_host()
+    data = generate_host_app_data("advisor")
+    messages = [message("advisor", host.org_id, [{"id": str(host.id), "data": {**data, "recommendations": 2**40}}])]
+    if not bad_only:
+        messages.append(message("advisor", healthy.org_id, [{"id": str(healthy.id), "data": data}], index=2))
+    kafka = MagicMock()
+    kafka.consume.return_value = messages
+    consumer = host_mq.HostAppMessageConsumer(kafka, flask_app, MagicMock(), MagicMock())
+
+    consumer.event_loop(MagicMock(side_effect=[False, True]))
+
+    model, _ = consumer.APPLICATION_MAP[ConsumerApplication.ADVISOR]
+    assert [str(row.host_id) for row in db.session.query(model).all()] == ([] if bad_only else [str(healthy.id)])
+    events = records(audit_output)
+    assert events[0]["outcome"] == "failure"
+    assert len(events) == (1 if bad_only else 2)
+    if not bad_only:
+        assert events[1]["outcome"] == "success"
+    kafka.commit.assert_called_once_with(asynchronous=False)
 
 
 @pytest.fixture
@@ -320,4 +349,18 @@ def test_missing_producer_trace_does_not_inherit_batch_trace(headers, otel_provi
     provider, _ = otel_provider()
     with provider.get_tracer(__name__).start_as_current_span("unrelated batch"):
         context = audit.with_message_audit_trace(audit.capture_audit_context(), headers, local_span=False)
+    assert context.trace_id is None and context.span_id is None
+
+
+def test_message_audit_trace_honors_configured_propagator():
+    previous = propagate.get_global_textmap()
+    try:
+        propagate.set_global_textmap(CompositePropagator([]))
+        context = audit.with_message_audit_trace(
+            audit.capture_audit_context(),
+            {"traceparent": "00-1234567890abcdef1234567890abcdef-1234567890abcdef-01"},
+            local_span=False,
+        )
+    finally:
+        propagate.set_global_textmap(previous)
     assert context.trace_id is None and context.span_id is None

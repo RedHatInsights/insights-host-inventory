@@ -38,9 +38,16 @@ host. Collector buffering/forwarding can batch those records without aggregating
 their contents. Aggregation requires measured volume and an approved format that
 preserves the required evidence; no sampling or aggregation is implemented here.
 
+Measure records/second and average serialized bytes per resource type with a
+representative workload, including reaper and membership changes. Daily uncompressed
+GB is `records_per_second * average_record_bytes * 86400 / 1e9`; message counts alone
+underestimate messages with multiple host operations. Use these measurements to
+size forwarding and retention in [Phase 3 (RHINENG-33800)](https://issues.redhat.com/browse/RHINENG-33800).
+
 | Operation | Action / resource type / identifier |
 |---|---|
 | Core ingress create/update | `CREATE` or `UPDATE` / `host` / persisted host UUID |
+| Ingress rejection before its result is known | `INGEST` / `host` / resolved UUID when available, otherwise null |
 | System-profile update | `UPDATE` / `host` / persisted host UUID |
 | Host patch | `UPDATE` / `host` / host UUID |
 | Explicit host check-in | `CHECK_IN` / `host` / host UUID |
@@ -68,13 +75,17 @@ Write/commit failures use static reasons (`mutation_failed`, `transaction_failed
 `system_profile_update_failed`, `result_preparation_failed`). A repository failure
 before host resolution uses a null resource ID rather than the generated candidate
 UUID, which may differ from a deduplicated host. Normalized system-profile errors
-propagate, and failed repository writes abort/roll back the ingestion batch instead
-of being swallowed and committed. Other queued host operations emit rollback
-failures. Malformed messages rejected before a write keep their existing rejection
-behavior. `HostMutationRejected` explicitly identifies repository preconditions
-that failed before a write (missing system-profile target/data or invalid compound
-facts); those remain safe to skip. Other write errors keep the original exception
-type for the existing DB retry/restart policy. For tags, a failed host's unflushed
+propagate into the message's savepoint. Ingress, system-profile and host-app
+processing flush inside one savepoint per message: a permanent rejection rolls
+back that message, discards its pending result and clears message-derived caches.
+Healthy messages remain eligible for commit, publication and success records.
+Rejected messages are acknowledged when the batch completes, including an entirely
+rejected batch. The existing retryable DB errors still abort/retry the batch;
+connection-level operational errors retain the existing restart behavior.
+Workspace handlers retain their own per-message commits and rollbacks.
+SIEM queries for ingestion failures must include `action=INGEST`; a rejection
+before resolving a host cannot reliably be labeled `CREATE` or `UPDATE`.
+For tags, a failed host's unflushed
 state is expired so it cannot leak into the successful remainder of the chunk.
 
 Validated originating identities are preserved per message. Identity-free RHSM
@@ -95,6 +106,14 @@ cover the customer mutation and privileged automated operation together. An empt
 run produces no mutation record; no duplicate job-run audit record is added.
 Interruption or a write/publication/commit failure rolls back the current chunk
 and emits failures for its attempted hosts. Earlier committed chunks stay successful.
+Graceful interruption uses reason `interrupted`; write failures use `delete_failed`.
+
+The initial job scope covers reaper and existing callers of the shared deletion
+helper. Direct writes in `create_ungrouped_host_groups.py` and
+`assign_ungrouped_hosts_to_groups.py` are not instrumented by the API transaction
+helpers. Their applicability and remaining mutation coverage are tracked in
+[Phase 1 (RHINENG-33798)](https://issues.redhat.com/browse/RHINENG-33798);
+this scope boundary is not a compliance exemption for those repair jobs.
 
 The deletion helper locks the selected host rows through commit. Caller filters,
 joins, grouping and chunk limits stay in a candidate subquery; the outer query
@@ -196,11 +215,13 @@ failure: valid credentials establish actor/tenant; invalid credentials emit an
 actorless `AUTHENTICATE` event. Other applications/sources are not labeled as HBI
 exports. Denial records remain single events with `permission_denied`.
 
-`with_message_audit_trace` retains the original producer trace ID when no local
+`with_message_audit_trace` uses the configured OTel propagator and retains the original producer trace ID when no local
 message span exists, including disabled MQ tracing, and clears unrelated ambient
 batch traces when the producer context is missing/invalid. Export field values,
 files, filters, OAuth/PSK credentials and raw error text are not recorded. Per-host
-protected-read scope and downstream readiness evidence still require owner review.
+protected-read applicability is tracked in [Phase 1 (RHINENG-33798)](https://issues.redhat.com/browse/RHINENG-33798);
+downstream readiness and delivery evidence are tracked in
+[Phase 3 (RHINENG-33800)](https://issues.redhat.com/browse/RHINENG-33800).
 
 ## Event fields
 

@@ -589,7 +589,7 @@ def test_workspace_commits_preserve_actual_outcomes(
 
     monkeypatch.setattr(type(db.session()), "commit", commit)
     monkeypatch.setattr(consumer, "post_process_rows", lambda: None)
-    if failure:
+    if failure == "final_commit":
         with pytest.raises(RuntimeError, match="private-workspace-commit-error"):
             consumer._run_batch(messages)
     else:
@@ -608,3 +608,4 @@ def test_workspace_commits_preserve_actual_outcomes(
         assert bool(event["span_id"]) == message_spans
         assert event["resource_id"] == group_id
     assert (db.session.get(Group, UUID(group_id)) is None) == (failure == "create_commit")
+    assert consumer.consumer.commit.called == (failure != "final_commit")

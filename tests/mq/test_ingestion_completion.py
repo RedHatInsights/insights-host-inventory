@@ -28,8 +28,6 @@ def completion_consumer(monkeypatch, otel_provider):
     monkeypatch.setattr(host_mq, "OTEL_MQ_ENABLED", True)
     monkeypatch.setattr(host_mq, "OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
     monkeypatch.setattr(host_mq, "db", SimpleNamespace(session=MagicMock()))
-    monkeypatch.setattr(host_mq, "StalenessCache", nullcontext)
-    monkeypatch.setattr(host_mq, "UngroupedGroupCache", nullcontext)
     monkeypatch.setattr(host_mq, "parse_operation_message", lambda message, *_args, **_kwargs: json.loads(message))
     monkeypatch.setattr(host_mq, "metrics", MagicMock())
     monkeypatch.setattr(threadctx, "request_id", "previous-request", raising=False)

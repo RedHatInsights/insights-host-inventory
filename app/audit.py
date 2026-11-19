@@ -19,7 +19,7 @@ from uuid import UUID
 from flask import has_request_context
 from flask import request
 from opentelemetry import trace
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from opentelemetry.propagate import extract as otel_extract
 
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
@@ -37,6 +37,7 @@ _SAFE_AUDIT_REASONS = frozenset(
         "host_data_validation_failed",
         "host_not_found",
         "ingestion_failed",
+        "interrupted",
         "invalid_credentials",
         "invalid_export_request",
         "invalid_host_data",
@@ -97,7 +98,7 @@ def with_message_audit_trace(context: AuditContext, headers: Mapping[str, str], 
     """Retain message correlation without reusing an unrelated ambient batch span."""
     if local_span:
         return context
-    producer = TraceContextTextMapPropagator().extract(carrier=headers)
+    producer = otel_extract(carrier=headers)
     span = trace.get_current_span(producer).get_span_context()
     return replace(context, trace_id=f"{span.trace_id:032x}" if span.is_valid else None, span_id=None)
 

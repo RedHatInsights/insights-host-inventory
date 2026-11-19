@@ -26,10 +26,6 @@ class InventoryException(Exception):
         }
 
 
-class HostMutationRejected(InventoryException):
-    """A host write was rejected before any persistent state was changed."""
-
-
 class InputFormatException(InventoryException):
     def __init__(self, detail: str):
         InventoryException.__init__(self, title="Bad Request", detail=detail)

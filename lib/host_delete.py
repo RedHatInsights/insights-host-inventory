@@ -102,10 +102,12 @@ def delete_hosts(
                     _send_delete_messages_for_batch(
                         batch_events, event_producer, notification_event_producer, initiated_by_frontend
                     )
-            except Exception:
+            except Exception as exc:
                 # SEC-MON-REQ-1 EOI-1/11: failed publication/commit rolls this batch back.
                 for event in audit_events:
-                    event.emit("failure", reason="delete_failed")
+                    event.emit(
+                        "failure", reason="interrupted" if isinstance(exc, InterruptedError) else "delete_failed"
+                    )
                 raise
 
             # SEC-MON-REQ-1 EOI-1: neither audit nor operational success precedes commit.

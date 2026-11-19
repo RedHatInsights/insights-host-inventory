@@ -24,7 +24,7 @@ from app.config import COMPOUND_ID_FACTS_MAP
 from app.config import ID_FACTS
 from app.config import ID_FACTS_USE_SUBMAN_ID
 from app.config import IMMUTABLE_ID_FACTS
-from app.exceptions import HostMutationRejected
+from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
@@ -230,9 +230,7 @@ def _find_host_by_multiple_facts_in_db_or_in_memory(
 def _check_compound_id_facts(canonical_facts: dict[str, Any]) -> None:
     for key, value in COMPOUND_ID_FACTS_MAP.items():
         if key in canonical_facts and value not in canonical_facts:
-            raise HostMutationRejected(
-                title="Invalid request", detail=f"Unpaired compound fact: {key} missing {value}"
-            )
+            raise InventoryException(title="Invalid request", detail=f"Unpaired compound fact: {key} missing {value}")
 
 
 def multiple_canonical_facts_host_query(
@@ -386,7 +384,7 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
     system_profile_data = build_system_profile_from_normalized(input_host)
 
     if not system_profile_data:
-        raise HostMutationRejected(
+        raise InventoryException(
             title="Invalid request", detail="Cannot update System Profile, since no System Profile data was provided."
         )
 
@@ -411,7 +409,7 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
 
         return existing_host, AddHostResult.updated
     else:
-        raise HostMutationRejected(
+        raise InventoryException(
             title="Invalid request", detail="Could not find an existing host with the provided facts."
         )
 
