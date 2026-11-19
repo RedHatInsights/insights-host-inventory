@@ -5,42 +5,28 @@ emits one JSON record per line to stdout through `inventory.audit` at INFO.
 Custom `INVENTORY_LOGGING_CONFIG_FILE` configurations must retain the audit logger,
 handler and formatter.
 
-## Authentication and authorization events
+## Authentication and authorization
 
-`SecurityAuditMiddleware` observes final HTTP 401/403 responses outside Connexion's
-exception middleware, including missing/malformed credentials rejected before
-Flask dispatch. A 401 emits `AUTHENTICATE`; a 403 uses the attempted HTTP method.
-These events use `resource_type=http_request` and the request path as `resource_id`,
-which identifies the attempted endpoint/resource without recording query strings,
-credentials or bodies. A rejected identity never establishes a principal or tenant.
-403 events use only an already validated `Identity` from Connexion's shared context.
-Static reasons are `missing_credentials`, `invalid_credentials` or
-`permission_denied`. A successfully authenticated alternative security scheme
-does not produce a false failure event.
+HTTP failures emit one record with `outcome="failure"`,
+`resource_type="http_request"` and the request path as `resource_id`.
+Query strings, headers and request bodies are excluded.
 
-Known permission denials concealed as 404 by the `access` decorator are logged
-explicitly with the known resource type/IDs. Ordinary 404s are not labeled as
-permission denials. Direct handler failures (views, application-data filters,
-group restrictions, enabled admin operations) are covered by the final 403
-boundary; lower-level checks do not add duplicate audit events.
+| Response | Action | Reason |
+|---|---|---|
+| 401 | `AUTHENTICATE` | `missing_credentials` or `invalid_credentials` |
+| 403 | Attempted HTTP method | `permission_denied` |
 
-The existing Flask OTel request hook saves the real server span context before
-dispatch/teardown, including unsampled spans. The final audit event reuses those
-IDs even when Connexion renders a raised denial after the Flask span has ended.
-For a pre-Flask failure with a valid W3C `traceparent`, the incoming trace ID is
-retained for correlation; `span_id` stays null because no local span was created.
-Malformed trace headers are ignored. Trace metadata is correlation, not identity.
+401 records leave actor and tenant unknown; 403 records use an already validated
+identity when available. Accepted alternative authentication schemes produce no
+failure event. HTTP request/trace context is retained through final response handling.
 
-Bulk-tag credential parsing, ingress identity/owner checks, and export identity,
-permission and application-data restrictions emit explicit events because they
-can bypass the OpenAPI HTTP boundary. Export schema credential failures are
-audited only when validated source/application fields identify an HBI export;
-only a validated export UUID is used for correlation. Invalid credentials leave
-principal/tenant unknown. Existing message rejection behavior is preserved.
+Known permission denials concealed as 404 are logged explicitly with the requested
+resource identifiers. Ordinary 404s are not permission-denial events.
 
-The bearer callback now raises Connexion's native authentication exception,
-returning the intended 401 rather than letting a pre-Flask Werkzeug exception
-become a 500. No credentials or raw authentication errors are added to audit output.
+Bulk-tag credential parsing, ingress identity/owner checks and export security
+checks emit explicit events where they bypass the HTTP boundary. Export schema
+credential failures are logged only for a validated HBI target, using a validated
+export UUID for correlation when available.
 
 ## Event fields
 
