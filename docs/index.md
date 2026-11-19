@@ -704,7 +704,7 @@ A host is considered to match the requested tag if and only if an available tag 
 ** the set of values of the requested tag is a non-empty set and this set is a subset of values defined by the available tag
 
 It is possible to filter by multiple tags at the same time.
-If filters involve the same tag name, a host must match one of the different values selected for this tag name. 
+If filters involve the same tag name, a host must match one of the different values selected for this tag name.
 If filters involve different tag names, a host must match at least one of the values for all requested tag names.
 See [ADR-0007](https://inscope.corp.redhat.com/docs/default/component/rhl-architecture/decisions/common/0007-standardized-tag-filtering/) for standardized tag filtering across services.
 
