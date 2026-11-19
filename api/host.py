@@ -1,5 +1,7 @@
 import time
+from collections.abc import Callable
 from enum import Enum
+from functools import partial
 from http import HTTPStatus
 
 import flask
@@ -31,6 +33,8 @@ from api.host_query_db import get_host_tags_list_by_id_list
 from api.host_query_db import get_sparse_system_profile
 from api.parsing import _normalize_workspace_filters
 from api.staleness_query import get_staleness_obj
+from app.audit import AuditEvent
+from app.audit import capture_audit_context
 from app.auth import get_current_identity
 from app.auth.forwarded_identity import get_satellite_forwarded_identity
 from app.auth.identity import IdentityType
@@ -78,6 +82,24 @@ DEADLOCK_MAX_RETRIES = 3
 DEADLOCK_RETRY_DELAY = 0.5
 
 logger = get_logger(__name__)
+
+
+def _apply_audited_host_update(host: Host, update: Callable[[], None], event: AuditEvent) -> bool:
+    """Log the database outcome before separate post-commit publication/cache work."""
+    try:
+        update()
+        if not db.session.is_modified(host):
+            return False
+        db.session.flush()  # Trigger outbox listeners before commit.
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        # SEC-MON-REQ-1 EOI-1/11: no success record for a failed mutation/commit.
+        event.emit("failure", reason="mutation_failed")
+        raise
+    # SEC-MON-REQ-1 EOI-1: one event for this committed host operation.
+    event.emit("success")
+    return True
 
 
 @api_operation
@@ -483,6 +505,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
     current_identity = get_current_identity()
+    audit_context = capture_audit_context(current_identity)
     query = get_host_list_by_id_list_from_db(host_id_list, current_identity, rbac_filter)
     hosts_to_update = query.all()
 
@@ -493,11 +516,8 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
     staleness = get_staleness_obj(current_identity.org_id)
 
     for host in hosts_to_update:
-        host.patch(validated_patch_host_data)
-
-        if db.session.is_modified(host):
-            db.session.flush()  # Trigger outbox event listeners before commit
-            db.session.commit()
+        event = AuditEvent("UPDATE", "host", str(host.id), audit_context)
+        if _apply_audited_host_update(host, partial(host.patch, validated_patch_host_data), event):
             serialized_host = serialize_host(host, staleness=staleness)
             _emit_patch_event(serialized_host, host)
             insights_id = serialize_uuid(host.insights_id)
@@ -530,6 +550,7 @@ def merge_facts(host_id_list, namespace, body, rbac_filter=None):
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rbac_filter):
     current_identity = get_current_identity()
+    audit_context = capture_audit_context(current_identity)
     filters = (
         Host.org_id == current_identity.org_id,
         Host.id.in_(host_id_list),
@@ -573,13 +594,12 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
     for host in hosts_to_update:
         if operation is FactOperations.replace:
-            host.replace_facts_in_namespace(namespace, fact_dict)
+            update = partial(host.replace_facts_in_namespace, namespace, fact_dict)
         else:
-            host.merge_facts_in_namespace(namespace, fact_dict)
+            update = partial(host.merge_facts_in_namespace, namespace, fact_dict)
 
-        if db.session.is_modified(host):
-            db.session.flush()  # Trigger outbox event listeners before commit
-            db.session.commit()
+        event = AuditEvent("UPDATE", "host_facts", f"{host.id}:{namespace}", audit_context)
+        if _apply_audited_host_update(host, update, event):
             serialized_host = serialize_host(host, staleness=staleness)
             _emit_patch_event(serialized_host, host)
             insights_id = serialize_uuid(host.insights_id)
@@ -643,9 +663,8 @@ def host_checkin(
     )
     staleness = get_staleness_obj(current_identity.org_id)
     if existing_host:
-        existing_host._update_last_check_in_date()
-        db.session.flush()  # Trigger outbox event listeners before commit
-        db.session.commit()
+        event = AuditEvent("CHECK_IN", "host", str(existing_host.id), capture_audit_context(current_identity))
+        _apply_audited_host_update(existing_host, existing_host._update_last_check_in_date, event)
         serialized_host = serialize_host(existing_host, staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
         insights_id = serialize_uuid(existing_host.insights_id)

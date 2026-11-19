@@ -578,6 +578,8 @@ class Host(LimitedHost):
             self._add_or_update_normalized_system_profiles(input_system_profile)
         except Exception as e:
             logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
+            # Propagate so callers cannot commit a partial update and report success.
+            raise
 
     def reporter_stale(self, reporter):
         reporter_data = self.per_reporter_staleness.get(reporter, None)

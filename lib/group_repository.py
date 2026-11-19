@@ -1,14 +1,20 @@
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from sqlalchemy import delete
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from api.cache import delete_cached_system_keys
 from api.staleness_query import get_staleness_obj
+from app.audit import AuditContext
+from app.audit import AuditEvent
+from app.audit import capture_audit_context
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
@@ -27,7 +33,6 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
-from app.models import deleted_by_this_query
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.events import build_event_and_headers
@@ -52,10 +57,71 @@ from lib.middleware import is_rbac_v2_enabled
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
 
 logger = get_logger(__name__)
+_audit_created_groups: ContextVar[set[str] | None] = ContextVar("audit_created_groups", default=None)
+_audit_deleted_groups: ContextVar[set[str] | None] = ContextVar("audit_deleted_groups", default=None)
+_audit_updated_groups: ContextVar[set[str] | None] = ContextVar("audit_updated_groups", default=None)
+_audit_memberships: ContextVar[set[tuple[str, str, str]] | None] = ContextVar("audit_memberships", default=None)
 
 
 class UngroupedGroupCache(ThreadLocalBatchCache):
     """Batch-scoped cache for ungrouped group lookups, keyed by org_id."""
+
+
+def _track_membership_change(action, group_id, host_id):
+    if (changes := _audit_memberships.get()) is not None:
+        change = (action, str(group_id), str(host_id))
+        inverse = ("DELETE" if action == "CREATE" else "CREATE", str(group_id), str(host_id))
+        if inverse in changes:
+            changes.remove(inverse)
+        else:
+            changes.add(change)
+
+
+@contextmanager
+def _audited_group_transaction(group_ids, identity, action, audit_context=None):
+    """Audit this transaction's recorded writes after its owner commits.
+
+    Includes an implicitly created ungrouped group and both sides of membership moves.
+    """
+    context = audit_context or capture_audit_context(identity)
+    created_groups: set[str] = set()
+    token = _audit_created_groups.set(created_groups)
+    deleted_groups: set[str] = set()
+    deleted_token = _audit_deleted_groups.set(deleted_groups)
+    updated_groups: set[str] = set()
+    updated_token = _audit_updated_groups.set(updated_groups)
+    membership_changes: set[tuple[str, str, str]] = set()
+    membership_token = _audit_memberships.set(membership_changes)
+    try:
+        with session_guard(db.session):
+            yield
+            db.session.flush()
+            events = [
+                AuditEvent(operation, "group", group_id, context)
+                for operation, changed_groups in (
+                    ("CREATE", created_groups - deleted_groups),
+                    ("UPDATE", updated_groups - created_groups - deleted_groups),
+                    ("DELETE", deleted_groups - created_groups),
+                )
+                for group_id in sorted(changed_groups)
+            ]
+            events.extend(
+                AuditEvent(operation, "group_membership", f"{group_id}:{host_id}", context)
+                for operation, group_id, host_id in sorted(membership_changes)
+            )
+    except Exception:
+        # SEC-MON-REQ-1 EOI-1/4/11: target operation failed; no rolled-back graph deltas succeed.
+        for group_id in group_ids or [None]:
+            AuditEvent(action, "group", group_id, context).emit("failure", reason="group_mutation_failed")
+        raise
+    finally:
+        _audit_created_groups.reset(token)
+        _audit_deleted_groups.reset(deleted_token)
+        _audit_updated_groups.reset(updated_token)
+        _audit_memberships.reset(membership_token)
+    # SEC-MON-REQ-1 EOI-1/4: committed metadata and individual membership changes only.
+    for event in events:
+        event.emit("success")
 
 
 def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list[str], identity: Identity):
@@ -153,10 +219,19 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
     ).all()
     ids_already_in_this_group = [str(assoc.host_id) for assoc in assoc_query]
 
-    # Delete any prior host-group associations, which should now just be to "ungrouped" group
-    HostGroupAssoc.query.filter(
-        HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id
-    ).delete(synchronize_session="fetch")
+    # RETURNING attributes only rows removed by this transaction, including under concurrency.
+    removed = db.session.execute(
+        delete(HostGroupAssoc)
+        .where(
+            HostGroupAssoc.org_id == org_id,
+            HostGroupAssoc.host_id.in_(host_id_list),
+            HostGroupAssoc.group_id != group_id,
+        )
+        .returning(HostGroupAssoc.group_id, HostGroupAssoc.host_id),
+        execution_options={"synchronize_session": "fetch"},
+    ).all()
+    for previous_group_id, host_id in removed:
+        _track_membership_change("DELETE", previous_group_id, host_id)
 
     host_group_assoc = [
         HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
@@ -164,6 +239,8 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
         if host_id not in ids_already_in_this_group
     ]
     db.session.add_all(host_group_assoc)
+    for assoc in host_group_assoc:
+        _track_membership_change("CREATE", assoc.group_id, assoc.host_id)
 
     if not is_rbac_v2_enabled(org_id):
         _update_group_update_time(group_id, org_id)
@@ -228,7 +305,7 @@ def add_hosts_to_group(
     event_producer: EventProducer,
 ):
     staleness = get_staleness_obj(identity.org_id)
-    with session_guard(db.session):
+    with _audited_group_transaction([str(group_id)], identity, "UPDATE"):
         _add_hosts_to_group(group_id, host_id_list, identity.org_id)
         serialized_groups, host_id_list = _update_hosts_for_group_changes(
             host_id_list, group_id_list=[group_id], identity=identity
@@ -260,6 +337,8 @@ def add_group(
     )
     session.add(new_group)
     session.flush()
+    if (created_groups := _audit_created_groups.get()) is not None:
+        created_groups.add(str(new_group.id))
 
     # gets the ID of the group after it has been committed
     return new_group
@@ -275,10 +354,13 @@ def add_group_with_hosts(
     staleness: AttrDict,
     event_producer: EventProducer,
 ) -> Group:
-    with session_guard(db.session):
+    audit_group_ids = [str(group_id)] if group_id else []
+    with _audited_group_transaction(audit_group_ids, identity, "CREATE"):
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)
         created_group_id = created_group.id
+        if not audit_group_ids:
+            audit_group_ids.append(str(created_group_id))
 
         # Add hosts to group
         if host_id_list:
@@ -335,6 +417,8 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
             str(row[0])
             for row in db.session.query(Host.id).filter(Host.org_id == identity.org_id, Host.id.in_(host_ids)).all()
         ]
+        pending_memberships = _audit_memberships.get()
+        saved_memberships = set(pending_memberships or ())
         try:
             with db.session.begin_nested():  # Savepoint
                 # Both operations are in the savepoint for atomicity: if adding to ungrouped fails,
@@ -343,6 +427,9 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
                 _add_hosts_to_group(ungrouped_id, existing_host_ids, identity.org_id)
             break  # Success
         except IntegrityError, InventoryException:
+            if pending_memberships is not None:
+                pending_memberships.clear()
+                pending_memberships.update(saved_memberships)
             if attempt == max_retries - 1:
                 raise  # Re-raise on final attempt
             logger.warning(
@@ -359,10 +446,7 @@ def _delete_host_group_assoc(session, assoc):
         HostGroupAssoc.group_id == assoc.group_id,
         HostGroupAssoc.host_id == assoc.host_id,
     )
-    delete_query.delete(synchronize_session="fetch")
-    assoc_deleted = deleted_by_this_query(assoc)
-
-    return assoc_deleted
+    return bool(delete_query.delete(synchronize_session="fetch"))
 
 
 def _delete_group(group: Group, identity: Identity) -> bool:
@@ -371,26 +455,32 @@ def _delete_group(group: Group, identity: Identity) -> bool:
     _remove_all_hosts_from_group(group, identity)
 
     delete_query = db.session.query(Group).filter(Group.id == group_id)
-    delete_query.delete(synchronize_session="fetch")
-    return deleted_by_this_query(group)
+    deleted = bool(delete_query.delete(synchronize_session="fetch"))
+    if deleted and (deleted_groups := _audit_deleted_groups.get()) is not None:
+        deleted_groups.add(str(group_id))
+    return deleted
 
 
-def delete_group_list(group_id_list: list[str], identity: Identity, event_producer: EventProducer) -> int:
+def delete_group_list(
+    group_id_list: list[str],
+    identity: Identity,
+    event_producer: EventProducer,
+    *,
+    audit_context: AuditContext | None = None,
+) -> int:
     deletion_count = 0
     deleted_host_ids = []
 
     host_id_list = []
-    with session_guard(db.session):
+    with _audited_group_transaction(group_id_list, identity, "DELETE", audit_context):
         staleness = get_staleness_obj(identity.org_id)
         query = (
             select(HostGroupAssoc)
             .join(Group)
             .filter(HostGroupAssoc.org_id == identity.org_id, HostGroupAssoc.group_id.in_(group_id_list))
         )
-
         assocs_to_delete = db.session.execute(query).scalars().all()
         deleted_host_ids = [assoc.host_id for assoc in assocs_to_delete]
-
         for group in (
             db.session.query(Group).filter(Group.org_id == identity.org_id, Group.id.in_(group_id_list)).all()
         ):
@@ -421,7 +511,7 @@ def remove_hosts_from_group(group_id, host_id_list, identity, event_producer):
     group_id_list = []
     serialized_groups = []
 
-    with session_guard(db.session):
+    with _audited_group_transaction([str(group_id)], identity, "UPDATE"):
         removed_host_ids = _remove_hosts_from_group(group_id, host_id_list, identity.org_id)
         # Add hosts to the "ungrouped" group
         ungrouped_group_id = str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)
@@ -454,6 +544,7 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
         for assoc in host_group_query.all():
             if _delete_host_group_assoc(db.session, assoc):
                 removed_host_ids.append(assoc.host_id)
+                _track_membership_change("DELETE", assoc.group_id, assoc.host_id)
                 delete_host_group_count.inc()
                 log_host_group_delete_succeeded(logger, assoc.host_id, assoc.group_id, get_control_rule())
             else:
@@ -478,7 +569,14 @@ def get_groups_by_id_list_from_db(
     return session.query(Group).filter(Group.org_id == org_id, Group.id.in_(group_id_list)).all()
 
 
-def patch_group(group: Group, patch_data: dict, identity: Identity, event_producer: EventProducer):
+def patch_group(
+    group: Group,
+    patch_data: dict,
+    identity: Identity,
+    event_producer: EventProducer,
+    *,
+    audit_context: AuditContext | None = None,
+):
     group_id = group.id
     host_id_data = patch_data.get("host_ids")
     new_host_ids = set(host_id_data) if host_id_data is not None else None
@@ -498,9 +596,12 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
     removed_serialized_groups = None
     added_serialized_groups = None
 
-    with session_guard(db.session):
+    with _audited_group_transaction([str(group_id)], identity, "UPDATE", audit_context):
         # Patch Group data, if provided
+        previous_name = group.name
         group_patched = group.patch(patch_data)
+        if group.name != previous_name and (updated_groups := _audit_updated_groups.get()) is not None:
+            updated_groups.add(str(group_id))
 
         # Update host list, if provided
         if new_host_ids is not None:

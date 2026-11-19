@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import partial
 from http import HTTPStatus
 from typing import Any
 
@@ -21,6 +22,8 @@ from api.group_query import build_rbac_v2_workspace_response
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from api.group_query import get_group_list_by_id_list_rbac_v2
+from app.audit import AuditEvent
+from app.audit import capture_audit_context
 from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
 from app.auth.rbac import RbacPermission
@@ -70,6 +73,23 @@ from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
+
+
+def _request_workspace_change(action, group_id, operation):
+    """Audit RPC acceptance separately from a later local/mirrored DB commit."""
+    context = capture_audit_context(get_current_identity())
+    try:
+        result = operation()
+    except Exception:
+        # SEC-MON-REQ-1 EOI-1/4/11: no claim about remote completion after an RPC error.
+        AuditEvent(action, "workspace_request", group_id, context).emit("failure", reason="workspace_request_failed")
+        raise
+    if action == "REQUEST_CREATE" and result is None:
+        AuditEvent(action, "workspace_request", None, context).emit("failure", reason="workspace_request_failed")
+    else:
+        resource_id = str(result) if action == "REQUEST_CREATE" else group_id
+        AuditEvent(action, "workspace_request", resource_id, context).emit("success")
+    return result
 
 
 def _validate_patch_group_inputs(group_id: str, body: dict[str, Any], identity: Any) -> tuple[dict[str, Any], Any]:
@@ -331,7 +351,7 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
                     identity.org_id,
                 )
 
-            workspace_id = post_rbac_workspace(group_name)
+            workspace_id = _request_workspace_change("REQUEST_CREATE", None, partial(post_rbac_workspace, group_name))
             if workspace_id is None:
                 message = f"Error while creating workspace for {group_name}"
                 logger.exception(message)
@@ -419,7 +439,9 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
                 check_access(KesselResourceTypes.WORKSPACE.move_host, [group_id])
 
         if new_name and new_name != group_to_update.name and not inventory_config().bypass_kessel:
-            patch_rbac_workspace(group_id, name=new_name)
+            _request_workspace_change(
+                "REQUEST_UPDATE", group_id, partial(patch_rbac_workspace, group_id, name=new_name)
+            )
 
         # Separate out the host IDs because they're not stored on the Group
         patch_group(group_to_update, validated_patch_group_data, identity, current_app.event_producer)
@@ -473,7 +495,7 @@ def delete_groups(group_id_list, rbac_filter=None):
         # Attempt to delete the RBAC workspaces
         for group_id in group_id_list:
             try:
-                delete_rbac_workspace(group_id)
+                _request_workspace_change("REQUEST_DELETE", group_id, partial(delete_rbac_workspace, group_id))
                 groups_to_delete.append(group_id)
             except ResourceNotFoundException:
                 # RBAC v2 can also return 404 to mean the user lacks permission, so skip deletion if

@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 from functools import cache
+from uuid import uuid4
 
 from sqlalchemy import and_
+from sqlalchemy import delete
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import insert
 
+from app.audit import AuditContext
+from app.audit import AuditEvent
+from app.audit import audit_operation
+from app.audit import capture_audit_context
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.models import InventoryView
@@ -115,8 +122,14 @@ def get_view_by_id(view_id: str, org_id: str, user_id: str) -> InventoryView:
     return _get_visible_view(view_id, org_id, user_id)
 
 
-def create_view(data: dict, org_id: str, user_id: str) -> InventoryView:
+def _view_audit_context(org_id: str, user_id: str, context: AuditContext | None) -> AuditContext:
+    # API callers pass the complete validated identity; legacy internal callers know only these IDs.
+    return context or replace(capture_audit_context(), org_id=org_id, principal=user_id)
+
+
+def create_view(data: dict, org_id: str, user_id: str, *, audit_context: AuditContext | None = None) -> InventoryView:
     view = InventoryView(
+        id=uuid4(),
         org_id=org_id,
         name=data["name"],
         description=data.get("description"),
@@ -125,7 +138,8 @@ def create_view(data: dict, org_id: str, user_id: str) -> InventoryView:
         created_by=user_id,
     )
 
-    with session_guard(db.session, close=False):
+    events = [AuditEvent("CREATE", "saved_view", str(view.id), _view_audit_context(org_id, user_id, audit_context))]
+    with audit_operation(events), session_guard(db.session, close=False):
         db.session.add(view)
 
     db.session.refresh(view)
@@ -133,7 +147,9 @@ def create_view(data: dict, org_id: str, user_id: str) -> InventoryView:
     return view
 
 
-def update_view(view_id: str, data: dict, org_id: str, user_id: str) -> InventoryView:
+def update_view(
+    view_id: str, data: dict, org_id: str, user_id: str, *, audit_context: AuditContext | None = None
+) -> InventoryView:
     view = _get_visible_view(view_id, org_id, user_id)
 
     if view.is_system_view:
@@ -142,15 +158,18 @@ def update_view(view_id: str, data: dict, org_id: str, user_id: str) -> Inventor
     if view.created_by != user_id:
         raise ViewPermissionError("Only the view creator can update this view.")
 
-    with session_guard(db.session, close=False):
+    events = [AuditEvent("UPDATE", "saved_view", view_id, _view_audit_context(org_id, user_id, audit_context))]
+    with audit_operation(events), session_guard(db.session, close=False):
         view.patch(data)
+        if not db.session.is_modified(view):
+            events.clear()
 
     db.session.refresh(view)
     logger.info("Updated view %s by %s", view_id, user_id)
     return view
 
 
-def delete_view(view_id: str, org_id: str, user_id: str) -> None:
+def delete_view(view_id: str, org_id: str, user_id: str, *, audit_context: AuditContext | None = None) -> None:
     view = _get_visible_view(view_id, org_id, user_id)
 
     if view.is_system_view:
@@ -159,18 +178,34 @@ def delete_view(view_id: str, org_id: str, user_id: str) -> None:
     if view.created_by != user_id:
         raise ViewPermissionError("Only the view creator can delete this view.")
 
-    with session_guard(db.session):
+    events = [AuditEvent("DELETE", "saved_view", view_id, _view_audit_context(org_id, user_id, audit_context))]
+    with audit_operation(events), session_guard(db.session):
+        # Prevent deletion/new FK references while deleting actual preferences with RETURNING.
+        locked = InventoryView.query.filter_by(id=view.id, org_id=org_id).with_for_update().one_or_none()
+        if locked is None:
+            events.clear()
+            raise ViewNotFoundError()
+        preferences = db.session.execute(
+            delete(UserViewPreference)
+            .where(UserViewPreference.default_view_id == view.id)
+            .returning(UserViewPreference.org_id, UserViewPreference.user_id)
+        ).all()
+        events.extend(
+            AuditEvent("DELETE", "view_preference", f"{pref_org}:{pref_user}", events[0].context)
+            for pref_org, pref_user in preferences
+        )
         db.session.delete(view)
 
     logger.info("Deleted view %s by %s", view_id, user_id)
 
 
-def clone_view(view_id: str, org_id: str, user_id: str) -> InventoryView:
+def clone_view(view_id: str, org_id: str, user_id: str, *, audit_context: AuditContext | None = None) -> InventoryView:
     source = _get_visible_view(view_id, org_id, user_id)
 
     clone_name = f"{CLONE_NAME_PREFIX}{source.name}"[:MAX_VIEW_NAME_LENGTH]
 
     cloned = InventoryView(
+        id=uuid4(),
         org_id=org_id,
         name=clone_name,
         description=source.description,
@@ -179,7 +214,8 @@ def clone_view(view_id: str, org_id: str, user_id: str) -> InventoryView:
         created_by=user_id,
     )
 
-    with session_guard(db.session, close=False):
+    events = [AuditEvent("CREATE", "saved_view", str(cloned.id), _view_audit_context(org_id, user_id, audit_context))]
+    with audit_operation(events), session_guard(db.session, close=False):
         db.session.add(cloned)
 
     db.session.refresh(cloned)
@@ -211,7 +247,9 @@ def get_default_view_id(org_id: str, user_id: str) -> str:
     return _get_system_default_view_id()
 
 
-def set_default_view(org_id: str, user_id: str, view_id: str) -> InventoryView:
+def set_default_view(
+    org_id: str, user_id: str, view_id: str, *, audit_context: AuditContext | None = None
+) -> InventoryView:
     """Pin a visible view as the user's default. Upserts the preference row."""
     view = _get_visible_view(view_id, org_id, user_id)
 
@@ -227,19 +265,37 @@ def set_default_view(org_id: str, user_id: str, view_id: str) -> InventoryView:
             "default_view_id": stmt.excluded.default_view_id,
             "updated_on": stmt.excluded.updated_on,
         },
+        where=UserViewPreference.default_view_id.is_distinct_from(stmt.excluded.default_view_id),
     )
 
-    with session_guard(db.session, close=False):
-        db.session.execute(stmt)
+    events = [
+        AuditEvent(
+            "SET_DEFAULT",
+            "view_preference",
+            f"{org_id}:{user_id}",
+            _view_audit_context(org_id, user_id, audit_context),
+        )
+    ]
+    with audit_operation(events), session_guard(db.session, close=False):
+        # SQL decides whether a business value changes atomically, including concurrent upserts.
+        if db.session.execute(stmt.returning(UserViewPreference.default_view_id)).one_or_none() is None:
+            events.clear()
 
     logger.info("Set default view %s for org %s user %s", view_id, org_id, user_id)
     return view
 
 
-def delete_default_view(org_id: str, user_id: str) -> None:
+def delete_default_view(org_id: str, user_id: str, *, audit_context: AuditContext | None = None) -> None:
     """Unpin the user's default view. Idempotent if no preference exists."""
-    with session_guard(db.session):
+    events = [
+        AuditEvent(
+            "DELETE", "view_preference", f"{org_id}:{user_id}", _view_audit_context(org_id, user_id, audit_context)
+        )
+    ]
+    with audit_operation(events), session_guard(db.session):
         deleted = UserViewPreference.query.filter_by(org_id=org_id, user_id=user_id).delete()
+        if not deleted:
+            events.clear()
 
     if deleted:
         logger.info("Deleted default view preference for org %s user %s", org_id, user_id)

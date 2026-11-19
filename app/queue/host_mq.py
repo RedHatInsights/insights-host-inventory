@@ -8,6 +8,7 @@ import uuid
 from collections.abc import Callable
 from contextlib import nullcontext
 from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime
 from functools import partial
 from typing import Any
@@ -44,13 +45,18 @@ from api.cache import get_system_cache_generation
 from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
 from api.staleness_query import get_staleness_obj
+from app.audit import AuditContext
+from app.audit import AuditEvent
+from app.audit import audit_operation
 from app.audit import capture_audit_context
 from app.audit import log_audit_event
+from app.audit import with_message_audit_trace
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.auth.identity import create_mock_identity_with_org_id
 from app.common import inventory_config
 from app.config import DEFAULT_INSIGHTS_ID
+from app.exceptions import HostMutationRejected
 from app.exceptions import InventoryException
 from app.exceptions import OutboxSaveException
 from app.exceptions import ValidationException
@@ -103,6 +109,7 @@ from lib import host_repository
 from lib.db import is_deadlock_error
 from lib.db import no_expire_on_commit
 from lib.db import raw_db_connection
+from lib.db import session_guard
 from lib.feature_flags import FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
 from lib.feature_flags import get_flag_value
@@ -216,6 +223,7 @@ class OperationResult:
         self.committed_at_ns: int | None = None
         self.otel_context: OtelContext | None = None
         self.otel_span = None
+        self.audit_events: list[AuditEvent] = []
 
     def record_ingestion_completion(self, application: str, milestone: str, completed_at_ns: int) -> None:
         """Report committed hosts using the identity captured for this message."""
@@ -276,6 +284,7 @@ class HBIMessageConsumerBase:
         self._is_retry = False
         self._messages_pending_retry: list | None = None
         self._producer_ctx: OtelContext | None = None
+        self._rollback_on_message_error = False
 
     @property
     def success_metric(self):
@@ -472,6 +481,7 @@ class HBIMessageConsumerBase:
         Returns the context token so callers can detach after flushing.
         """
         initialize_thread_local_storage(None)
+        self._rollback_on_message_error = False
         span, token = self._start_deferred_message_span(msg)
         start_ns = None if span else time.time_ns()
         try:
@@ -495,6 +505,8 @@ class HBIMessageConsumerBase:
             # Deadlocks are retriable; let event_loop handle retry instead of exiting.
             if is_deadlock_error(oe):
                 raise
+            if self._rollback_on_message_error:
+                raise  # Let _run_batch roll back pending host mutations before exiting.
             logger.error(f"Could not access DB {str(oe)}")
             sys.exit(3)
         except Exception as exc:
@@ -506,6 +518,8 @@ class HBIMessageConsumerBase:
                 otel_context_api.detach(token)
             self.failure_metric.inc()
             logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+            if self._rollback_on_message_error:
+                raise  # A failed write must never be flushed/committed as a rejected message.
         else:
             if span is None and OTEL_MQ_SLOW_MESSAGE_MS > 0:
                 self._emit_slow_message_span(msg, start_ns or 0, time.time_ns())
@@ -620,6 +634,11 @@ class HBIMessageConsumerBase:
                 committed_at_ns = time.time_ns()
             except Exception as exc:
                 db.session.rollback()
+                # SEC-MON-REQ-1 EOI-1/11: every pending operation rolled back with this batch.
+                for result in self.processed_rows:
+                    if isinstance(result, OperationResult):
+                        for event in result.audit_events:
+                            event.emit("failure", reason="transaction_failed")
                 self._end_all_deferred_spans(error=exc)
                 raise
 
@@ -628,6 +647,9 @@ class HBIMessageConsumerBase:
                     if not isinstance(result, OperationResult):
                         continue
                     result.committed_at_ns = committed_at_ns
+                    # SEC-MON-REQ-1 EOI-1: database success is independent of later Kafka delivery.
+                    for event in result.audit_events:
+                        event.emit("success")
                     if result.application:
                         application = result.application
                         try:
@@ -720,34 +742,53 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
         org_id = validated_operation_msg["org_id"]
         operation = validated_operation_msg["operation"]
         workspace = validated_operation_msg["workspace"]
-        self._initialize_message_context(None, org_id=org_id)
+        request_id = decode_kafka_headers(headers).get("request_id")
+        self._initialize_message_context(request_id, org_id=org_id)
         identity = create_mock_identity_with_org_id(org_id)
         identity.account_number = validated_operation_msg["account_number"]
+        audit_context = capture_audit_context(system_actor="workspace-consumer", org_id=org_id, request_id=request_id)
+        if not self._should_emit_message_span():
+            producer = otel_extract(carrier=decode_kafka_headers(headers))
+            span = trace_api.get_current_span(producer).get_span_context()
+            audit_context = replace(
+                audit_context, trace_id=f"{span.trace_id:032x}" if span.is_valid else None, span_id=None
+            )
         logger.info(f"Received {operation} message for workspace ID {workspace['id']}")
 
         if operation == "create":
+            event = AuditEvent("CREATE", "group", str(workspace["id"]), audit_context)
+            events = [event]
             try:
-                with db.session.begin_nested():
-                    group = group_repository.add_group(
-                        group_name=workspace["name"],
-                        org_id=org_id,
-                        account=identity.account_number,
-                        group_id=workspace["id"],
-                        ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
-                        created_on=workspace.get("created"),
-                        modified_on=workspace.get("modified"),
-                    )
-                return OperationResult(
+                # Workspace update/delete already own per-message commits. CREATE must
+                # use the same boundary so a later rollback cannot relabel committed work.
+                with audit_operation(events), session_guard(db.session, close=False):
+                    try:
+                        with db.session.begin_nested():
+                            group = group_repository.add_group(
+                                group_name=workspace["name"],
+                                org_id=org_id,
+                                account=identity.account_number,
+                                group_id=workspace["id"],
+                                ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
+                                created_on=workspace.get("created"),
+                                modified_on=workspace.get("modified"),
+                            )
+                    except IntegrityError, UniqueViolation:
+                        events.clear()  # Idempotent duplicate; no committed mutation.
+                        logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation")
+                        return None
+                result = OperationResult(
                     group,
                     None,
                     None,
                     EventType.created,
                     partial(log_create_group_via_mq, logger, workspace["id"]),
                 )
+                return result
 
-            except IntegrityError, UniqueViolation:
-                logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation")
-                return None
+            except Exception:
+                self._rollback_on_message_error = True
+                raise
 
         elif operation == "update":
             group_to_update = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
@@ -762,6 +803,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 patch_data=workspace,
                 identity=identity,
                 event_producer=self.event_producer,
+                audit_context=audit_context,
             )
             return OperationResult(
                 None,
@@ -776,6 +818,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 group_id_list=[str(workspace["id"])],
                 identity=identity,
                 event_producer=self.event_producer,
+                audit_context=audit_context,
             )
             return OperationResult(
                 None,
@@ -802,10 +845,33 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
 
 class HostMessageConsumer(HBIMessageConsumerBase):
     _has_upstream_trace = True
+    _audit_trace_override: trace_api.SpanContext | None = None
+
+    def _capture_host_audit_context(self, identity: Identity | None, metadata: dict) -> AuditContext:
+        request_id = metadata.get("request_id")
+        if identity is None:
+            context = capture_audit_context(request_id=request_id)
+        elif isinstance(self, SystemProfileMessageConsumer) or "b64_identity" not in metadata:
+            # Org-only SP and payload-derived RHSM identities do not authenticate an originator.
+            actor = "system-profile-consumer" if isinstance(self, SystemProfileMessageConsumer) else "ingress-consumer"
+            context = capture_audit_context(system_actor=actor, org_id=identity.org_id, request_id=request_id)
+        else:
+            context = capture_audit_context(identity, request_id=request_id)
+        if self._audit_trace_override is not None:
+            span = self._audit_trace_override
+            context = replace(context, trace_id=f"{span.trace_id:032x}" if span.is_valid else None, span_id=None)
+        return context
 
     @metrics.ingress_message_handler_time.time()
     @override
     def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
+        self._audit_trace_override = None
+        if not self._should_emit_message_span():
+            # Audit correlation does not require tracing or a per-message span to be enabled.
+            # Clear unrelated ambient batch traces when the producer supplied no valid context.
+            decoded = decode_kafka_headers(headers)
+            producer = otel_extract(carrier={k: v for k, v in decoded.items() if k in ("traceparent", "tracestate")})
+            self._audit_trace_override = trace_api.get_current_span(producer).get_span_context()
         validated_operation_msg = parse_operation_message(message, HostOperationSchema)
         platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
@@ -832,16 +898,25 @@ class HostMessageConsumer(HBIMessageConsumerBase):
                 host_row, operation_result, identity, success_logger = self.process_message(
                     host, platform_metadata, validated_operation_msg.get("operation_args", {})
                 )
+                self._rollback_on_message_error = True
                 event_type = operation_results_to_event_type(operation_result)
-
-                result = OperationResult(
-                    host_row,
-                    platform_metadata,
-                    get_staleness_obj(identity.org_id),
-                    event_type,
-                    success_logger,
-                )
+                audit_context = self._capture_host_audit_context(identity, platform_metadata)
+                action = "CREATE" if event_type == EventType.created else "UPDATE"
+                event = AuditEvent(action, "host", str(host_row.id), audit_context)
+                try:
+                    result = OperationResult(
+                        host_row, platform_metadata, get_staleness_obj(identity.org_id), event_type, success_logger
+                    )
+                except Exception:
+                    event.emit("failure", reason="result_preparation_failed")
+                    raise
                 result.persisted_host_ids = [host_row.id]
+                if not isinstance(self, SystemProfileMessageConsumer) or any(
+                    db.session.is_modified(row)
+                    for row in (host_row, host_row.static_system_profile, host_row.dynamic_system_profile)
+                    if row is not None
+                ):
+                    result.audit_events.append(event)
                 return result
 
             except ValidationException as ve:
@@ -901,7 +976,7 @@ class IngressMessageConsumer(HostMessageConsumer):
                     action="AUTHENTICATE",
                     resource_type="host_ingestion",
                     outcome="failure",
-                    context=capture_audit_context(request_id=getattr(threadctx, "request_id", None)),
+                    context=self._capture_host_audit_context(None, platform_metadata),
                     reason="invalid_credentials",
                 )
                 raise
@@ -921,20 +996,33 @@ class IngressMessageConsumer(HostMessageConsumer):
                         resource_type="host",
                         resource_id=input_host.id,
                         outcome="failure",
-                        context=capture_audit_context(identity, request_id=getattr(threadctx, "request_id", None)),
+                        context=self._capture_host_audit_context(identity, platform_metadata),
                         reason="owner_mismatch",
                     )
                     raise
 
             log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
             processed_hosts = [result.row for result in self.processed_rows if result is not None]
-            host_row, add_result = host_repository.add_host(
-                input_host, identity, operation_args=operation_args, existing_hosts=processed_hosts
-            )
+            host_row = None
+            try:
+                host_row, add_result = host_repository.add_host(
+                    input_host, identity, operation_args=operation_args, existing_hosts=processed_hosts
+                )
 
-            # Set owner_id on the persisted host
-            if identity.identity_type == IdentityType.SYSTEM:
-                _set_owner(host_row, identity)
+                # Set owner_id on the persisted host
+                if identity.identity_type == IdentityType.SYSTEM:
+                    _set_owner(host_row, identity)
+            except Exception as exc:
+                self._rollback_on_message_error = not isinstance(exc, HostMutationRejected)
+                # SEC-MON-REQ-1 EOI-1/11: writes can fail before a deferred result exists.
+                # The generated input UUID may not identify the deduplicated host.
+                AuditEvent(
+                    "INGEST",
+                    "host",
+                    str(host_row.id) if host_row is not None else None,
+                    self._capture_host_audit_context(identity, platform_metadata),
+                ).emit("failure", reason="ingestion_failed")
+                raise
 
             success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
 
@@ -991,7 +1079,18 @@ class SystemProfileMessageConsumer(HostMessageConsumer):
             input_host = deserialize_host(host_data, schema=LimitedHostSchema)
             input_host.id = host_data.get("id")
             identity = create_mock_identity_with_org_id(input_host.org_id)
-            output_host, update_result = host_repository.update_system_profile(input_host, identity)
+            try:
+                output_host, update_result = host_repository.update_system_profile(input_host, identity)
+            except Exception as exc:
+                self._rollback_on_message_error = not isinstance(exc, HostMutationRejected)
+                # SEC-MON-REQ-1 EOI-1/11: no fabricated human or unresolved host UUID.
+                AuditEvent(
+                    "UPDATE",
+                    "host",
+                    None,
+                    self._capture_host_audit_context(identity, platform_metadata),
+                ).emit("failure", reason="system_profile_update_failed")
+                raise
             success_logger = partial(log_update_system_profile_success, logger, sp_fields_to_log)
             return output_host, update_result, identity, success_logger
         except ValidationException:
@@ -1037,8 +1136,14 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
     @override
     def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
         application_str, request_id = self._extract_headers(headers)
+        context = with_message_audit_trace(
+            capture_audit_context(system_actor="host-app-data-consumer", request_id=request_id),
+            decode_kafka_headers(headers),
+            local_span=self._should_emit_message_span(),
+        )
 
         if not application_str:
+            AuditEvent("UPSERT", "host_app_data", None, context).emit("failure", reason="missing_application_header")
             logger.error("Missing 'application' in Kafka message headers")
             metrics.host_app_data_failure.labels(application="unknown", reason="missing_application_header").inc()
             raise ValidationException("Missing 'application' field in Kafka message headers")
@@ -1047,28 +1152,40 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
         try:
             application = ConsumerApplication(application_str)
         except ValueError as e:
+            AuditEvent("UPSERT", "host_app_data", None, context).emit("failure", reason="unknown_application")
             logger.error(f"Unknown application: {application_str}")
             metrics.host_app_data_failure.labels(application=application_str, reason="unknown_application").inc()
             raise ValidationException(str(e)) from e
 
-        validated_msg = parse_operation_message(
-            message,
-            HostAppOperationSchema,
-            parsing_time_metric=metrics.host_app_data_message_parsing_time,
-            parsing_failure_metric=metrics.host_app_data_failure,
-            application=application,
-        )
-
+        try:
+            validated_msg = parse_operation_message(
+                message,
+                HostAppOperationSchema,
+                parsing_time_metric=metrics.host_app_data_message_parsing_time,
+                parsing_failure_metric=metrics.host_app_data_failure,
+                application=application,
+            )
+        except Exception:
+            AuditEvent("UPSERT", "host_app_data", None, context).emit("failure", reason="invalid_message")
+            raise
         self._initialize_message_context(request_id, org_id=validated_msg.get("org_id"))
-        result = self.process_message(application, validated_msg)
+        context = replace(context, org_id=validated_msg["org_id"])
+        result = self.process_message(application, validated_msg, audit_context=context)
         result.application = application.value
         return result
 
     @override
-    def process_message(self, application: ConsumerApplication, validated_msg: dict[str, Any]) -> OperationResult:
+    def process_message(
+        self,
+        application: ConsumerApplication,
+        validated_msg: dict[str, Any],
+        *,
+        audit_context: AuditContext | None = None,
+    ) -> OperationResult:
         org_id = validated_msg["org_id"]
         timestamp = validated_msg["timestamp"]
         hosts = validated_msg["hosts"]
+        context = audit_context or capture_audit_context(system_actor="host-app-data-consumer", org_id=org_id)
 
         logger.info(
             f"Processing host app data message from {application}",
@@ -1076,7 +1193,9 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
         )
 
         model_class, schema_class = self._get_app_classes(application)
-        valid_hosts_list = self._validate_and_prepare_hosts(hosts, schema_class, application, org_id, timestamp)
+        valid_hosts_list = self._validate_and_prepare_hosts(
+            hosts, schema_class, application, org_id, timestamp, context
+        )
 
         if not valid_hosts_list:
             logger.warning(f"No valid hosts to process for application {application}")
@@ -1088,7 +1207,17 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 partial(log_host_app_data_upsert_via_mq, logger, application, org_id, []),
             )
 
-        persisted_ids = self._upsert_hosts(model_class, application, org_id, valid_hosts_list)
+        changed_ids: list[UUID] = []
+        self._rollback_on_message_error = True
+        try:
+            persisted_ids = self._upsert_hosts(model_class, application, org_id, valid_hosts_list, changed_ids)
+        except Exception:
+            # SEC-MON-REQ-1 EOI-1/11: errors before a deferred result must abort the DB batch.
+            for row in valid_hosts_list:
+                AuditEvent("UPSERT", "host_app_data", f"{application.value}:{row['host_id']}", context).emit(
+                    "failure", reason="projection_write_failed"
+                )
+            raise
 
         host_ids = [str(host_id) for host_id in persisted_ids]
         result = OperationResult(
@@ -1099,6 +1228,15 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             partial(log_host_app_data_upsert_via_mq, logger, application, org_id, host_ids),
         )
         result.persisted_host_ids = persisted_ids
+        # The common batch owner emits these only after commit, with each message's snapshot.
+        result.audit_events = [
+            AuditEvent("UPSERT", "host_app_data", f"{application.value}:{host_id}", context) for host_id in changed_ids
+        ]
+        for row in valid_hosts_list:
+            if row["host_id"] not in persisted_ids:
+                AuditEvent("UPSERT", "host_app_data", f"{application.value}:{row['host_id']}", context).emit(
+                    "failure", reason="host_not_found"
+                )
         return result
 
     def _extract_headers(self, headers: list[tuple[str, bytes]] | None = None) -> tuple[str | None, str | None]:
@@ -1123,6 +1261,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
         application: ConsumerApplication,
         org_id: str,
         timestamp: datetime,
+        audit_context: AuditContext,
     ) -> list[dict]:
         valid_hosts_list = []
 
@@ -1133,6 +1272,9 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             try:
                 validated_data = schema_class().load(host_data)
             except ValidationError as e:
+                AuditEvent("UPSERT", "host_app_data", f"{application.value}:{host_id}", audit_context).emit(
+                    "failure", reason="invalid_host_data"
+                )
                 logger.error(
                     f"Data validation error for host {host_id} from {application}",
                     extra={"host_id": host_id, "application": application, "errors": e.messages},
@@ -1140,6 +1282,9 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 metrics.host_app_data_failure.labels(application=application, reason="invalid_host_data").inc()
                 continue
             except Exception as e:
+                AuditEvent("UPSERT", "host_app_data", f"{application.value}:{host_id}", audit_context).emit(
+                    "failure", reason="host_data_validation_failed"
+                )
                 logger.exception(
                     f"Unexpected error validating data for host {host_id} from {application}",
                     extra={"host_id": host_id, "application": application, "error": str(e)},
@@ -1172,7 +1317,12 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
         return valid_hosts_list
 
     def _upsert_hosts(
-        self, model_class: type, application: ConsumerApplication, org_id: str, hosts_data: list[dict]
+        self,
+        model_class: type,
+        application: ConsumerApplication,
+        org_id: str,
+        hosts_data: list[dict],
+        changed_ids: list[UUID],
     ) -> list:
         try:
             persisted_ids = host_app_repository.upsert_host_app_data(
@@ -1180,6 +1330,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 application=application,
                 org_id=org_id,
                 hosts_data=hosts_data,
+                changed_ids=changed_ids,
             )
 
             return persisted_ids
@@ -1416,7 +1567,9 @@ def sync_event_message(message, session, event_producer):
     return
 
 
-def write_delete_event_message(event_producer: EventProducer, result: OperationResult, initiated_by_frontend: bool):
+def write_delete_event_message(
+    event_producer: EventProducer, result: OperationResult, initiated_by_frontend: bool, *, log_success: bool = True
+):
     event, headers = build_event_and_headers(
         EventType.delete,
         result.row,
@@ -1428,7 +1581,8 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
     owner_id = serialize_uuid(result.row.static_system_profile.owner_id) if result.row.static_system_profile else None
     if insights_id and owner_id:
         delete_cached_system_keys(insights_id=insights_id, org_id=result.row.org_id, owner_id=owner_id)
-    result.success_logger()
+    if log_success:
+        result.success_logger()
 
 
 def system_cache_has_multiple_hosts(org_id: str, insights_id: str, owner_id: str) -> bool:

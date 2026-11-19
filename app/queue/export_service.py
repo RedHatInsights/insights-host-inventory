@@ -3,8 +3,11 @@ from __future__ import annotations
 import itertools
 import json
 from collections.abc import Iterator
+from collections.abc import Mapping
+from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any
+from typing import Literal
 from uuid import UUID
 
 from requests import Response
@@ -18,8 +21,11 @@ from api.views_validation import is_tag_column_key
 from api.views_validation import validate_view_configuration
 from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
+from app.audit import AuditContext
+from app.audit import AuditEvent
 from app.audit import capture_audit_context
 from app.audit import log_audit_event
+from app.audit import with_message_audit_trace
 from app.auth.identity import Identity
 from app.auth.identity import from_auth_header
 from app.auth.rbac import KesselResourceTypes
@@ -446,12 +452,28 @@ def _non_empty_hosts_iter(
     return itertools.chain([first_host], host_iter)
 
 
+@dataclass
+class _ExportAudit:
+    export_id: UUID
+    context: AuditContext
+    recorded: bool = False
+
+    def record(self, action: str, outcome: Literal["success", "failure"], reason: str | None = None) -> None:
+        if not self.recorded:
+            # SEC-MON-REQ-1 EOI-1/11: one processing result, distinct from downstream readiness.
+            AuditEvent(action, "export", self.export_id, self.context).emit(outcome, reason=reason)
+            self.recorded = True
+
+
 @metrics.create_export_processing_time.time()
 def create_export(
     export_svc_data: dict,
     inventory_config: Config,
     operation_args: dict | None = None,
     rbac_filter: dict | None = None,
+    *,
+    audit_trace_headers: Mapping[str, str] | None = None,
+    local_audit_span: bool = True,
 ) -> bool:
     if operation_args is None:
         operation_args = {}
@@ -479,12 +501,21 @@ def create_export(
             resource_type="export",
             resource_id=exportUUID,
             outcome="failure",
-            context=capture_audit_context(request_id=str(exportUUID)),
+            context=with_message_audit_trace(
+                capture_audit_context(request_id=str(exportUUID)),
+                audit_trace_headers or {},
+                local_span=local_audit_span,
+            )
+            if audit_trace_headers is not None
+            else capture_audit_context(request_id=str(exportUUID)),
             reason="invalid_credentials",
         )
         raise
 
     audit_context = capture_audit_context(identity, request_id=str(exportUUID))
+    if audit_trace_headers is not None:
+        audit_context = with_message_audit_trace(audit_context, audit_trace_headers, local_span=local_audit_span)
+    audit = _ExportAudit(exportUUID, audit_context)
 
     metrics.create_export_count.inc()
     logger.info("Creating export for HBI")
@@ -492,196 +523,191 @@ def create_export(
     export_service_endpoint = inventory_config.export_service_endpoint
 
     export_created = False
-    session = Session()
-    # Honor the per-endpoint CA certificate from the V2 dependency endpoint; fall back to system trust.
-    session.verify = inventory_config.export_service_endpoint_ca_certificate or True
-
     try:
-        rbac_request_headers, request_headers = build_headers(
-            identityHeader, exportUUID, inventory_config, exportFormat
-        )
+        session = Session()
     except Exception:
-        logger.exception("Failed to build export-service request headers for export %s", exportUUID)
-        request_url = _build_export_request_url(
-            export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
-        )
-        error_headers = {"content-type": HEADER_CONTENT_TYPE[exportFormat.lower()]}
-        if not inventory_config.export_service_endpoint_authenticated:
-            error_headers["x-rh-exports-psk"] = inventory_config.export_service_token
-        _handle_export_error(
-            "Failed to authenticate with export-service",
-            HTTPStatus.SERVICE_UNAVAILABLE,
-            request_url,
-            session,
-            error_headers,
-            exportUUID,
-            exportFormat,
-        )
-        session.close()
-        return export_created
-
-    allowed, rbac_filter = resolve_permission(
-        identity, KesselResourceTypes.HOST.view, rbac_request_headers=rbac_request_headers
-    )
-
-    if not allowed:
-        # SEC-MON-REQ-1 EOI-8: denied asynchronous export, not an HTTP response.
-        log_audit_event(
-            action="EXPORT",
-            resource_type="export",
-            resource_id=exportUUID,
-            outcome="failure",
-            context=audit_context,
-            reason="permission_denied",
-        )
-        request_url = _build_export_request_url(
-            export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
-        )
-        _handle_export_error(
-            "You don't have the permission to access the requested resource.",
-            403,
-            request_url,
-            session,
-            request_headers,
-            exportUUID,
-            exportFormat,
-        )
-        session.close()
-        return export_created
-
-    host_filter: dict = {}
-    query_filter: dict = {}
-    view_columns: list[dict] = []
-    order_by: str | None = None
-    order_how: str | None = None
-    allowed_apps: set[str] | None = None
-
-    def _fail(message: str, status_code: int) -> None:
-        if status_code == HTTPStatus.FORBIDDEN:
-            # SEC-MON-REQ-1 EOI-8: view ownership and application-data restrictions.
-            log_audit_event(
-                action="EXPORT",
-                resource_type="export",
-                resource_id=exportUUID,
-                outcome="failure",
-                context=audit_context,
-                reason="permission_denied",
-            )
-        request_url = _build_export_request_url(
-            export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
-        )
-        _handle_export_error(message, status_code, request_url, session, request_headers, exportUUID, exportFormat)
-        session.close()
-
-    if view_id:
-        user_id = identity.user_id
-        if not user_id:
-            _fail("Export with view_id requires a User or ServiceAccount identity with a user_id.", 403)
-            return export_created
-
-        try:
-            host_filter, query_filter, view_columns, order_by, order_how = _load_view_config(
-                view_id, identity.org_id, user_id
-            )
-            logger.info("Loaded view %s for export (org_id: %s)", view_id, identity.org_id)
-        except ViewNotFoundError:
-            _fail(f"View {view_id} not found or not accessible.", 404)
-            return export_created
-        except ViewPermissionError as e:
-            _fail(str(e.detail), 403)
-            return export_created
-    elif configuration is not None:
-        if not isinstance(configuration, dict) or not configuration.get("columns"):
-            # A supplied configuration must name the columns to export. Falling through
-            # with no columns would silently export the broad legacy field set instead
-            # of the requested (WYSIWYG) view.
-            _fail("Invalid export configuration: 'columns' is required.", 400)
-            return export_created
-        try:
-            validate_view_configuration(configuration)
-        except ValidationException as e:
-            _fail(f"Invalid export configuration: {e.detail}", 400)
-            return export_created
-        host_filter, query_filter, view_columns, order_by, order_how = _config_to_export_inputs(configuration)
-        logger.info("Using inline export configuration (org_id: %s)", identity.org_id)
-
-    if view_id or configuration is not None:
-        allowed_apps = get_allowed_app_services(identity, rbac_request_headers=rbac_request_headers)
-        if allowed_apps is not None:
-            known_apps = set(get_app_data_models().keys())
-            if query_filter:
-                denied_filters = [k for k in query_filter if k in known_apps and k not in allowed_apps]
-                if denied_filters:
-                    _fail(f"Insufficient permissions to filter by {denied_filters}", 403)
-                    return export_created
-            sort_app = get_app_name_from_sort(order_by)
-            if sort_app is not None and sort_app not in allowed_apps:
-                _fail(f"Insufficient permissions to sort by '{order_by}'", 403)
-                return export_created
-
-        denied_app = _check_dedicated_host_filter_permissions(allowed_apps, host_filter)
-        if denied_app:
-            _fail(f"Insufficient permissions to filter by {denied_app}", 403)
-            return export_created
-
-    export_fields, app_data_fields = resolve_export_columns(view_columns, allowed_apps=allowed_apps)
-
+        audit.record("EXPORT", "failure", "export_failed")
+        raise
     try:
-        hosts_iter = _non_empty_hosts_iter(
-            identity,
-            rbac_filter,
-            inventory_config,
-            query_filter=query_filter,
-            host_filter=host_filter,
-            export_fields=export_fields,
-            app_data_fields=app_data_fields,
-            order_by=order_by,
-            order_how=order_how,
-        )
+        # Honor the per-endpoint CA certificate from the V2 dependency endpoint; fall back to system trust.
+        session.verify = inventory_config.export_service_endpoint_ca_certificate or True
 
-        request_url = _build_export_request_url(
-            export_service_endpoint, exportUUID, applicationName, resourceUUID, "upload"
-        )
-
-        session.mount(request_url, HTTPAdapter(max_retries=3))
-
-        logger.info(f"Trying to get data for org_id: {identity.org_id}")
-
-        if hosts_iter is not None:
-            logger.debug(f"Trying to upload data using URL:{request_url}")
-            export_body = _StreamingExportBody(hosts_iter, exportFormat, export_fields=export_fields)
-            response = session.post(
-                url=request_url,
-                headers=request_headers,
-                data=export_body,
+        try:
+            rbac_request_headers, request_headers = build_headers(
+                identityHeader, exportUUID, inventory_config, exportFormat
             )
-            logger.info(
-                f"{export_body.host_count} hosts exported (format: {exportFormat}) for org_id {identity.org_id}"
-            )
-            _handle_export_response(response, exportUUID, exportFormat)
-            export_created = True
-        else:
-            logger.info(f"No hosts to export for org_id: {identity.org_id}")
+        except Exception:
+            audit.record("EXPORT", "failure", "export_headers_failed")
+            logger.exception("Failed to build export-service request headers for export %s", exportUUID)
             request_url = _build_export_request_url(
                 export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
             )
-            response = session.post(
-                url=request_url,
-                headers=request_headers,
-                data=json.dumps({"message": f"No data found for org_id: {identity.org_id}", "error": 404}),
+            error_headers = {"content-type": HEADER_CONTENT_TYPE[exportFormat.lower()]}
+            if not inventory_config.export_service_endpoint_authenticated:
+                error_headers["x-rh-exports-psk"] = inventory_config.export_service_token
+            _handle_export_error(
+                "Failed to authenticate with export-service",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                request_url,
+                session,
+                error_headers,
+                exportUUID,
+                exportFormat,
             )
-            _handle_export_response(response, exportUUID, exportFormat)
-            export_created = False
-    except InventoryException as e:
-        request_url = _build_export_request_url(
-            export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
-        )
-        _handle_export_error(str(e), 500, request_url, session, request_headers, exportUUID, exportFormat)
-        export_created = False
-    finally:
-        session.close()
+            return export_created
 
-    return export_created
+        allowed, rbac_filter = resolve_permission(
+            identity, KesselResourceTypes.HOST.view, rbac_request_headers=rbac_request_headers
+        )
+
+        if not allowed:
+            # SEC-MON-REQ-1 EOI-8: denied asynchronous export, not an HTTP response.
+            audit.record("EXPORT", "failure", "permission_denied")
+            request_url = _build_export_request_url(
+                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+            )
+            _handle_export_error(
+                "You don't have the permission to access the requested resource.",
+                403,
+                request_url,
+                session,
+                request_headers,
+                exportUUID,
+                exportFormat,
+            )
+            return export_created
+
+        host_filter: dict = {}
+        query_filter: dict = {}
+        view_columns: list[dict] = []
+        order_by: str | None = None
+        order_how: str | None = None
+        allowed_apps: set[str] | None = None
+
+        def _fail(message: str, status_code: int) -> None:
+            reason = "permission_denied" if status_code == HTTPStatus.FORBIDDEN else "invalid_export_request"
+            audit.record("EXPORT", "failure", reason)
+            request_url = _build_export_request_url(
+                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+            )
+            _handle_export_error(message, status_code, request_url, session, request_headers, exportUUID, exportFormat)
+
+        if view_id:
+            user_id = identity.user_id
+            if not user_id:
+                _fail("Export with view_id requires a User or ServiceAccount identity with a user_id.", 403)
+                return export_created
+
+            try:
+                host_filter, query_filter, view_columns, order_by, order_how = _load_view_config(
+                    view_id, identity.org_id, user_id
+                )
+                logger.info("Loaded view %s for export (org_id: %s)", view_id, identity.org_id)
+            except ViewNotFoundError:
+                _fail(f"View {view_id} not found or not accessible.", 404)
+                return export_created
+            except ViewPermissionError as e:
+                _fail(str(e.detail), 403)
+                return export_created
+        elif configuration is not None:
+            if not isinstance(configuration, dict) or not configuration.get("columns"):
+                # A supplied configuration must name the columns to export. Falling through
+                # with no columns would silently export the broad legacy field set instead
+                # of the requested (WYSIWYG) view.
+                _fail("Invalid export configuration: 'columns' is required.", 400)
+                return export_created
+            try:
+                validate_view_configuration(configuration)
+            except ValidationException as e:
+                _fail(f"Invalid export configuration: {e.detail}", 400)
+                return export_created
+            host_filter, query_filter, view_columns, order_by, order_how = _config_to_export_inputs(configuration)
+            logger.info("Using inline export configuration (org_id: %s)", identity.org_id)
+
+        if view_id or configuration is not None:
+            allowed_apps = get_allowed_app_services(identity, rbac_request_headers=rbac_request_headers)
+            if allowed_apps is not None:
+                known_apps = set(get_app_data_models().keys())
+                if query_filter:
+                    denied_filters = [k for k in query_filter if k in known_apps and k not in allowed_apps]
+                    if denied_filters:
+                        _fail(f"Insufficient permissions to filter by {denied_filters}", 403)
+                        return export_created
+                sort_app = get_app_name_from_sort(order_by)
+                if sort_app is not None and sort_app not in allowed_apps:
+                    _fail(f"Insufficient permissions to sort by '{order_by}'", 403)
+                    return export_created
+
+            denied_app = _check_dedicated_host_filter_permissions(allowed_apps, host_filter)
+            if denied_app:
+                _fail(f"Insufficient permissions to filter by {denied_app}", 403)
+                return export_created
+
+        export_fields, app_data_fields = resolve_export_columns(view_columns, allowed_apps=allowed_apps)
+
+        try:
+            hosts_iter = _non_empty_hosts_iter(
+                identity,
+                rbac_filter,
+                inventory_config,
+                query_filter=query_filter,
+                host_filter=host_filter,
+                export_fields=export_fields,
+                app_data_fields=app_data_fields,
+                order_by=order_by,
+                order_how=order_how,
+            )
+
+            request_url = _build_export_request_url(
+                export_service_endpoint, exportUUID, applicationName, resourceUUID, "upload"
+            )
+
+            session.mount(request_url, HTTPAdapter(max_retries=3))
+
+            logger.info(f"Trying to get data for org_id: {identity.org_id}")
+
+            if hosts_iter is not None:
+                logger.debug(f"Trying to upload data using URL:{request_url}")
+                export_body = _StreamingExportBody(hosts_iter, exportFormat, export_fields=export_fields)
+                response = session.post(
+                    url=request_url,
+                    headers=request_headers,
+                    data=export_body,
+                )
+                logger.info(
+                    f"{export_body.host_count} hosts exported (format: {exportFormat}) for org_id {identity.org_id}"
+                )
+                result = _handle_export_response(response, exportUUID, exportFormat)
+                if result == "already_processed":
+                    audit.record("EXPORT_REPLAY", "success", "already_processed")
+                else:
+                    audit.record("EXPORT_UPLOAD", "success")
+                export_created = True
+            else:
+                audit.record("EXPORT", "failure", "no_data")
+                logger.info(f"No hosts to export for org_id: {identity.org_id}")
+                request_url = _build_export_request_url(
+                    export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+                )
+                response = session.post(
+                    url=request_url,
+                    headers=request_headers,
+                    data=json.dumps({"message": f"No data found for org_id: {identity.org_id}", "error": 404}),
+                )
+                _handle_export_response(response, exportUUID, exportFormat)
+                export_created = False
+        except InventoryException as e:
+            audit.record("EXPORT", "failure", "export_failed")
+            request_url = _build_export_request_url(
+                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+            )
+            _handle_export_error(str(e), 500, request_url, session, request_headers, exportUUID, exportFormat)
+            export_created = False
+
+        return export_created
+    finally:
+        audit.record("EXPORT", "failure", "export_failed")
+        session.close()
 
 
 def _build_export_request_url(
@@ -711,12 +737,16 @@ def _handle_export_error(
         logger.exception(f"Failed to report export error to export-service for export {exportUUID}")
 
 
-def _handle_export_response(response: Response, exportUUID: UUID, exportFormat: str):
+def _handle_export_response(
+    response: Response, exportUUID: UUID, exportFormat: str
+) -> Literal["accepted", "already_processed"]:
     if response.status_code == HTTPStatus.ACCEPTED:
         if response.text != "":
             logger.info(f"{response.text} for export ID {str(exportUUID)} in {exportFormat.upper()} format")
+        return "accepted"
     elif "already been processed" in (response.text or "").lower():
         logger.warning(f"Export {exportUUID} was already processed (duplicate delivery); treating as success")
+        return "already_processed"
     else:
         raise InventoryException(detail=response.text)
 

@@ -36,7 +36,7 @@ def completion_consumer(monkeypatch, otel_provider):
     monkeypatch.setattr(threadctx, "org_id", "previous-org", raising=False)
     consumer = host_mq.HostAppMessageConsumer(MagicMock(), MagicMock(), MagicMock(), MagicMock())
 
-    def process_message(_application, message):
+    def process_message(_application, message, **_kwargs):
         with host_mq.tracer.start_as_current_span(f"SQL {message['org_id']}"):
             pass
         result = host_mq.OperationResult(None, None, None, None, lambda: None)
