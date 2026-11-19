@@ -1,6 +1,6 @@
 # Keep in sync with RBAC sub-user entries in:
 #   iqe-host-inventory-plugin/iqe_host_inventory/conf/host_inventory.default.yaml
-#   (smoke.users section, entries with 'rbac' field)
+#   (smoke.users section, entries with an 'rbac' field plus the legacy non-admin user)
 users:
   # --- Pre-configured role users (assign existing RBAC role) ---
   - suffix: "inv-admin"
@@ -138,4 +138,8 @@ users:
 
   # --- Special users ---
   - suffix: "no-perms"
+    roles: []
+
+  # Legacy non-admin user; RBAC tests grant permissions as needed.
+  - suffix: "2"
     roles: []
