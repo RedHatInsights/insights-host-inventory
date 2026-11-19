@@ -704,7 +704,9 @@ A host is considered to match the requested tag if and only if an available tag 
 ** the set of values of the requested tag is a non-empty set and this set is a subset of values defined by the available tag
 
 It is possible to filter by multiple tags at the same time.
-In that case, a host must match all the requested tags.
+If filters involve the same tag name, a host must match one of the different values selected for this tag name.
+If filters involve different tag names, a host must match at least one of the values for all requested tag names.
+See [ADR-0007](https://inscope.corp.redhat.com/docs/default/component/rhl-architecture/decisions/common/0007-standardized-tag-filtering/) for standardized tag filtering across services.
 
 See [/hosts](https://console.redhat.com/docs/api/inventory/v1) for the reference implementation of host filtering based on tags.
 
@@ -714,9 +716,9 @@ Assume the following set of hosts
 
 |Host |Tags defined by the host
 |--|--
-|example01 a|<code>insights-client/http-server<br>insights-client/env=prod</code>
-|example02 a|<code>insights-client/http-server=cgi<br>insights-client/env=prod<br>insights-client/env=stage</code>
-|example03 a|<code>insights-client/http-server=cgi<br>insights-client/http-server=tls<br>insights-client/http-server=http2<br>insights-client/env=stage</code>
+|example01|<code>insights-client/http-server<br>insights-client/env=prod</code>
+|example02|<code>insights-client/http-server=cgi<br>insights-client/env=prod<br>insights-client/env=stage</code>
+|example03|<code>insights-client/http-server=cgi<br>insights-client/http-server=tls<br>insights-client/http-server=http2<br>insights-client/env=stage</code>
 
 A sample query of `/hosts?tags=insights-client/env=prod` matches two hosts (example01, example02).
 In this case the requested tag defines
@@ -739,7 +741,7 @@ The following table summarizes other combinations of requested tags and matched 
 |Requested tags |Matched hosts
 |--|--
 |<code>insights-client/http-server=cgi</code>|<code>* example02<br>* example03</code>
-|<code>insights-client/http-server=cgi<br>insights-client/http-server=tls</code>|<code>* example03</code>
+|<code>insights-client/http-server=cgi<br>insights-client/http-server=tls</code>|<code>* example02<br>* example03</code>
 |<code>insights-client/http-server</code>|<code>* example01</code>
 |<code>insights-client/http-server<br>insights-client/env=stage</code>|no hosts matched
 
