@@ -716,9 +716,9 @@ Assume the following set of hosts
 
 |Host |Tags defined by the host
 |--|--
-|example01 a|<code>insights-client/http-server<br> insights-client/env=prod</code>
-|example02 a|<code>insights-client/http-server=cgi<br> insights-client/env=prod<br> insights-client/env=stage</code>
-|example03 a|<code>insights-client/http-server=cgi<br> insights-client/http-server=tls<br> insights-client/http-server=http2<br> insights-client/env=stage</code>
+|example01|<code>insights-client/http-server<br>insights-client/env=prod</code>
+|example02|<code>insights-client/http-server=cgi<br>insights-client/env=prod<br>insights-client/env=stage</code>
+|example03|<code>insights-client/http-server=cgi<br>insights-client/http-server=tls<br>insights-client/http-server=http2<br>insights-client/env=stage</code>
 
 A sample query of `/hosts?tags=insights-client/env=prod` matches two hosts (example01, example02).
 In this case the requested tag defines
@@ -741,9 +741,9 @@ The following table summarizes other combinations of requested tags and matched 
 |Requested tags |Matched hosts
 |--|--
 |<code>insights-client/http-server=cgi</code>|<code>* example02<br>* example03</code>
-|<code>insights-client/http-server=cgi<br> insights-client/http-server=tls</code>|<code>* example02<br>* example03</code>
+|<code>insights-client/http-server=cgi<br>insights-client/http-server=tls</code>|<code>* example02<br>* example03</code>
 |<code>insights-client/http-server</code>|<code>* example01</code>
-|<code>insights-client/http-server<br> insights-client/env=stage</code>|no hosts matched
+|<code>insights-client/http-server<br>insights-client/env=stage</code>|no hosts matched
 
 
 #### Query syntax
