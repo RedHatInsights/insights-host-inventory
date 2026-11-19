@@ -64,9 +64,9 @@
   delay: "{{ api_delay }}"
   until: group_removal is not failed
 
-# --- Stop here for no-perms user ---
+# --- Stop here for users without designated roles ---
 
-- name: "Skip role/group setup for no-perms user"
+- name: "Skip role/group setup for {{ username }}"
   ansible.builtin.debug:
     msg: "User {{ username }} has no roles — cleanup complete, skipping role assignment."
   when: user.roles | length == 0

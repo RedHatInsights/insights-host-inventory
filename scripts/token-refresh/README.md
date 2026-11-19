@@ -43,7 +43,7 @@ your bash history.
 | Argument | Required | Description |
 |---|---|---|
 | `--env` | Yes | `stage` or `prod` |
-| `--prefix` | Yes | User prefix (e.g. `insights_inventory_qe`). Usernames are `<prefix>-<suffix>` |
+| `--prefix` | Yes | Org admin username (e.g. `insights_inventory_qe`). Other users are named `<prefix>-<suffix>` |
 | `--password` | Yes | Shared password for all users in this org |
 | `--proxy` | Stage only | HTTPS proxy URL |
 | `--vault-token` | Yes | Vault authentication token |
@@ -69,12 +69,13 @@ The script generates offline tokens using the same SSO authorization code
 flow that the Red Hat API management page uses:
 
 1. Loads user suffixes from `scripts/rbac-setup/vars/users.yml`
-2. For each user (`<prefix>-<suffix>`):
+2. For each test user (`<prefix>-<suffix>`) and the org admin (`<prefix>`):
    - Submits credentials to the SSO login form
    - Captures the authorization code from the redirect
    - Exchanges the code for an offline token
 3. Reads the current Vault secret at the given path
-4. Updates only the `<suffix>-refresh_token` keys (preserves all other keys)
+4. Updates the keys for successfully generated tokens: `<suffix>-refresh_token`
+   for test users and `refresh_token` for the org admin. Preserves all other keys.
 5. Writes back to Vault with check-and-set (CAS) to prevent overwriting
    concurrent changes
 
@@ -85,14 +86,18 @@ No browser or Selenium is needed — everything is done via HTTP requests.
 The Vault secret at the configured path contains one key per user:
 
 ```
+refresh_token: <org-admin-token>
 inv-admin-refresh_token: <token1>
 hosts-admin-refresh_token: <token2>
 hosts-viewer-refresh_token: <token3>
 no-perms-refresh_token: <token4>
+2-refresh_token: <token5>
 ...
 ```
 
 The suffixes match those defined in `scripts/rbac-setup/vars/users.yml`.
+The `<prefix>-2` token is written as `2-refresh_token` at the configured org
+secret path, not to a separate legacy user secret.
 
 ## Vault Path Reference
 
