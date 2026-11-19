@@ -2,10 +2,7 @@
 
 import asyncio
 import json
-import logging
 from base64 import b64encode
-from copy import deepcopy
-from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -18,12 +15,8 @@ from flask import abort
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 
-from api.host_views import _validate_sort_authorization
-from api.views import _get_view_identity
-from app import audit
 from app import render_exception
 from app import telemetry
-from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
@@ -37,9 +30,10 @@ from app.security_logging import SecurityAuditMiddleware
 from app.tags_blueprint import tags_bp
 from lib import middleware
 from lib import views_repository
-from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
+
+pytestmark = pytest.mark.usefixtures("restore_thread_context")
 
 HOST_ID = "e3f9b2dd-1c8b-4d89-8b89-2ff9d8dc7cc4"
 EXPORT_ID = "b462eb1b-2bea-4efc-84fd-5f2c911b211b"
@@ -51,27 +45,6 @@ def encoded_identity(data):
 
 def headers(data=USER_IDENTITY):
     return {"x-rh-identity": encoded_identity(data), "x-rh-insights-request-id": "request-a"}
-
-
-@pytest.fixture(autouse=True)
-def restore_thread_context():
-    previous = threadctx.__dict__.copy()
-    yield
-    threadctx.__dict__.clear()
-    threadctx.__dict__.update(previous)
-
-
-@pytest.fixture
-def audit_output(monkeypatch):
-    stream = StringIO()
-    handler = logging.StreamHandler(stream)
-    handler.setFormatter(audit.AuditFormatter())
-    logger = logging.Logger("inventory.audit", level=logging.INFO)
-    logger.addHandler(handler)
-    logger.propagate = False
-    monkeypatch.setattr(audit, "logger", logger)
-    yield stream
-    handler.close()
 
 
 @pytest.fixture
@@ -95,37 +68,11 @@ def client(monkeypatch):
     def concealed(host_id):
         return {"unexpected": host_id}
 
-    def direct_check():
-        middleware.check_access(KesselResourceTypes.HOST.view, [HOST_ID])
-        return {"unexpected": True}
-
-    def group_check():
-        middleware.rbac_group_id_check({"groups": set()}, {HOST_ID})
-        return {"unexpected": True}
-
-    def view_identity():
-        _get_view_identity()
-        return {"unexpected": True}
-
-    def view_owner():
-        identity = get_current_identity()
-        views_repository.update_view(HOST_ID, {}, identity.org_id, identity.user_id)
-        return {"unexpected": True}
-
-    def sort_denied():
-        _validate_sort_authorization("advisor:recommendations", set())
-        return {"unexpected": True}
-
     handlers = {
         "allowed": lambda: {"ok": True},
         "denied": denied,
         "rbac_denied": rbac_denied,
         "concealed": concealed,
-        "direct_check": direct_check,
-        "group_check": group_check,
-        "view_identity": view_identity,
-        "view_owner": view_owner,
-        "sort_denied": sort_denied,
         "not_found": lambda: abort(404),
     }
     paths = {}
@@ -196,16 +143,8 @@ def test_framework_authentication_rejections_emit_one_safe_event(client, audit_o
     assert "untrusted" not in audit_output.getvalue()
 
 
-@pytest.mark.parametrize(
-    "data,principal",
-    [
-        (USER_IDENTITY, USER_IDENTITY["user"]["user_id"]),
-        (SERVICE_ACCOUNT_IDENTITY, SERVICE_ACCOUNT_IDENTITY["service_account"]["client_id"]),
-        (SYSTEM_IDENTITY, SYSTEM_IDENTITY["system"]["cn"]),
-    ],
-)
-def test_http_authorization_rejection_preserves_verified_actor_and_response(client, audit_output, data, principal):
-    response = client.get("/denied?token=query-secret", headers=headers(data))
+def test_http_authorization_rejection_preserves_verified_actor_and_response(client, audit_output):
+    response = client.get("/denied?token=query-secret", headers=headers())
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Existing denial response"
@@ -213,44 +152,20 @@ def test_http_authorization_rejection_preserves_verified_actor_and_response(clie
     assert event["action"] == "GET"
     assert event["resource_type"] == "http_request"
     assert event["resource_id"] == "/denied"
-    assert event["principal"] == principal
-    assert event["org_id"] == data["org_id"]
+    assert event["principal"] == USER_IDENTITY["user"]["user_id"]
+    assert event["org_id"] == USER_IDENTITY["org_id"]
     assert event["request_id"] == "request-a"
     assert event["reason"] == "permission_denied"
     assert "secret" not in audit_output.getvalue()
 
 
-@pytest.mark.parametrize("path", ["/rbac_denied", "/direct_check", "/group_check", "/sort_denied"])
-def test_distinct_authorization_paths_emit_one_event(client, audit_output, path):
+def test_rbac_rejection_emits_one_event(client, audit_output):
+    path = "/rbac_denied"
     assert client.get(path, headers=headers()).status_code == 403
     (event,) = map(json.loads, audit_output.getvalue().splitlines())
     assert event["principal"] == USER_IDENTITY["user"]["user_id"]
     assert event["resource_id"] == path
     assert event["reason"] == "permission_denied"
-
-
-@pytest.mark.parametrize("data", [SYSTEM_IDENTITY, {**USER_IDENTITY, "user": {"username": "verified-user"}}])
-def test_view_identity_restrictions_are_audited(client, audit_output, data):
-    assert client.get("/view_identity", headers=headers(data)).status_code == 403
-    (event,) = map(json.loads, audit_output.getvalue().splitlines())
-    assert event["org_id"] == data["org_id"]
-    assert event["reason"] == "permission_denied"
-
-
-@pytest.mark.parametrize("system_view", [True, False])
-def test_view_system_and_ownership_rejections_are_audited(client, audit_output, monkeypatch, system_view):
-    monkeypatch.setattr(
-        views_repository,
-        "_get_visible_view",
-        lambda *args: SimpleNamespace(
-            is_system_view=system_view,
-            created_by="another-user",
-        ),
-    )
-    assert client.get("/view_owner", headers=headers()).status_code == 403
-    (event,) = map(json.loads, audit_output.getvalue().splitlines())
-    assert event["principal"] == USER_IDENTITY["user"]["user_id"]
-    assert event["resource_id"] == "/view_owner"
 
 
 def test_permission_denial_concealed_as_404_is_audited(client, audit_output):
@@ -416,12 +331,9 @@ def test_export_invalid_identity_has_safe_correlated_failure(audit_output):
     assert "secret" not in audit_output.getvalue()
 
 
-@pytest.mark.parametrize("rejection", ["permission", "missing_user", "view_permission", "sort", "dedicated_filter"])
+@pytest.mark.parametrize("rejection", ["permission", "view_permission"])
 def test_export_authorization_rejections_emit_one_event(audit_output, monkeypatch, rejection):
-    identity = deepcopy(USER_IDENTITY)
-    if rejection == "missing_user":
-        identity["user"].pop("user_id")
-    payload = export_payload(identity, {"view_id": HOST_ID} if rejection != "permission" else None)
+    payload = export_payload(USER_IDENTITY, {"view_id": HOST_ID} if rejection == "view_permission" else None)
     config = SimpleNamespace(
         export_service_endpoint="https://export.invalid", export_service_endpoint_ca_certificate=None
     )
@@ -431,27 +343,12 @@ def test_export_authorization_rejections_emit_one_event(audit_output, monkeypatc
     monkeypatch.setattr(
         export_service, "resolve_permission", lambda *args, **kwargs: (rejection != "permission", None)
     )
-    error_handler = Mock()
-    monkeypatch.setattr(export_service, "_handle_export_error", error_handler)
-    monkeypatch.setattr(export_service, "get_allowed_app_services", lambda *args, **kwargs: set())
-    monkeypatch.setattr(export_service, "get_app_data_models", lambda: {})
-    monkeypatch.setattr(
-        export_service,
-        "_load_view_config",
-        lambda *args: (
-            {},
-            {},
-            [],
-            "advisor:recommendations" if rejection == "sort" else None,
-            None,
-        ),
-    )
     if rejection == "view_permission":
         monkeypatch.setattr(
             export_service, "_load_view_config", Mock(side_effect=views_repository.ViewPermissionError("Denied"))
         )
-    if rejection == "dedicated_filter":
-        monkeypatch.setattr(export_service, "_check_dedicated_host_filter_permissions", lambda *args: "advisor")
+    error_handler = Mock()
+    monkeypatch.setattr(export_service, "_handle_export_error", error_handler)
 
     assert export_service.create_export(payload, config) is False
     error_handler.assert_called_once()

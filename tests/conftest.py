@@ -14,6 +14,7 @@ sys.path.append(
 
 # Make fixtures available
 pytest_plugins = [
+    "tests.fixtures.audit_fixtures",
     "tests.fixtures.api_fixtures",
     "tests.fixtures.app_fixtures",
     "tests.fixtures.db_fixtures",
