@@ -172,29 +172,30 @@ def main() -> None:
 
     suffixes = load_user_suffixes()
     print(f"\nLoaded {len(suffixes)} user suffixes from {USERS_YML.name}")
+    targets = [(f"{prefix}-{suffix}", f"{suffix}-refresh_token") for suffix in suffixes]
+    targets.append((prefix, "refresh_token"))
 
     # Generate tokens
     generated = {}
     failed = []
 
-    for i, suffix in enumerate(suffixes, 1):
-        username = f"{prefix}-{suffix}"
-        print(f"\n[{i}/{len(suffixes)}] {username}...", end=" ", flush=True)
+    for i, (username, key) in enumerate(targets, 1):
+        print(f"\n[{i}/{len(targets)}] {username}...", end=" ", flush=True)
         try:
             token = generate_offline_token(env, username, password, proxy)
-            generated[suffix] = token
+            generated[key] = token
             print(f"OK ({len(token)} chars)")
         except Exception as e:
-            failed.append((suffix, str(e)))
+            failed.append((username, str(e)))
             print(f"FAILED: {e}")
 
     # Summary
     print(f"\n{'=' * 60}")
-    print(f"Generated: {len(generated)}/{len(suffixes)}")
+    print(f"Generated: {len(generated)}/{len(targets)}")
     if failed:
-        print(f"Failed:    {len(failed)}/{len(suffixes)}")
-        for suffix, error in failed:
-            print(f"  - {suffix}: {error}")
+        print(f"Failed:    {len(failed)}/{len(targets)}")
+        for username, error in failed:
+            print(f"  - {username}: {error}")
 
     if not generated:
         print("\nNo tokens generated. Nothing to write to Vault.")
@@ -214,10 +215,7 @@ def main() -> None:
         sys.exit(1)
 
     # Update only the generated token keys
-    updated_data = dict(vault_data)
-    for suffix, token in generated.items():
-        key = f"{suffix}-refresh_token"
-        updated_data[key] = token
+    updated_data = {**vault_data, **generated}
 
     print(f"Updating {len(generated)} token(s) in Vault...")
     try:
