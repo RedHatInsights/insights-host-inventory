@@ -5,6 +5,29 @@ emits one JSON record per line to stdout through `inventory.audit` at INFO.
 Custom `INVENTORY_LOGGING_CONFIG_FILE` configurations must retain the audit logger,
 handler and formatter.
 
+## Authentication and authorization
+
+HTTP failures emit one record with `outcome="failure"`,
+`resource_type="http_request"` and the request path as `resource_id`.
+Query strings, headers and request bodies are excluded.
+
+| Response | Action | Reason |
+|---|---|---|
+| 401 | `AUTHENTICATE` | `missing_credentials` or `invalid_credentials` |
+| 403 | Attempted HTTP method | `permission_denied` |
+
+401 records leave actor and tenant unknown; 403 records use an already validated
+identity when available. Accepted alternative authentication schemes produce no
+failure event. HTTP request/trace context is retained through final response handling.
+
+Known permission denials concealed as 404 are logged explicitly with the requested
+resource identifiers. Ordinary 404s are not permission-denial events.
+
+Bulk-tag credential parsing, ingress identity/owner checks and export security
+checks emit explicit events where they bypass the HTTP boundary. Export schema
+credential failures are logged only for a validated HBI target, using a validated
+export UUID for correlation when available.
+
 ## Event fields
 
 | Field | Meaning |

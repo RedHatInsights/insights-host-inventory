@@ -18,6 +18,8 @@ from api.views_validation import is_tag_column_key
 from api.views_validation import validate_view_configuration
 from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
+from app.audit import capture_audit_context
+from app.audit import log_audit_event
 from app.auth.identity import Identity
 from app.auth.identity import from_auth_header
 from app.auth.rbac import KesselResourceTypes
@@ -468,7 +470,21 @@ def create_export(
     # Kafka path has no Flask before_request; this is the same ID we send as x-rh-insights-request-id.
     threadctx.request_id = str(exportUUID)
 
-    identity = from_auth_header(identityHeader)
+    try:
+        identity = from_auth_header(identityHeader)
+    except Exception:
+        # SEC-MON-REQ-1 EOI-7: message processing has no HTTP rejection boundary.
+        log_audit_event(
+            action="AUTHENTICATE",
+            resource_type="export",
+            resource_id=exportUUID,
+            outcome="failure",
+            context=capture_audit_context(request_id=str(exportUUID)),
+            reason="invalid_credentials",
+        )
+        raise
+
+    audit_context = capture_audit_context(identity, request_id=str(exportUUID))
 
     metrics.create_export_count.inc()
     logger.info("Creating export for HBI")
@@ -509,6 +525,15 @@ def create_export(
     )
 
     if not allowed:
+        # SEC-MON-REQ-1 EOI-8: denied asynchronous export, not an HTTP response.
+        log_audit_event(
+            action="EXPORT",
+            resource_type="export",
+            resource_id=exportUUID,
+            outcome="failure",
+            context=audit_context,
+            reason="permission_denied",
+        )
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
         )
@@ -532,6 +557,16 @@ def create_export(
     allowed_apps: set[str] | None = None
 
     def _fail(message: str, status_code: int) -> None:
+        if status_code == HTTPStatus.FORBIDDEN:
+            # SEC-MON-REQ-1 EOI-8: view ownership and application-data restrictions.
+            log_audit_event(
+                action="EXPORT",
+                resource_type="export",
+                resource_id=exportUUID,
+                outcome="failure",
+                context=audit_context,
+                reason="permission_denied",
+            )
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
         )
@@ -586,19 +621,7 @@ def create_export(
 
         denied_app = _check_dedicated_host_filter_permissions(allowed_apps, host_filter)
         if denied_app:
-            request_url = _build_export_request_url(
-                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
-            )
-            _handle_export_error(
-                f"Insufficient permissions to filter by {denied_app}",
-                403,
-                request_url,
-                session,
-                request_headers,
-                exportUUID,
-                exportFormat,
-            )
-            session.close()
+            _fail(f"Insufficient permissions to filter by {denied_app}", 403)
             return export_created
 
     export_fields, app_data_fields = resolve_export_columns(view_columns, allowed_apps=allowed_apps)

@@ -6,6 +6,8 @@ from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only
 
+from app.audit import capture_audit_context
+from app.audit import log_audit_event
 from app.auth.identity import from_auth_header
 from app.models import Host
 from app.models import db
@@ -94,7 +96,20 @@ def bulk_tag_hosts():
         if not data:
             return jsonify({"error": "No JSON data provided"}), 400
 
-        identity = from_auth_header(request.headers["x-rh-identity"])
+        try:
+            identity = from_auth_header(request.headers["x-rh-identity"])
+        except Exception:
+            # SEC-MON-REQ-1 EOI-7: this route parses identity outside OpenAPI security.
+            # Preserve its existing error response; do not trust the rejected header.
+            log_audit_event(
+                action="AUTHENTICATE",
+                resource_type="http_request",
+                resource_id=request.path,
+                outcome="failure",
+                context=capture_audit_context(),
+                reason="invalid_credentials" if "x-rh-identity" in request.headers else "missing_credentials",
+            )
+            raise
         if not identity.org_id:
             return jsonify({"error": "No identity provided"}), 401
 

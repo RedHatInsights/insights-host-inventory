@@ -20,6 +20,8 @@ from werkzeug.exceptions import HTTPException
 from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
+from app.audit import capture_audit_context
+from app.audit import log_audit_event
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
@@ -647,6 +649,16 @@ def access(permission: KesselPermission, id_param: str = ""):
                     # Include unauthorized IDs in the JSON response if available
                     unauthorized_ids = rbac_filter.get("unauthorized_ids", []) if rbac_filter else []
                     resource_name = permission.resource_type.name
+                    # SEC-MON-REQ-1 EOI-8: a known denial concealed as 404.
+                    # Final 403 responses are audited once at the HTTP boundary instead.
+                    log_audit_event(
+                        action=request.method,
+                        resource_type=resource_name,
+                        resource_id=", ".join(str(value) for value in (unauthorized_ids or ids)),
+                        outcome="failure",
+                        context=capture_audit_context(current_identity),
+                        reason="permission_denied",
+                    )
                     raise IdsNotFoundError(resource_name, unauthorized_ids or None)
                 abort(HTTPStatus.FORBIDDEN)
 

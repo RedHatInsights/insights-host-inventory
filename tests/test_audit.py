@@ -6,7 +6,6 @@ import subprocess
 import sys
 from copy import deepcopy
 from datetime import datetime
-from io import StringIO
 from pathlib import Path
 from uuid import UUID
 
@@ -22,26 +21,7 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import X509_IDENTITY
 
-
-@pytest.fixture(autouse=True)
-def restore_thread_context():
-    previous = threadctx.__dict__.copy()
-    yield
-    threadctx.__dict__.clear()
-    threadctx.__dict__.update(previous)
-
-
-@pytest.fixture
-def audit_output(monkeypatch):
-    stream = StringIO()
-    handler = logging.StreamHandler(stream)
-    handler.setFormatter(audit.AuditFormatter())
-    logger = logging.Logger("inventory.audit", level=logging.INFO)
-    logger.addHandler(handler)
-    logger.propagate = False
-    monkeypatch.setattr(audit, "logger", logger)
-    yield stream
-    handler.close()
+pytestmark = pytest.mark.usefixtures("restore_thread_context")
 
 
 @pytest.mark.parametrize(
