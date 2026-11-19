@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from functools import partial
 from typing import override
 
@@ -8,6 +9,8 @@ from marshmallow import fields
 
 from app.audit import capture_audit_context
 from app.audit import log_audit_event
+from app.audit import with_message_audit_trace
+from app.auth.identity import from_auth_header
 from app.common import inventory_config
 from app.logging import get_logger
 from app.queue import metrics
@@ -16,6 +19,7 @@ from app.queue.host_mq import HBIMessageConsumerBase
 from app.queue.host_mq import OperationResult
 from app.queue.host_mq import initialize_thread_local_storage
 from app.queue.mq_common import common_message_parser
+from app.queue.mq_common import decode_kafka_headers
 
 logger = get_logger(__name__)
 
@@ -77,9 +81,13 @@ class ExportServiceConsumer(HBIMessageConsumerBase):
     def handle_message(
         self,
         message: str | bytes,
-        headers: list[tuple[str, bytes]] | None = None,  # noqa: ARG002
+        headers: list[tuple[str, bytes]] | None = None,
     ) -> OperationResult | None:
-        validated_msg = parse_export_service_message(message)
+        decoded_headers = decode_kafka_headers(headers)
+        local_span = self._should_emit_message_span()
+        validated_msg = parse_export_service_message(
+            message, audit_trace_headers=decoded_headers, local_audit_span=local_span
+        )
         try:
             # HTTP requests set this in Flask before_request. The export consumer is Kafka-based,
             # so populate threadctx here so ContextualFilter attaches request_id to all logs.
@@ -98,7 +106,9 @@ class ExportServiceConsumer(HBIMessageConsumerBase):
                 logger.info("Found host-inventory application export message")
                 logger.debug("parsed_message: %s", validated_msg)
 
-                if create_export(validated_msg, inventory_config()):
+                if create_export(
+                    validated_msg, inventory_config(), audit_trace_headers=decoded_headers, local_audit_span=local_span
+                ):
                     metrics.export_service_message_handler_success.inc()
                     return OperationResult(
                         None, None, None, None, partial(logger.info, "Export message processed successfully")
@@ -119,13 +129,15 @@ class ExportServiceConsumer(HBIMessageConsumerBase):
 
 
 @metrics.export_service_message_parsing_time.time()
-def parse_export_service_message(message):
+def parse_export_service_message(
+    message, *, audit_trace_headers: Mapping[str, str] | None = None, local_audit_span: bool = True
+):
     parsed_message = common_message_parser(message)
     try:
         parsed_export_msg = ExportEventSchema().load(parsed_message)
         return parsed_export_msg
     except ValidationError as e:
-        # SEC-MON-REQ-1 EOI-7: credential schema rejection occurs before create_export.
+        # SEC-MON-REQ-1 EOI-7/11: identifiable HBI requests can fail before create_export.
         # Only target/correlation fields that passed schema validation are used;
         # other applications and unrelated schema failures are not auth events.
         data_errors = e.messages.get("data", {}) if isinstance(e.messages, dict) else {}
@@ -137,19 +149,34 @@ def parse_export_service_message(message):
             valid_event.get("source") == EXPORT_EVENT_SOURCE
             and isinstance(resource, dict)
             and resource.get("application") == EXPORT_SERVICE_APPLICATION
-            and isinstance(resource_errors, dict)
-            and "x-rh-identity" in resource_errors
         ):
             export_id = resource.get("export_request_uuid")
+            identity = None
+            credential_failure = isinstance(resource_errors, dict) and "x-rh-identity" in resource_errors
+            if not credential_failure:
+                credential = resource.get("x_rh_identity")
+                if not isinstance(credential, str):
+                    credential_failure = True
+                else:
+                    try:
+                        identity = from_auth_header(credential)
+                    except Exception:
+                        credential_failure = True
+            context = capture_audit_context(identity, request_id=str(export_id) if export_id is not None else None)
+            if audit_trace_headers is not None:
+                context = with_message_audit_trace(context, audit_trace_headers, local_span=local_audit_span)
+            credential_reason = (
+                "invalid_credentials"
+                if "x-rh-identity" in parsed_message["data"]["resource_request"]
+                else "missing_credentials"
+            )
             log_audit_event(
-                action="AUTHENTICATE",
+                action="AUTHENTICATE" if credential_failure else "EXPORT",
                 resource_type="export",
                 resource_id=export_id,
                 outcome="failure",
-                context=capture_audit_context(request_id=str(export_id) if export_id is not None else None),
-                reason="invalid_credentials"
-                if "x-rh-identity" in parsed_message["data"]["resource_request"]
-                else "missing_credentials",
+                context=context,
+                reason=credential_reason if credential_failure else "invalid_export_request",
             )
         # Raw messages and exception details may contain rejected credentials.
         logger.error("Input validation error while parsing export event message")

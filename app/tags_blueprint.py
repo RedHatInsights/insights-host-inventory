@@ -6,6 +6,7 @@ from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only
 
+from app.audit import AuditEvent
 from app.audit import capture_audit_context
 from app.audit import log_audit_event
 from app.auth.identity import from_auth_header
@@ -65,6 +66,8 @@ def update_host_tags(session, host, tags):
         return True
     except Exception as e:
         current_app.logger.error(f"Error updating host {host.id}: {str(e)}")
+        # Discard this host's unflushed in-place changes before the rest of the batch commits.
+        session.expire(host)
         return False
 
 
@@ -79,10 +82,17 @@ def process_host_batch(session, identity, batch_ids, tags):
     not_found = [hid for hid in batch_ids if str(hid) not in found_host_ids]
 
     processed = 0
+    changed_ids = []
+    failed_ids = []
     for host in hosts:
+        host_id = str(host.id)
         if update_host_tags(session, host, tags):
             processed += 1
-    return processed, not_found
+            if session.is_modified(host):
+                changed_ids.append(host_id)
+        else:
+            failed_ids.append(host_id)
+    return processed, not_found, changed_ids, failed_ids
 
 
 @tags_bp.route("/tags", methods=["POST"])
@@ -132,19 +142,40 @@ def bulk_tag_hosts():
         not_found_hosts = []
         total_hosts = len(host_id_list)
         batch_size = config.api_bulk_tag_host_batch_size
+        audit_context = capture_audit_context(identity)
 
         for i in range(0, total_hosts, batch_size):
             batch_ids = host_id_list[i : i + batch_size]
-            with session_guard(db.session) as session:
-                processed, missing = process_host_batch(session, identity, batch_ids, tags)
-                processed_hosts += processed
-                not_found_hosts.extend(missing)
-                try:
-                    session.flush()
-                except IntegrityError as e:
-                    current_app.logger.error(f"Database error in batch: {str(e)}")
-                    session.rollback()
+            audit_events = []
+            failed_events = []
+            flush_failed = False
+            try:
+                with session_guard(db.session) as session:
+                    processed, missing, changed_ids, failed_ids = process_host_batch(
+                        session, identity, batch_ids, tags
+                    )
+                    audit_events = [AuditEvent("UPDATE", "host_tags", hid, audit_context) for hid in changed_ids]
+                    failed_events = [AuditEvent("UPDATE", "host_tags", hid, audit_context) for hid in failed_ids]
+                    not_found_hosts.extend(missing)
+                    try:
+                        session.flush()
+                    except IntegrityError:
+                        flush_failed = True
+                        raise
+            except Exception:
+                # SEC-MON-REQ-1 EOI-1/11: no completed-success events/counts for rolled-back tags.
+                for event in audit_events + failed_events:
+                    event.emit("failure", reason="tag_update_failed")
+                if flush_failed:
+                    current_app.logger.error("Database error in tag batch; changes rolled back")
                     continue
+                raise
+            processed_hosts += processed
+            # SEC-MON-REQ-1 EOI-1: one event per changed host, after its batch commits.
+            for event in audit_events:
+                event.emit("success")
+            for event in failed_events:
+                event.emit("failure", reason="tag_update_failed")
 
         response = {"processed_hosts": processed_hosts, "total_hosts": total_hosts, "not_found_hosts": not_found_hosts}
         if not_found_hosts:

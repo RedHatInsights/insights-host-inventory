@@ -10,6 +10,7 @@ from api import flask_json_response
 from api import json_error_response
 from api import metrics
 from api.views_validation import validate_view_configuration
+from app.audit import capture_audit_context
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.exceptions import ValidationException
@@ -78,7 +79,9 @@ def create_view(body, **kwargs):  # noqa: ARG001
     except ValidationException as e:
         return json_error_response("Validation Error", str(e.detail), HTTPStatus.BAD_REQUEST)
 
-    view = repo_create_view(validated_data, org_id, user_id)
+    view = repo_create_view(
+        validated_data, org_id, user_id, audit_context=capture_audit_context(get_current_identity())
+    )
     return flask_json_response(serialize_view(view, user_id), HTTPStatus.CREATED)
 
 
@@ -103,7 +106,9 @@ def patch_view(view_id, body, **kwargs):  # noqa: ARG001
         except ValidationException as e:
             return json_error_response("Validation Error", str(e.detail), HTTPStatus.BAD_REQUEST)
 
-    view = repo_update_view(view_id, validated_data, org_id, user_id)
+    view = repo_update_view(
+        view_id, validated_data, org_id, user_id, audit_context=capture_audit_context(get_current_identity())
+    )
     return flask_json_response(serialize_view(view, user_id))
 
 
@@ -112,7 +117,7 @@ def patch_view(view_id, body, **kwargs):  # noqa: ARG001
 def delete_view(view_id, **kwargs):  # noqa: ARG001
     org_id, user_id = _get_view_identity()
 
-    repo_delete_view(view_id, org_id, user_id)
+    repo_delete_view(view_id, org_id, user_id, audit_context=capture_audit_context(get_current_identity()))
     return Response(None, HTTPStatus.NO_CONTENT)
 
 
@@ -121,7 +126,7 @@ def delete_view(view_id, **kwargs):  # noqa: ARG001
 def clone_view(view_id, **kwargs):  # noqa: ARG001
     org_id, user_id = _get_view_identity()
 
-    cloned = repo_clone_view(view_id, org_id, user_id)
+    cloned = repo_clone_view(view_id, org_id, user_id, audit_context=capture_audit_context(get_current_identity()))
     return flask_json_response(serialize_view(cloned, user_id), HTTPStatus.CREATED)
 
 
@@ -135,7 +140,9 @@ def set_default_view(body, **kwargs):  # noqa: ARG001
     except ValidationError as e:
         return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
-    view = repo_set_default_view(org_id, user_id, str(validated_data["view_id"]))
+    view = repo_set_default_view(
+        org_id, user_id, str(validated_data["view_id"]), audit_context=capture_audit_context(get_current_identity())
+    )
     return flask_json_response(serialize_view(view, user_id))
 
 
@@ -144,6 +151,6 @@ def set_default_view(body, **kwargs):  # noqa: ARG001
 def delete_default_view(**kwargs):  # noqa: ARG001
     org_id, user_id = _get_view_identity()
 
-    repo_delete_default_view(org_id, user_id)
+    repo_delete_default_view(org_id, user_id, audit_context=capture_audit_context(get_current_identity()))
 
     return Response(None, HTTPStatus.NO_CONTENT)

@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterator
+from collections.abc import Mapping
+from contextlib import contextmanager
 from dataclasses import asdict
 from dataclasses import dataclass
+from dataclasses import replace
 from datetime import UTC
 from datetime import datetime
 from ipaddress import ip_address
@@ -15,6 +19,7 @@ from uuid import UUID
 from flask import has_request_context
 from flask import request
 from opentelemetry import trace
+from opentelemetry.propagate import extract as otel_extract
 
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
@@ -32,6 +37,7 @@ _SAFE_AUDIT_REASONS = frozenset(
         "host_data_validation_failed",
         "host_not_found",
         "ingestion_failed",
+        "interrupted",
         "invalid_credentials",
         "invalid_export_request",
         "invalid_host_data",
@@ -66,6 +72,53 @@ class AuditContext:
     user_ip: str | None = None
     trace_id: str | None = None
     span_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AuditEvent:
+    """A scalar event snapshot that can be emitted after its transaction finishes."""
+
+    action: str
+    resource_type: str
+    resource_id: str | UUID | None
+    context: AuditContext
+
+    def emit(self, outcome: Literal["success", "failure"], *, reason: str | None = None) -> None:
+        log_audit_event(
+            action=self.action,
+            resource_type=self.resource_type,
+            resource_id=self.resource_id,
+            outcome=outcome,
+            context=self.context,
+            reason=reason,
+        )
+
+
+def with_message_audit_trace(context: AuditContext, headers: Mapping[str, str], *, local_span: bool) -> AuditContext:
+    """Retain message correlation without reusing an unrelated ambient batch span."""
+    if local_span:
+        return context
+    producer = otel_extract(carrier=headers)
+    span = trace.get_current_span(producer).get_span_context()
+    return replace(context, trace_id=f"{span.trace_id:032x}" if span.is_valid else None, span_id=None)
+
+
+@contextmanager
+def audit_operation(events: list[AuditEvent]) -> Iterator[None]:
+    """Wrap the commit boundary, outside session_guard; keep post-commit work outside.
+
+    Callers may remove no-ops or replace provisional IDs before leaving the scope.
+    """
+    try:
+        yield
+    except Exception:
+        # SEC-MON-REQ-1 EOI-1/11: failures must not become completed successes.
+        for event in events:
+            event.emit("failure", reason="mutation_failed")
+        raise
+    else:
+        for event in events:
+            event.emit("success")
 
 
 def capture_audit_context(

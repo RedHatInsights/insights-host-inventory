@@ -365,29 +365,29 @@ def test_export_authorization_rejections_emit_one_event(audit_output, monkeypatc
 
 
 @pytest.mark.parametrize(
-    "invalid_identity",
+    "invalid_identity,request_id",
     [
-        "invalid-credential-secret",
-        b64encode(b"[]").decode(),
-        b64encode(b"null").decode(),
-        b64encode(b'{"identity": []}').decode(),
+        ("invalid-credential-secret", None),
+        (b64encode(b"[]").decode(), "ingestion-a"),
+        (b64encode(b"null").decode(), "ingestion-a"),
+        (b64encode(b'{"identity": []}').decode(), "ingestion-a"),
     ],
 )
-def test_ingestion_invalid_identity_is_audited_without_trusting_tenant(audit_output, invalid_identity):
+def test_ingestion_invalid_identity_is_audited_without_trusting_tenant(audit_output, invalid_identity, request_id):
     consumer = object.__new__(IngressMessageConsumer)
-    threadctx.request_id = "ingestion-a"
+    threadctx.request_id = "previous-request"
     threadctx.org_id = "previous-org"
     with pytest.raises((ValidationException, ValueError, TypeError, AttributeError)):
         consumer.process_message(
             {"org_id": "untrusted-org", "reporter": "puptoo", "system_profile": {}},
-            {"b64_identity": invalid_identity},
+            {"b64_identity": invalid_identity, "request_id": request_id},
         )
     (event,) = map(json.loads, audit_output.getvalue().splitlines())
     assert event["action"] == "AUTHENTICATE"
     assert event["resource_type"] == "host_ingestion"
     assert event["org_id"] is None
     assert event["principal"] is None
-    assert event["request_id"] == "ingestion-a"
+    assert event["request_id"] == request_id
     assert "secret" not in audit_output.getvalue()
     assert "untrusted-org" not in audit_output.getvalue()
 
@@ -401,17 +401,18 @@ def test_ingestion_owner_mismatch_preserves_verified_system_actor(audit_output, 
             static_system_profile=SimpleNamespace(owner_id="another-owner"),
         ),
     )
-    threadctx.request_id = "ingestion-a"
+    threadctx.request_id = "previous-request"
     with pytest.raises(ValidationException):
         consumer.process_message(
             {"org_id": SYSTEM_IDENTITY["org_id"], "reporter": "puptoo", "system_profile": {}},
-            {"b64_identity": encoded_identity(SYSTEM_IDENTITY)},
+            {"b64_identity": encoded_identity(SYSTEM_IDENTITY), "request_id": "ingestion-a"},
         )
     (event,) = map(json.loads, audit_output.getvalue().splitlines())
     assert event["action"] == "INGEST"
     assert event["principal"] == SYSTEM_IDENTITY["system"]["cn"]
     assert event["org_id"] == SYSTEM_IDENTITY["org_id"]
     assert event["reason"] == "owner_mismatch"
+    assert event["request_id"] == "ingestion-a"
 
 
 @pytest.mark.parametrize("credential", [None, 123, [], "missing"])
@@ -488,4 +489,12 @@ def test_unrelated_export_schema_rejection_is_not_authentication_failure(audit_o
         del resource["format"]
     with pytest.raises(export_service_mq.ValidationError):
         export_service_mq.parse_export_service_message(json.dumps(payload))
-    assert audit_output.getvalue() == ""
+    if case == "unrelated_schema":
+        (event,) = map(json.loads, audit_output.getvalue().splitlines())
+        assert event["action"] == "EXPORT"
+        assert event["outcome"] == "failure"
+        assert event["reason"] == "invalid_export_request"
+        assert event["principal"] == USER_IDENTITY["user"]["user_id"]
+        assert event["org_id"] == USER_IDENTITY["org_id"]
+    else:
+        assert audit_output.getvalue() == ""

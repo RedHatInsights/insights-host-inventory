@@ -4,6 +4,9 @@ from collections.abc import Mapping
 
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.audit import AuditEvent
+from app.audit import audit_operation
+from app.audit import capture_audit_context
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.logging import get_logger
@@ -59,9 +62,11 @@ def add_staleness(staleness_data) -> Staleness:
     conventional_time_to_stale = staleness_data.get("conventional_time_to_stale")
     conventional_time_to_stale_warning = staleness_data.get("conventional_time_to_stale_warning")
     conventional_time_to_delete = staleness_data.get("conventional_time_to_delete")
-    org_id = get_current_identity().org_id
+    identity = get_current_identity()
+    org_id = identity.org_id
+    events = [AuditEvent("CREATE", "staleness_policy", org_id, capture_audit_context(identity))]
 
-    with session_guard(db.session):
+    with audit_operation(events), session_guard(db.session):
         new_staleness = Staleness(
             org_id=org_id,
             conventional_time_to_stale=conventional_time_to_stale,
@@ -77,14 +82,21 @@ def add_staleness(staleness_data) -> Staleness:
     return created_staleness
 
 
-def patch_staleness(staleness_data) -> Staleness:
+def patch_staleness(staleness_data) -> Staleness | None:
     logger.debug("Updating AccountStaleness: %s", staleness_data)
-    org_id = get_current_identity().org_id
+    identity = get_current_identity()
+    org_id = identity.org_id
+    events = [AuditEvent("UPDATE", "staleness_policy", org_id, capture_audit_context(identity))]
 
     updated_data = {key: value for (key, value) in staleness_data.items() if value}
+    previous = Staleness.query.filter(Staleness.org_id == org_id).with_for_update().one_or_none()
+    if previous is None:
+        return None
+    if all(getattr(previous, key) == value for key, value in updated_data.items()):
+        events.clear()
 
-    Staleness.query.filter(Staleness.org_id == org_id).update(updated_data)
-    db.session.commit()
+    with audit_operation(events), session_guard(db.session, close=False):
+        Staleness.query.filter(Staleness.org_id == org_id).update(updated_data)
 
     updated_staleness = Staleness.query.filter(Staleness.org_id == org_id).one_or_none()
 
@@ -97,14 +109,16 @@ def remove_staleness_if_exists() -> bool:
     Uses ORM ``delete`` so session lifecycle is consistent; custom staleness has no
     after-delete sidecar listeners, so a bulk SQL delete is not required.
     """
-    org_id = get_current_identity().org_id
+    identity = get_current_identity()
+    org_id = identity.org_id
     logger.debug("Removing AccountStaleness for org_id: %s (if present)", org_id)
-    row = Staleness.query.filter(Staleness.org_id == org_id).one_or_none()
+    row = Staleness.query.filter(Staleness.org_id == org_id).with_for_update().one_or_none()
     if row is None:
         return False
     # Do not close the scoped session: the same request (or test) may still use
     # other ORM instances (e.g. Host) bound to this session.
-    with session_guard(db.session, close=False):
+    events = [AuditEvent("DELETE", "staleness_policy", org_id, capture_audit_context(identity))]
+    with audit_operation(events), session_guard(db.session, close=False):
         db.session.delete(row)
     return True
 

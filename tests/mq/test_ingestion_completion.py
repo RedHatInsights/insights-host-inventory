@@ -28,15 +28,13 @@ def completion_consumer(monkeypatch, otel_provider):
     monkeypatch.setattr(host_mq, "OTEL_MQ_ENABLED", True)
     monkeypatch.setattr(host_mq, "OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
     monkeypatch.setattr(host_mq, "db", SimpleNamespace(session=MagicMock()))
-    monkeypatch.setattr(host_mq, "StalenessCache", nullcontext)
-    monkeypatch.setattr(host_mq, "UngroupedGroupCache", nullcontext)
     monkeypatch.setattr(host_mq, "parse_operation_message", lambda message, *_args, **_kwargs: json.loads(message))
     monkeypatch.setattr(host_mq, "metrics", MagicMock())
     monkeypatch.setattr(threadctx, "request_id", "previous-request", raising=False)
     monkeypatch.setattr(threadctx, "org_id", "previous-org", raising=False)
     consumer = host_mq.HostAppMessageConsumer(MagicMock(), MagicMock(), MagicMock(), MagicMock())
 
-    def process_message(_application, message):
+    def process_message(_application, message, **_kwargs):
         with host_mq.tracer.start_as_current_span(f"SQL {message['org_id']}"):
             pass
         result = host_mq.OperationResult(None, None, None, None, lambda: None)
