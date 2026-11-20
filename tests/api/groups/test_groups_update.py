@@ -584,7 +584,8 @@ def test_patch_group_kessel_workspace_same_name_error(
 
 @pytest.mark.xfail(
     strict=True,
-    reason="api.group.patch_group_by_id renames the RBAC workspace before patch_group rejects missing hosts",
+    reason="api.group.patch_group_by_id renames the RBAC workspace before patch_group rejects missing hosts: "
+    "RHINENG-34065",
 )
 @pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize(
