@@ -56,8 +56,7 @@ def test_update_host_preserves_protected_fields(
             persisted = response["results"][0]
             assert persisted["id"] == key
             assert persisted["created"] == original["created"]
-            # IQE derives its allowed updated delta from the event, not the caller's value.
             old_updated = datetime.fromisoformat(original["updated"])
             event_updated = datetime.fromisoformat(event["host"]["updated"])
-            assert abs(datetime.fromisoformat(persisted["updated"]) - old_updated) <= abs(event_updated - old_updated)
+            assert event_updated > old_updated
             assert datetime.fromisoformat(persisted["updated"]) == event_updated == record.modified_on

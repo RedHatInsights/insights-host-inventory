@@ -699,6 +699,7 @@ def test_custom_fields_parser_query_parameter_parsing():
         assert is_deep_object is True
 
 
+@pytest.mark.usefixtures("flask_app")
 def test_profile_scalar_fields_reject_unsupported_comparators(subtests):
     from api.filtering.db_custom_filters import build_system_profile_filter
     from app.exceptions import ValidationException

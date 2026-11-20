@@ -582,11 +582,6 @@ def test_patch_group_kessel_workspace_same_name_error(
     assert original_group.modified_on == original_modified_on
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="api.group.patch_group_by_id renames the RBAC workspace before patch_group rejects missing hosts: "
-    "RHINENG-34065",
-)
 @pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize(
     "invalid_host_scenario",
@@ -621,7 +616,6 @@ def test_patch_group_with_invalid_hosts(
     - Group retains original host associations (no hosts removed)
     - Group modified_on timestamp unchanged
     - No events produced
-    - RBAC workspace not renamed
     """
     # Mock the event producer
     mocker.patch.object(event_producer, "write_event")
@@ -649,9 +643,7 @@ def test_patch_group_with_invalid_hosts(
         patch_host_ids = [existing_host_ids[0], invalid_host_id, str(db_create_host().id)]
 
     # Attempt to patch the group with invalid host ID(s)
-    patch_doc = {"name": "must_not_be_applied", "host_ids": patch_host_ids}
-    patch_rbac_workspace = mocker.patch("api.group.patch_rbac_workspace")
-    response_status, response_data = api_patch_group(group_id, patch_doc)
+    response_status, response_data = api_patch_group(group_id, {"host_ids": patch_host_ids})
 
     # The patch should fail with a 400 error
     assert_response_status(response_status, 400)
@@ -669,7 +661,13 @@ def test_patch_group_with_invalid_hosts(
     # Verify that no events were produced
     assert event_producer.write_event.call_count == 0
 
-    # A rejected PATCH must not rename the workspace in RBAC either.
+
+@pytest.mark.usefixtures("enable_kessel")
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason="RHINENG-34065: RBAC rename precedes host validation")
+def test_patch_group_with_missing_host_does_not_rename_workspace(db_create_group, api_patch_group, mocker):
+    group = db_create_group("test_group")
+    patch_rbac_workspace = mocker.patch("api.group.patch_rbac_workspace")
+    api_patch_group(group.id, {"name": "must_not_be_applied", "host_ids": [generate_uuid()]})
     patch_rbac_workspace.assert_not_called()
 
 

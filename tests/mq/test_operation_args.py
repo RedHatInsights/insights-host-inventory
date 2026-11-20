@@ -12,6 +12,7 @@ from app.queue.host_mq import IngressMessageConsumer
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.mq_utils import FakeMessage
+from tests.helpers.mq_utils import mq_service_host_listeners
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.test_utils import OWNER_ID
 from tests.helpers.test_utils import generate_uuid
@@ -48,7 +49,8 @@ def ingest_with_args(mocker, flask_app, event_producer_mock, notification_event_
             fake_consumer, flask_app, event_producer_mock, notification_event_producer_mock
         )
         event_producer_mock.event = None
-        consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+        with mq_service_host_listeners():
+            consumer.event_loop(mocker.Mock(side_effect=(False, True)))
         assert event_producer_mock.event is not None
         return json.loads(event_producer_mock.event)
 
@@ -164,7 +166,6 @@ def test_defer_to_previous_reporter(ingest_with_args, api_get, subtests):
             _assert_host_and_profile(api_get, updated, host_id, host.reporter, host.ansible_host, ORIGINAL_PROFILE)
 
 
-@pytest.mark.usefixtures("mq_service_host_listeners")
 def test_defer_to_stale_reporter(mocker, ingest_with_args, api_get, api_create_staleness, subtests):
     status, _ = api_create_staleness(
         {

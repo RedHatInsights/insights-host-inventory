@@ -1,6 +1,9 @@
 import json
 import os
+import sys
 from collections import namedtuple
+from collections.abc import Iterator
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
@@ -12,6 +15,7 @@ from uuid import UUID
 
 from confluent_kafka import TopicPartition
 from dateutil.parser import isoparse
+from sqlalchemy import event as sa_event
 
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
@@ -36,6 +40,22 @@ from tests.helpers.test_utils import minimal_host
 
 
 MockFutureCallback = namedtuple("MockFutureCallback", ("method", "args", "kwargs", "extra_arg"))
+
+
+@contextmanager
+def mq_service_host_listeners() -> Iterator[None]:
+    """Exclude the API-only Host listener during ingestion, even after an in-process API request."""
+    staleness = sys.modules.get("api.staleness")
+    if staleness is None or not sa_event.contains(Host, "before_update", staleness.receive_before_host_update):
+        yield
+        return
+
+    listener = staleness.receive_before_host_update
+    sa_event.remove(Host, "before_update", listener)
+    try:
+        yield
+    finally:
+        sa_event.listen(Host, "before_update", listener)
 
 
 class MockEventProducer:

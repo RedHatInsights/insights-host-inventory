@@ -55,7 +55,6 @@ def _expected_mq_host(data, host_id, group_id, created, checked_in, profile):
     }
 
 
-@pytest.mark.usefixtures("mq_service_host_listeners")
 @pytest.mark.parametrize("operation", ("created", "updated"))
 def test_mq_create_update_event_contracts(
     operation,
@@ -131,7 +130,6 @@ def test_mq_create_update_event_contracts(
                     assert dict(_encode_headers(headers))["request_id"] == (request_id.encode() if request_id else b"")
 
 
-@pytest.mark.usefixtures("mq_service_host_listeners")
 def test_mq_sparse_update_uses_stored_header_sources(
     mq_create_or_update_host,
     db_create_group,

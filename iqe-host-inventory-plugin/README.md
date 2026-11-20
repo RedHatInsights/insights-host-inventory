@@ -180,7 +180,7 @@ oc rsh -n $NAMESPACE $POD
 
 Now you can run the tests the same way you would do it locally. For example:
 ```
-iqe tests plugin host_inventory -k "test_create_single_host"
+iqe tests plugin host_inventory -k "test_get_hosts_by_hostname_or_id"
 ```
 **Tip**: Every time you start the tests in ephemeral, it will automatically create some hosts and
 groups on the secondary account. This is because we need some data in the secondary account to be
@@ -188,7 +188,7 @@ able to catch data leaks between accounts. However, this setup takes some time a
 to test out your new iqe-hbi-plugin changes, it's not needed. So you can use `--skip-data-setup`
 option when you start the tests to skip the secondary account hosts and groups setup:
 ```
-iqe tests plugin host_inventory --skip-data-setup -k "test_create_single_host"
+iqe tests plugin host_inventory --skip-data-setup -k "test_get_hosts_by_hostname_or_id"
 ```
 
 ## Markers

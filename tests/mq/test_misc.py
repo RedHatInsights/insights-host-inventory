@@ -15,6 +15,7 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from api.staleness_query import get_staleness_obj
 from app import create_app
+from app.config import DEFAULT_INSIGHTS_ID
 from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
 from app.logging import threadctx
@@ -385,30 +386,32 @@ def test_groups_not_overwritten_for_existing_hosts(
     assert retrieved_host.groups[0]["ungrouped"] is False
 
 
+@pytest.mark.parametrize("with_insights_id", [False, True], ids=["subman-only", "subman-and-insights"])
 def test_batch_mq_do_dedup_within_batch(
     mocker: MockerFixture,
     event_producer: EventProducer,
     flask_app: FlaskApp,
     db_get_hosts_by_subman_id: Callable[[str], list[Host]],
     api_get,
+    with_insights_id,
 ):
     """This test sends 2 kafka payloads for the same host in the same MQ batch and checks that
     HBI applies dedup logic for messages within the same batch and doesn't create duplicates.
     """
     subman_id = generate_uuid()
-    insights_id = generate_uuid()
+    shared_ids = {"subscription_manager_id": subman_id}
+    if with_insights_id:
+        shared_ids["insights_id"] = generate_uuid()
     rhc_client_id = generate_uuid()
     rhc_config_state = generate_uuid()
     host1 = minimal_host(
-        subscription_manager_id=subman_id,
-        insights_id=insights_id,
+        **shared_ids,
         fqdn=generate_random_string(),
         reporter="puptoo",
         system_profile={"rhc_client_id": rhc_client_id},
     ).data()
     host2 = minimal_host(
-        subscription_manager_id=subman_id,
-        insights_id=insights_id,
+        **shared_ids,
         satellite_id=generate_uuid(),
         reporter="cloud-connector",
         system_profile={"rhc_config_state": rhc_config_state},
@@ -441,7 +444,8 @@ def test_batch_mq_do_dedup_within_batch(
     assert set(db_hosts[0].per_reporter_staleness) == {"puptoo", "cloud-connector"}
     assert str(db_hosts[0].static_system_profile.rhc_client_id) == rhc_client_id
     assert str(db_hosts[0].static_system_profile.rhc_config_state) == rhc_config_state
-    status, response = api_get(build_hosts_url(query=f"?insights_id={insights_id}"))
+    filter_field = "insights_id" if with_insights_id else "subscription_manager_id"
+    status, response = api_get(build_hosts_url(), query_parameters={filter_field: shared_ids[filter_field]})
     assert status == 200
     assert len(response["results"]) == 1
     assert response["results"][0]["id"] == str(db_hosts[0].id)
@@ -510,6 +514,7 @@ def test_batch_mq_two_different_hosts(
     assert {host["id"] for host in response["results"]} == {str(host.id) for host in db_hosts}
 
 
+@pytest.mark.parametrize("with_insights_id", [False, True], ids=["subman-only", "subman-and-insights"])
 def test_batch_mq_do_dedup_in_db(
     mocker: MockerFixture,
     event_producer: EventProducer,
@@ -518,6 +523,7 @@ def test_batch_mq_do_dedup_in_db(
     db_get_hosts_by_display_name: Callable[[str], list[Host]],
     mq_create_or_update_host,
     api_get,
+    with_insights_id,
 ):
     """This test sends 2 kafka payloads for different hosts in one MQ batch and checks that
     HBI falls back to do dedup on hosts in the DB if it can't find the host in already processed
@@ -525,12 +531,13 @@ def test_batch_mq_do_dedup_in_db(
     """
     subman_id = generate_uuid()
     display_name = generate_random_string()
-    insights_id = generate_uuid()
+    shared_ids = {"subscription_manager_id": subman_id}
+    if with_insights_id:
+        shared_ids["insights_id"] = generate_uuid()
     rhc_client_id = generate_uuid()
     rhc_config_state = generate_uuid()
     existing_host_data = minimal_host(
-        subscription_manager_id=subman_id,
-        insights_id=insights_id,
+        **shared_ids,
         fqdn=generate_random_string(),
         display_name=display_name,
         reporter="puptoo",
@@ -542,8 +549,7 @@ def test_batch_mq_do_dedup_in_db(
         subscription_manager_id=generate_uuid(), insights_id=generate_uuid(), display_name=display_name
     ).data()
     msg_host2 = minimal_host(
-        subscription_manager_id=subman_id,
-        insights_id=insights_id,
+        **shared_ids,
         satellite_id=generate_uuid(),
         display_name=display_name,
         reporter="cloud-connector",
@@ -571,7 +577,7 @@ def test_batch_mq_do_dedup_in_db(
     # Check that 2 different hosts have the same display_name
     db_hosts = db_get_hosts_by_display_name(display_name)
     assert len(db_hosts) == 2
-    expected_insights_ids = {insights_id, msg_host1["insights_id"]}
+    expected_insights_ids = {shared_ids.get("insights_id", DEFAULT_INSIGHTS_ID), msg_host1["insights_id"]}
     assert {str(host.insights_id) for host in db_hosts} == expected_insights_ids
     assert len({host.id for host in db_hosts}) == 2
     status, response = api_get(build_hosts_url(query=f"?display_name={display_name}"))

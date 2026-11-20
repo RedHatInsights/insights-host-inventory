@@ -9,7 +9,6 @@ from uuid import UUID
 import pytest
 from connexion import FlaskApp
 from pytest_mock import MockFixture
-from sqlalchemy import event as sa_event
 
 from api.staleness_query import get_staleness_obj
 from app.config import Config
@@ -28,6 +27,7 @@ from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import TAGS
 from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.mq_utils import MockFuture
+from tests.helpers.mq_utils import mq_service_host_listeners
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import base_host
@@ -59,8 +59,9 @@ def mq_create_or_update_host(
 
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata, operation_args=operation_args)
         consumer = consumer_class(None, flask_app, event_producer_mock, notification_event_producer)
-        result = consumer.handle_message(json.dumps(message))
-        db.session.commit()
+        with mq_service_host_listeners():
+            result = consumer.handle_message(json.dumps(message))
+            db.session.commit()
         write_add_update_event_message(event_producer, notification_event_producer, result)
         event = json.loads(event_producer.event)
 
@@ -246,24 +247,6 @@ def future_mock():
 def event_datetime_mock(mocker):
     mock = mocker.patch("app.queue.events.datetime", **{"now.return_value": now()})
     return mock.now.return_value
-
-
-@pytest.fixture(scope="function")
-def mq_service_host_listeners() -> Generator[None]:
-    """Run MQ ingestion with the Host listeners the MQ service actually has.
-
-    api.staleness registers a Host before_update listener at import time. Connexion
-    imports API modules only when serving requests, so the MQ service never loads it,
-    but any earlier API request in the test process does.
-    """
-    from api.staleness import receive_before_host_update
-
-    registered = sa_event.contains(Host, "before_update", receive_before_host_update)
-    if registered:
-        sa_event.remove(Host, "before_update", receive_before_host_update)
-    yield
-    if registered:
-        sa_event.listen(Host, "before_update", receive_before_host_update)
 
 
 @pytest.fixture(scope="function")

@@ -26,6 +26,7 @@ from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.mq_utils import generate_kessel_workspace_message
+from tests.helpers.mq_utils import mq_service_host_listeners
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.outbox_utils import capture_outbox_calls
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -106,14 +107,14 @@ def test_mq_service_does_not_load_api_host_listeners():
     assert result.returncode == 0, result.stderr[-2000:]
 
 
-@pytest.mark.usefixtures("mq_service_host_listeners")
 def test_mq_check_in_and_updated_timestamps(mocker, flask_app, event_producer_mock, api_get):
     def ingest(host):
         message = json.dumps(wrap_message(host.data(), platform_metadata=get_platform_metadata()))
         fake_consumer = mocker.Mock(**{"consume.return_value": [FakeMessage(message=message)]})
         consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer_mock, mocker.Mock())
         event_producer_mock.event = None
-        consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+        with mq_service_host_listeners():
+            consumer.event_loop(mocker.Mock(side_effect=(False, True)))
         assert event_producer_mock.event is not None
         return json.loads(event_producer_mock.event)
 
