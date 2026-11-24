@@ -2059,7 +2059,6 @@ wheels = [
 
 [[package]]
 name = "iqe-host-inventory-plugin"
-version = "25.99.1.dev1"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
