@@ -155,7 +155,7 @@ def validate_staleness_timestamps(
     *,
     stale_timestamp: str | datetime,
     stale_warning_timestamp: str | datetime,
-    culled_timestamp: str | datetime,
+    deletion_timestamp: str | datetime,
     staleness_settings: dict[str, int] | None = None,
 ) -> None:
     """Validate staleness timestamps compared to 'last_check_in' timestamp. This can be used for
@@ -179,7 +179,7 @@ def validate_staleness_timestamps(
         last_check_in + timedelta(seconds=staleness_deltas["stale_warning"]),
     )
     assert_datetimes_equal(
-        culled_timestamp, last_check_in + timedelta(seconds=staleness_deltas["culled"])
+        deletion_timestamp, last_check_in + timedelta(seconds=staleness_deltas["culled"])
     )
 
 
@@ -210,18 +210,18 @@ def validate_host_timestamps(
     logger.info(f"Host last_check_in: {host.last_check_in}")
     logger.info(f"Host stale timestamp: {host.stale_timestamp}")
     logger.info(f"Host stale warning timestamp: {host.stale_warning_timestamp}")
-    logger.info(f"Host culled timestamp: {host.culled_timestamp}")
+    logger.info(f"Host deletion timestamp: {host.deletion_timestamp}")
 
     assert host.last_check_in is not None, "last_check_in must not be None"
     assert host.stale_timestamp is not None, "stale_timestamp must not be None"
     assert host.stale_warning_timestamp is not None, "stale_warning_timestamp must not be None"
-    assert host.culled_timestamp is not None, "culled_timestamp must not be None"
+    assert host.deletion_timestamp is not None, "deletion_timestamp must not be None"
 
     validate_staleness_timestamps(
         host.last_check_in,
         stale_timestamp=host.stale_timestamp,
         stale_warning_timestamp=host.stale_warning_timestamp,
-        culled_timestamp=host.culled_timestamp,
+        deletion_timestamp=host.deletion_timestamp,
         staleness_settings=settings,
     )
 

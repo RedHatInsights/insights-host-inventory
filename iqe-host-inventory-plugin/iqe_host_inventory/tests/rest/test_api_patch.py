@@ -314,7 +314,7 @@ def test_patch_host_doesnt_update_last_check_in(
     assert_datetimes_equal(
         host_response.stale_warning_timestamp, host_before_patch.stale_warning_timestamp
     )
-    assert_datetimes_equal(host_response.culled_timestamp, host_before_patch.culled_timestamp)
+    assert_datetimes_equal(host_response.deletion_timestamp, host_before_patch.deletion_timestamp)
 
     assert host_response.updated != host_before_patch.updated, (
         "Host's field 'updated' should be updated after patching host's name."

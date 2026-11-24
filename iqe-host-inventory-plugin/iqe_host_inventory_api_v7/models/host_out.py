@@ -102,7 +102,7 @@ class HostOut(BaseModel):
         default=None,
         description="Timestamp from which the host is considered too stale to be listed without an explicit toggle.",
     )
-    culled_timestamp: datetime | None = Field(
+    deletion_timestamp: datetime | None = Field(
         default=None, description="Timestamp from which the host is considered deleted."
     )
     reporter: StrictStr | None = Field(
@@ -142,7 +142,7 @@ class HostOut(BaseModel):
         "facts",
         "stale_timestamp",
         "stale_warning_timestamp",
-        "culled_timestamp",
+        "deletion_timestamp",
         "reporter",
         "per_reporter_staleness",
         "groups",
@@ -296,10 +296,10 @@ class HostOut(BaseModel):
         ):
             _dict["stale_warning_timestamp"] = None
 
-        # set to None if culled_timestamp (nullable) is None
+        # set to None if deletion_timestamp (nullable) is None
         # and model_fields_set contains the field
-        if self.culled_timestamp is None and "culled_timestamp" in self.model_fields_set:
-            _dict["culled_timestamp"] = None
+        if self.deletion_timestamp is None and "deletion_timestamp" in self.model_fields_set:
+            _dict["deletion_timestamp"] = None
 
         # set to None if reporter (nullable) is None
         # and model_fields_set contains the field
@@ -344,7 +344,7 @@ class HostOut(BaseModel):
             else None,
             "stale_timestamp": obj.get("stale_timestamp"),
             "stale_warning_timestamp": obj.get("stale_warning_timestamp"),
-            "culled_timestamp": obj.get("culled_timestamp"),
+            "deletion_timestamp": obj.get("deletion_timestamp"),
             "reporter": obj.get("reporter"),
             "per_reporter_staleness": {
                 _k: PerReporterStaleness.from_dict(_v)

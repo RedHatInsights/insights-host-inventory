@@ -285,9 +285,9 @@ def test_get_host_returns_correct_staleness_timestamps(db_create_host, api_get):
     last_check_in = datetime.fromisoformat(host_result["last_check_in"])
     stale_ts = datetime.fromisoformat(host_result["stale_timestamp"])
     stale_warning_ts = datetime.fromisoformat(host_result["stale_warning_timestamp"])
-    culled_ts = datetime.fromisoformat(host_result["culled_timestamp"])
+    deletion_ts = datetime.fromisoformat(host_result["deletion_timestamp"])
     assert stale_ts == last_check_in + timedelta(seconds=SAMPLE_STALENESS["conventional_time_to_stale"])
     assert stale_warning_ts == last_check_in + timedelta(
         seconds=SAMPLE_STALENESS["conventional_time_to_stale_warning"]
     )
-    assert culled_ts == last_check_in + timedelta(seconds=SAMPLE_STALENESS["conventional_time_to_delete"])
+    assert deletion_ts == last_check_in + timedelta(seconds=SAMPLE_STALENESS["conventional_time_to_delete"])

@@ -434,13 +434,13 @@
                   "reporter": "puptoo",
                   "stale_timestamp": "2023-03-02T21:04:02.588Z",
                   "stale_warning_timestamp": "2023-03-08T16:04:02.588Z",
-                  "culled_timestamp": "2023-03-31T16:04:02.588Z",
+                  "deletion_timestamp": "2023-03-31T16:04:02.588Z",
                   "per_reporter_staleness": {
                     "puptoo": {
                       "last_check_in": "2023-03-01T16:04:02.588Z",
                       "stale_timestamp": "2023-03-02T21:04:02.588Z",
                       "stale_warning_timestamp": "2023-03-08T16:04:02.588Z",
-                      "culled_timestamp": "2023-03-31T16:04:02.588Z",
+                      "deletion_timestamp": "2023-03-31T16:04:02.588Z",
                       "check_in_succeeded": true
                     }
                   },
@@ -3482,13 +3482,13 @@
           "reporter": "puptoo",
           "stale_timestamp": "2023-03-02T21:04:02.588Z",
           "stale_warning_timestamp": "2023-03-08T16:04:02.588Z",
-          "culled_timestamp": "2023-03-31T16:04:02.588Z",
+          "deletion_timestamp": "2023-03-31T16:04:02.588Z",
           "per_reporter_staleness": {
             "puptoo": {
               "last_check_in": "2023-03-01T16:04:02.588Z",
               "stale_timestamp": "2023-03-02T21:04:02.588Z",
               "stale_warning_timestamp": "2023-03-08T16:04:02.588Z",
-              "culled_timestamp": "2023-03-31T16:04:02.588Z",
+              "deletion_timestamp": "2023-03-31T16:04:02.588Z",
               "check_in_succeeded": true
             }
           },
@@ -3573,7 +3573,7 @@
                 "format": "date-time",
                 "nullable": true
               },
-              "culled_timestamp": {
+              "deletion_timestamp": {
                 "description": "Timestamp from which the host is considered deleted.",
                 "type": "string",
                 "format": "date-time",
@@ -3711,13 +3711,13 @@
               "reporter": "puptoo",
               "stale_timestamp": "2023-03-02T21:04:02.588Z",
               "stale_warning_timestamp": "2023-03-08T16:04:02.588Z",
-              "culled_timestamp": "2023-03-31T16:04:02.588Z",
+              "deletion_timestamp": "2023-03-31T16:04:02.588Z",
               "per_reporter_staleness": {
                 "puptoo": {
                   "last_check_in": "2023-03-01T16:04:02.588Z",
                   "stale_timestamp": "2023-03-02T21:04:02.588Z",
                   "stale_warning_timestamp": "2023-03-08T16:04:02.588Z",
-                  "culled_timestamp": "2023-03-31T16:04:02.588Z",
+                  "deletion_timestamp": "2023-03-31T16:04:02.588Z",
                   "check_in_succeeded": true
                 }
               },
@@ -4276,7 +4276,7 @@
           "stale_warning_timestamp": {
             "$ref": "#/components/schemas/TimeStamp"
           },
-          "culled_timestamp": {
+          "deletion_timestamp": {
             "$ref": "#/components/schemas/TimeStamp"
           },
           "check_in_succeeded": {

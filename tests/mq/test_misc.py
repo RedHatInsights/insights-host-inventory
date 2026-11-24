@@ -946,7 +946,7 @@ def test_mq_serialize_host_per_reporter_staleness_datetime_format(flask_app, moc
         assert prs["last_check_in"] == "2024-06-15T10:00:00+00:00"
         assert "stale_timestamp" in prs
         assert "stale_warning_timestamp" in prs
-        assert "culled_timestamp" in prs
+        assert "deletion_timestamp" in prs
 
 
 def test_write_message_batch_produces_all_messages(mocker):

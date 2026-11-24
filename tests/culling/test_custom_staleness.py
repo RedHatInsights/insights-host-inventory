@@ -285,13 +285,13 @@ def test_per_reporter_staleness_timestamps_match_host_level_timestamps(
         "stale_warning_timestamp": staleness_timestamps_obj.stale_warning_timestamp(
             date_to_use, staleness["conventional_time_to_stale_warning"]
         ),
-        "culled_timestamp": staleness_timestamps_obj.culled_timestamp(
+        "deletion_timestamp": staleness_timestamps_obj.deletion_timestamp(
             date_to_use, staleness["conventional_time_to_delete"]
         ),
     }
 
     # Verify calculated timestamps match expected (within 2 seconds tolerance)
-    for key in ["stale_timestamp", "stale_warning_timestamp", "culled_timestamp"]:
+    for key in ["stale_timestamp", "stale_warning_timestamp", "deletion_timestamp"]:
         calculated_ts = calculated[key]
         if calculated_ts.tzinfo is None:
             calculated_ts = calculated_ts.replace(tzinfo=UTC)
@@ -324,7 +324,7 @@ def test_get_staleness_timestamps_last_check_in_arg_overrides_host_last_check_in
 
     assert result["stale_timestamp"] == override + timedelta(seconds=10)
     assert result["stale_warning_timestamp"] == override + timedelta(seconds=20)
-    assert result["culled_timestamp"] == override + timedelta(seconds=30)
+    assert result["deletion_timestamp"] == override + timedelta(seconds=30)
 
 
 def test_get_staleness_timestamps_raises_when_reference_instant_missing(
@@ -407,7 +407,7 @@ def test_serialize_per_reporter_staleness_datetime_string_format(flask_app):
         assert puptoo["last_check_in"] == last_check_in_str
         assert "stale_timestamp" in puptoo
         assert "stale_warning_timestamp" in puptoo
-        assert "culled_timestamp" in puptoo
+        assert "deletion_timestamp" in puptoo
 
 
 def test_serialize_per_reporter_staleness_datetime_object_format(flask_app):
@@ -429,7 +429,7 @@ def test_serialize_per_reporter_staleness_datetime_object_format(flask_app):
         assert puptoo["last_check_in"] == "2024-06-15T10:00:00+00:00"
         assert "stale_timestamp" in puptoo
         assert "stale_warning_timestamp" in puptoo
-        assert "culled_timestamp" in puptoo
+        assert "deletion_timestamp" in puptoo
 
 
 def test_serialize_per_reporter_staleness_multiple_flat_reporters(flask_app):
@@ -450,11 +450,11 @@ def test_serialize_per_reporter_staleness_multiple_flat_reporters(flask_app):
 
         puptoo = result["puptoo"]
         assert puptoo["last_check_in"] == "2024-06-15T10:00:00+00:00"
-        assert "stale_timestamp" in puptoo and "culled_timestamp" in puptoo
+        assert "stale_timestamp" in puptoo and "deletion_timestamp" in puptoo
 
         yupana = result["yupana"]
         assert yupana["last_check_in"] == "2024-06-16T12:00:00+00:00"
-        assert "stale_timestamp" in yupana and "culled_timestamp" in yupana
+        assert "stale_timestamp" in yupana and "deletion_timestamp" in yupana
 
 
 def test_staleness_db_filter_fresh_uses_org_defaults_when_columns_null(db_create_host):

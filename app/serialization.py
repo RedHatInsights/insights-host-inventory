@@ -88,7 +88,7 @@ DEFAULT_FIELDS = (
     "per_reporter_staleness",
     "stale_timestamp",
     "stale_warning_timestamp",
-    "culled_timestamp",
+    "deletion_timestamp",
     "created",
     "updated",
     "groups",
@@ -242,7 +242,7 @@ def serialize_host(
         "per_reporter_staleness": lambda: _serialize_per_reporter_staleness(host, staleness),
         "stale_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["stale_timestamp"]),
         "stale_warning_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["stale_warning_timestamp"]),
-        "culled_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["culled_timestamp"]),
+        "deletion_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["deletion_timestamp"]),
         "created": lambda: _serialize_datetime(host.created_on),
         "updated": lambda: _serialize_datetime(host.modified_on),
         "last_check_in": lambda: _serialize_datetime(host.last_check_in),
@@ -740,7 +740,7 @@ def _full_per_reporter_staleness_dict(
         "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
         "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),
         "stale_warning_timestamp": _serialize_staleness_to_string(ts["stale_warning_timestamp"]),
-        "culled_timestamp": _serialize_staleness_to_string(ts["culled_timestamp"]),
+        "deletion_timestamp": _serialize_staleness_to_string(ts["deletion_timestamp"]),
         "check_in_succeeded": True,
     }
 

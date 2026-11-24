@@ -218,8 +218,8 @@ $defs:
         type: string
         format: date-time
         example: "2025-01-24T12:00:00Z, 2024-12-29T09:30:00Z"
-      culled_timestamp:
-        description: Timestamp when the host will be culled
+      deletion_timestamp:
+        description: Timestamp when the host will be deleted
         type: string
         format: date-time
         example: "2025-01-31T12:00:00Z, 2025-01-05T09:30:00Z"

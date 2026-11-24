@@ -346,7 +346,7 @@ def test_staleness_timestamps_verify_payload_ignored(
     host_data = host_inventory.datagen.create_host_data(host_type=host_type)
     host_data["stale_timestamp"] = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     host_data["stale_warning_timestamp"] = (datetime.now(UTC) + timedelta(days=2)).isoformat()
-    host_data["culled_timestamp"] = (datetime.now(UTC) + timedelta(days=3)).isoformat()
+    host_data["deletion_timestamp"] = (datetime.now(UTC) + timedelta(days=3)).isoformat()
 
     host = host_inventory.kafka.create_host(host_data)
     validate_host_timestamps(host_inventory, host, host_type)

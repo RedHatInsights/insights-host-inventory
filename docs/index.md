@@ -289,7 +289,7 @@ The `created` event is produced any time a new host record is created.
       "last_check_in": "<last_check_in_date>",
       "stale_timestamp": "<stale_timestamp>",
       "stale_warning_timestamp": "<stale_warning_timestamp>",
-      "culled_timestamp": "<culled_timestamp>",
+      "deletion_timestamp": "<deletion_timestamp>",
       "reporter": "<reporter>",
       "tags": [<tags>],
       "system_profile": {<system_profile>},
@@ -536,7 +536,7 @@ Depending on its timestamp, each host is in one of these staleness states:
 * _fresh_ if the derived _stale_timestamp_ (from _last_check_in_ + org offset) is in the future
 * _stale_ if the derived _stale_timestamp_ has lapsed, but the derived _stale_warning_timestamp_ has not
 * _stale_warning_ if the derived _stale_warning_timestamp_ has lapsed, but the host has not yet been culled
-* _culled_ if the derived _culled_timestamp_ has lapsed (default: _last_check_in_ + 30 days)
+* _culled_ if the derived _deletion_timestamp_ has lapsed (default: _last_check_in_ + 30 days)
 
 ![Inventory Staleness](./images/inventory-staleness.png)
 

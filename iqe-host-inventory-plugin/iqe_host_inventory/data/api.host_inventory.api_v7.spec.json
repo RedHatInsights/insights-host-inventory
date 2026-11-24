@@ -3137,7 +3137,7 @@
                 "format": "date-time",
                 "nullable": true
               },
-              "culled_timestamp": {
+              "deletion_timestamp": {
                 "description": "Timestamp from which the host is considered deleted.",
                 "type": "string",
                 "format": "date-time",
@@ -3737,7 +3737,7 @@
           "stale_warning_timestamp": {
             "$ref": "#/components/schemas/TimeStamp"
           },
-          "culled_timestamp": {
+          "deletion_timestamp": {
             "$ref": "#/components/schemas/TimeStamp"
           },
           "check_in_succeeded": {
