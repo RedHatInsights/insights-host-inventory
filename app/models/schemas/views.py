@@ -40,6 +40,7 @@ VALID_KNOWN_EXPLOIT_STATUSES = ("present", "not_present", "not_evaluated")
 VALID_SECURITY_RULE_STATUSES = ("present", "not_present", "not_evaluated")
 VALID_INSTALLABLE_ADVISORY_TYPES = ("security", "bugfix", "enhancement", "other", "not_evaluated")
 VALID_TEMPLATE_STATUSES = ("present", "not_present")
+VALID_LAST_SCAN_RESULTS = ("present", "not_present", "not_scanned")
 
 
 class HostFiltersSchema(MarshmallowSchema):
@@ -88,6 +89,12 @@ class HostFiltersSchema(MarshmallowSchema):
         validate=marshmallow_validate.OneOf(VALID_TEMPLATE_STATUSES),
         required=False,
     )
+    last_scan_result = fields.List(
+        fields.Str(validate=marshmallow_validate.OneOf(VALID_LAST_SCAN_RESULTS)),
+        required=False,
+    )
+    last_scan_start = fields.Str(required=False)
+    last_scan_end = fields.Str(required=False)
 
 
 class ViewFiltersSchema(MarshmallowSchema):

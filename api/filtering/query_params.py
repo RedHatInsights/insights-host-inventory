@@ -32,6 +32,9 @@ class HostFilters:
     security_rule: list[str] | None = None
     installable_advisory_type: list[str] | None = None
     template: str | None = None
+    last_scan_result: list[str] | None = None
+    last_scan_start: str | None = None
+    last_scan_end: str | None = None
 
 
 @dataclass(slots=True)
