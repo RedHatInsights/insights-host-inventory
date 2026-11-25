@@ -21,6 +21,7 @@ dependencies = [
     "boto3~=1.43",
     "prometheus-flask-exporter~=0.23.2",
     "python-dateutil~=2.9.0",
+    "pyjwt[crypto]~=2.15.1",
     "prance==26.7.19.0",
     "app-common-python~=0.3.0",
     "sqlalchemy>=2.0.0,<3.0.0",

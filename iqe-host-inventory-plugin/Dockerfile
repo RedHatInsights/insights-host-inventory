@@ -4,11 +4,25 @@
 # Universal IQE image build.
 # Identical file in iqe-core and every plugin repo.
 #
-# Consumes the shared OS foundation (UBI9-minimal, Python, uv, oc, Red Hat
+# Consumes the shared OS foundation (UBI9-minimal, Python, uv, Red Hat
 # certs, env vars) built from iqe-core's Dockerfile.base and published as
 # iqe-base (IQE-4191). The digest is bumped by Renovate.
 # FROM quay.io/redhat-services-prod/insights-management-tenant/iqe-core/iqe-base@sha256:5b79b65196483a4b1d3ebd2da74553232a4f70741c4d50b8b1f5c7b892358d54
 FROM quay.io/redhat-services-prod/insights-management-tenant/iqe-core/iqe-base:latest
+
+# Scoped oc CLI exception (IQE-4496): iqe_host_inventory's host-reaper,
+# graceful-shutdown, and notification tests/utils (ocdeployer.utils.oc)
+# invoke the oc binary directly at test runtime; iqe-base no longer
+# bundles it (IQE-4497). Pinned to the openshift-client release iqe-base
+# used to install.
+ARG OC_VERSION="5.0.1"
+ARG OC_SHA256="9be0ad418ece7aa19fbb99a9259a800c4d234d08766c9b782eb321659b9c59e8"
+# hadolint ignore=DL3003,DL4006,SC2086
+RUN curl -sSfL "https://mirror.openshift.com/pub/openshift-v5/x86_64/clients/ocp/${OC_VERSION}/openshift-client-linux.tar.gz" \
+        -o /tmp/oc.tar.gz && \
+    echo "${OC_SHA256}  /tmp/oc.tar.gz" | sha256sum -c - && \
+    tar -xzf /tmp/oc.tar.gz -C /usr/bin oc && \
+    rm -f /tmp/oc.tar.gz
 
 # === Layer 1: Dependencies from lockfile (changes only when uv.lock changes) ===
 WORKDIR /build

@@ -47,6 +47,9 @@ class HostFilters:
         "security_rule": "list[str]",
         "installable_advisory_type": "list[str]",
         "template": "str",
+        "last_scan_result": "list[str]",
+        "last_scan_start": "datetime",
+        "last_scan_end": "datetime",
     }
 
     attribute_map = {
@@ -67,6 +70,9 @@ class HostFilters:
         "security_rule": "security_rule",
         "installable_advisory_type": "installable_advisory_type",
         "template": "template",
+        "last_scan_result": "last_scan_result",
+        "last_scan_start": "last_scan_start",
+        "last_scan_end": "last_scan_end",
     }
 
     def __init__(
@@ -88,6 +94,9 @@ class HostFilters:
         security_rule=None,
         installable_advisory_type=None,
         template=None,
+        last_scan_result=None,
+        last_scan_start=None,
+        last_scan_end=None,
         local_vars_configuration=None,
     ):
         """HostFilters - a model defined in OpenAPI"""
@@ -112,6 +121,9 @@ class HostFilters:
         self._security_rule = None
         self._installable_advisory_type = None
         self._template = None
+        self._last_scan_result = None
+        self._last_scan_start = None
+        self._last_scan_end = None
         self.discriminator = None
 
         if hostname_or_id is not None:
@@ -148,6 +160,12 @@ class HostFilters:
             self.installable_advisory_type = installable_advisory_type
         if template is not None:
             self.template = template
+        if last_scan_result is not None:
+            self.last_scan_result = last_scan_result
+        if last_scan_start is not None:
+            self.last_scan_start = last_scan_start
+        if last_scan_end is not None:
+            self.last_scan_end = last_scan_end
 
     @property
     def hostname_or_id(self):
@@ -620,6 +638,83 @@ class HostFilters:
             )
 
         self._template = template
+
+    @property
+    def last_scan_result(self):
+        """Gets the last_scan_result of this HostFilters.
+
+        Filter by Malware last scan result.
+
+        :return: The last_scan_result of this HostFilters.
+        :rtype: list[str]
+        """
+        return self._last_scan_result
+
+    @last_scan_result.setter
+    def last_scan_result(self, last_scan_result):
+        """Sets the last_scan_result of this HostFilters.
+
+        Filter by Malware last scan result. Values are OR.
+
+        :param last_scan_result: The last_scan_result of this HostFilters.
+        :type: list[str]
+        """
+        allowed_values = ["present", "not_present", "not_scanned"]
+        if self.local_vars_configuration.client_side_validation and not set(last_scan_result).issubset(
+            set(allowed_values)
+        ):
+            raise ValueError(
+                "Invalid values for `last_scan_result` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(last_scan_result) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
+                )
+            )
+
+        self._last_scan_result = last_scan_result
+
+    @property
+    def last_scan_start(self):
+        """Gets the last_scan_start of this HostFilters.
+
+        Only show hosts whose Malware last_scan is at or after this time.
+
+        :return: The last_scan_start of this HostFilters.
+        :rtype: datetime
+        """
+        return self._last_scan_start
+
+    @last_scan_start.setter
+    def last_scan_start(self, last_scan_start):
+        """Sets the last_scan_start of this HostFilters.
+
+        Only show hosts whose Malware last_scan is at or after this time.
+
+        :param last_scan_start: The last_scan_start of this HostFilters.
+        :type: datetime
+        """
+        self._last_scan_start = last_scan_start
+
+    @property
+    def last_scan_end(self):
+        """Gets the last_scan_end of this HostFilters.
+
+        Only show hosts whose Malware last_scan is at or before this time.
+
+        :return: The last_scan_end of this HostFilters.
+        :rtype: datetime
+        """
+        return self._last_scan_end
+
+    @last_scan_end.setter
+    def last_scan_end(self, last_scan_end):
+        """Sets the last_scan_end of this HostFilters.
+
+        Only show hosts whose Malware last_scan is at or before this time.
+
+        :param last_scan_end: The last_scan_end of this HostFilters.
+        :type: datetime
+        """
+        self._last_scan_end = last_scan_end
 
     def to_dict(self):
         """Returns the model properties as a dict"""
