@@ -49,6 +49,7 @@ from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import WORKLOADS_FIELDS
 from app.models.host_app_data import HostAppDataAdvisor
+from app.models.host_app_data import HostAppDataMalware
 from app.models.host_app_data import HostAppDataPatch
 from app.models.host_app_data import HostAppDataVulnerability
 from app.models.host_app_data import get_app_data_models
@@ -814,7 +815,8 @@ def _app_models_needed_for_host_filter(host_filter: dict | None) -> list:
     builds its own query and discards query_base.  This helper ensures
     the export query also joins any app-data tables referenced by dedicated
     host-level filter params (recommendation_severity, incident_status,
-    cve_severity, known_exploit, security_rule, installable_advisory_type, template).
+    cve_severity, known_exploit, security_rule, installable_advisory_type, template,
+    last_scan_result, last_scan_start, last_scan_end).
     """
     if not host_filter:
         return []
@@ -826,6 +828,8 @@ def _app_models_needed_for_host_filter(host_filter: dict | None) -> list:
         models.append(HostAppDataVulnerability)
     if host_filter.get("installable_advisory_type") or host_filter.get("template"):
         models.append(HostAppDataPatch)
+    if host_filter.get("last_scan_result") or host_filter.get("last_scan_start") or host_filter.get("last_scan_end"):
+        models.append(HostAppDataMalware)
     return models
 
 

@@ -38,6 +38,7 @@ from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import WORKLOADS_FIELDS
 from app.models.constants import SystemType
+from app.models.host_app_data import HostAppDataMalware
 from app.models.host_app_data import HostAppDataPatch
 from app.models.host_app_data import HostAppDataVulnerability
 from app.models.host_app_data import get_app_data_models
@@ -696,6 +697,52 @@ def _patch_filter(
     return filters, HostAppDataPatch
 
 
+def _malware_filter(
+    last_scan_result: list[str] | None,
+    last_scan_start: str | None,
+    last_scan_end: str | None,
+) -> tuple[list, type]:
+    """Build filters for last_scan_result and the last_scan time bounds.
+
+    Result values are OR. The time bounds are AND with the result when both are set.
+    present is last_matches > 0. not_present is a published row with last_matches == 0.
+    not_scanned is the absence of a malware row (host_id IS NULL).
+    A null last_matches matches neither present nor not_present.
+    A null last_scan matches neither time bound.
+
+    Returns:
+        (list of SQLAlchemy filter expressions, HostAppDataMalware model class)
+    """
+    filters = []
+
+    if last_scan_result:
+        result_conditions = []
+        for result in last_scan_result:
+            if result == "present":
+                result_conditions.append(HostAppDataMalware.last_matches > 0)
+            elif result == "not_present":
+                result_conditions.append(HostAppDataMalware.last_matches == 0)
+            elif result == "not_scanned":
+                result_conditions.append(HostAppDataMalware.host_id.is_(None))
+        if result_conditions:
+            filters.append(or_(*result_conditions))
+
+    start = parser.isoparse(last_scan_start) if last_scan_start else None
+    end = parser.isoparse(last_scan_end) if last_scan_end else None
+    if start and end and start > end:
+        raise ValueError("last_scan_start cannot be after last_scan_end.")
+
+    scan_bounds = []
+    if start and start.year > 1970:
+        scan_bounds.append(HostAppDataMalware.last_scan >= start)
+    if end and end.year > 1970:
+        scan_bounds.append(HostAppDataMalware.last_scan <= end)
+    if scan_bounds:
+        filters.append(and_(*scan_bounds))
+
+    return filters, HostAppDataMalware
+
+
 def query_filters(
     filters: HostFilters | None = None,
     *,
@@ -734,6 +781,9 @@ def query_filters(
     security_rule = filters.security_rule
     installable_advisory_type = filters.installable_advisory_type
     template = filters.template
+    last_scan_result = filters.last_scan_result
+    last_scan_start = filters.last_scan_start
+    last_scan_end = filters.last_scan_end
 
     num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
@@ -795,6 +845,11 @@ def query_filters(
         patch_filters, patch_model = _patch_filter(installable_advisory_type, template)
         filter_expressions += patch_filters
         app_data_models_to_join.add(patch_model)
+
+    if last_scan_result or last_scan_start or last_scan_end:
+        malware_filters, malware_model = _malware_filter(last_scan_result, last_scan_start, last_scan_end)
+        filter_expressions += malware_filters
+        app_data_models_to_join.add(malware_model)
 
     filter_expressions = [and_(Host.org_id == identity.org_id, *filter_expressions)]
 
