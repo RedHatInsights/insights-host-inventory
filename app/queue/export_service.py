@@ -48,6 +48,7 @@ _DEDICATED_HOST_FILTER_APPS = {
     "advisor": ("recommendation_severity", "incident_status"),
     "vulnerability": ("cve_severity", "known_exploit", "security_rule"),
     "patch": ("installable_advisory_type", "template"),
+    "malware": ("last_scan_result", "last_scan_start", "last_scan_end"),
 }
 
 
