@@ -140,6 +140,8 @@ paths:
         - $ref: '#/components/parameters/cveSeverityParam'
         - $ref: '#/components/parameters/knownExploitParam'
         - $ref: '#/components/parameters/securityRuleParam'
+        - $ref: '#/components/parameters/installableAdvisoryTypeParam'
+        - $ref: '#/components/parameters/templateParam'
       responses:
         '200':
           description: Successfully read host views.
@@ -233,13 +235,13 @@ paths:
                 reporter: puptoo
                 stale_timestamp: '2023-03-02T21:04:02.588Z'
                 stale_warning_timestamp: '2023-03-08T16:04:02.588Z'
-                deletion_timestamp: '2023-03-31T16:04:02.588Z'
+                culled_timestamp: '2023-03-31T16:04:02.588Z'
                 per_reporter_staleness:
                   puptoo:
                     last_check_in: '2023-03-01T16:04:02.588Z'
                     stale_timestamp: '2023-03-02T21:04:02.588Z'
                     stale_warning_timestamp: '2023-03-08T16:04:02.588Z'
-                    deletion_timestamp: '2023-03-31T16:04:02.588Z'
+                    culled_timestamp: '2023-03-31T16:04:02.588Z'
                     check_in_succeeded: true
                 groups:
                 - &workspace_example
@@ -1845,6 +1847,42 @@ components:
             - present
             - not_present
             - not_evaluated
+    installableAdvisoryTypeParam:
+      in: query
+      name: installable_advisory_type
+      required: false
+      style: form
+      explode: true
+      description: >-
+        Filters hosts by Content installable advisory type. Repeat the parameter
+        for multiple values (installable_advisory_type=security&installable_advisory_type=bugfix).
+        Values are OR. security, bugfix, enhancement, and other match hosts whose
+        installable count for that type is greater than 0. not_evaluated matches
+        hosts with no Content data.
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - security
+            - bugfix
+            - enhancement
+            - other
+            - not_evaluated
+    templateParam:
+      in: query
+      name: template
+      required: false
+      description: >-
+        Filters hosts by Content template assignment. present matches a published
+        Content row whose template_uuid is set. not_present matches a published
+        Content row whose template_uuid is null. A host with no Content data
+        matches neither value.
+      schema:
+        type: string
+        enum:
+          - present
+          - not_present
     hostViewCombinedFilterParam:
       in: query
       name: filter
@@ -2390,13 +2428,13 @@ components:
         reporter: puptoo
         stale_timestamp: '2023-03-02T21:04:02.588Z'
         stale_warning_timestamp: '2023-03-08T16:04:02.588Z'
-        deletion_timestamp: '2023-03-31T16:04:02.588Z'
+        culled_timestamp: '2023-03-31T16:04:02.588Z'
         per_reporter_staleness:
           puptoo:
             last_check_in: '2023-03-01T16:04:02.588Z'
             stale_timestamp: '2023-03-02T21:04:02.588Z'
             stale_warning_timestamp: '2023-03-08T16:04:02.588Z'
-            deletion_timestamp: '2023-03-31T16:04:02.588Z'
+            culled_timestamp: '2023-03-31T16:04:02.588Z'
             check_in_succeeded: true
         groups:
         - *workspace_example
@@ -2454,8 +2492,8 @@ components:
               type: string
               format: date-time
               nullable: true
-            deletion_timestamp:
-              description: Timestamp from which the host is considered deleted.
+            culled_timestamp:
+              description: Timestamp from which the host is considered culled.
               type: string
               format: date-time
               nullable: true
@@ -3001,7 +3039,7 @@ components:
           $ref: '#/components/schemas/TimeStamp'
         stale_warning_timestamp:
           $ref: '#/components/schemas/TimeStamp'
-        deletion_timestamp:
+        culled_timestamp:
           $ref: '#/components/schemas/TimeStamp'
         check_in_succeeded:
           type: boolean
@@ -3434,6 +3472,12 @@ components:
           type: array
           items:
             type: string
+        workspace_id:
+          description: Filter by workspace ID (UUID format).
+          type: array
+          items:
+            type: string
+            format: uuid
         last_check_in_start:
           description: Start of last check-in date range (ISO 8601).
           type: string
@@ -3522,6 +3566,27 @@ components:
               - present
               - not_present
               - not_evaluated
+        installable_advisory_type:
+          description: >-
+            Filter by Content installable advisory type. Values are OR.
+            not_evaluated matches hosts with no Content data.
+          type: array
+          items:
+            type: string
+            enum:
+              - security
+              - bugfix
+              - enhancement
+              - other
+              - not_evaluated
+        template:
+          description: >-
+            Filter by Content template assignment. present matches a template_uuid.
+            not_present matches a published Content row with no template_uuid.
+          type: string
+          enum:
+            - present
+            - not_present
       additionalProperties: false
     ViewIn:
       title: View Create Payload

@@ -21,7 +21,37 @@
   "pip-compile": {
     "enabled": false
   },
+  "pep621": {
+    "enabled": true
+  },
   "packageRules": [
+    {
+      "description": "Automerge non-major updates",
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "Keep Python dependency PR volume consistent with the former Dependabot limit",
+      "matchManagers": [
+        "pep621"
+      ],
+      "prConcurrentLimit": 3,
+      "addLabels": [
+        "dependencies"
+      ]
+    },
+    {
+      "description": "Label GitHub Actions dependency updates",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "addLabels": [
+        "GitHub-Actions-Updates"
+      ]
+    },
     {
       "groupName": "openapi",
       "matchPackageNames": [

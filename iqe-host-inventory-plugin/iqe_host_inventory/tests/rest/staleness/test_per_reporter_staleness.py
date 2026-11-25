@@ -99,8 +99,8 @@ def verify_staleness(
         reporter_staleness.stale_warning_timestamp,
     )
     assert_datetimes_equal(
-        host.deletion_timestamp,
-        reporter_staleness.deletion_timestamp,
+        host.culled_timestamp,
+        reporter_staleness.culled_timestamp,
     )
     verify_reporter_timestamps(host_inventory, host, reporter)
 
@@ -126,7 +126,7 @@ def verify_reporter_timestamps(
         reporter_staleness.last_check_in + timedelta(seconds=time_to_stale_warning),
     )
     assert_datetimes_equal(
-        reporter_staleness.deletion_timestamp,
+        reporter_staleness.culled_timestamp,
         reporter_staleness.last_check_in + timedelta(seconds=time_to_stale_delete),
     )
 
@@ -137,9 +137,7 @@ def log_staleness_timestamps(host: HostOut, reporter: str | None = None) -> None
     logger.info(
         f"host stale_warning_timestamp: {host.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
     )
-    logger.info(
-        f"host deletion_timestamp: {host.deletion_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"
-    )
+    logger.info(f"host culled_timestamp: {host.culled_timestamp.strftime('%m/%d/%Y %H:%M:%S')}")
 
     def _log_reporter_timestamps(host: HostOut, reporter: str) -> None:
         per_reporter = host.per_reporter_staleness[reporter]
@@ -154,7 +152,7 @@ def log_staleness_timestamps(host: HostOut, reporter: str | None = None) -> None
             f"{reporter} stale_warning_timestamp: {per_reporter.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
         )
         logger.info(
-            f"{reporter} deletion_timestamp: {per_reporter.deletion_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
+            f"{reporter} culled_timestamp: {per_reporter.culled_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
         )
 
     if not reporter:

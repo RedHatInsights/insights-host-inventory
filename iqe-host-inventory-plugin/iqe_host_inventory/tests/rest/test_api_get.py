@@ -84,7 +84,7 @@ class TestGetHosts:
             "per_reporter_staleness",
             "stale_timestamp",
             "stale_warning_timestamp",
-            "deletion_timestamp",
+            "culled_timestamp",
             "created",
             "updated",
             "groups",

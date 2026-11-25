@@ -120,7 +120,7 @@ class HostWrapper:
     ansible_host = DataAlias[str]()
     stale_timestamp = TimestampDataAlias()
     stale_warning_timestamp = TimestampDataAlias()
-    deletion_timestamp = TimestampDataAlias()
+    culled_timestamp = TimestampDataAlias()
     created = TimestampDataAlias()
     updated = TimestampDataAlias()
     per_reporter_staleness = DataAlias[PER_REPORTER_STALENESS]()

@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **last_check_in** | **datetime** |  | [optional]
 **stale_timestamp** | **datetime** |  | [optional]
 **stale_warning_timestamp** | **datetime** |  | [optional]
-**deletion_timestamp** | **datetime** |  | [optional]
+**culled_timestamp** | **datetime** |  | [optional]
 **check_in_succeeded** | **bool** |  | [optional]
 
 ## Example

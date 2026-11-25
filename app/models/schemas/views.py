@@ -5,6 +5,7 @@ from marshmallow import pre_load
 from marshmallow import validate as marshmallow_validate
 
 from app.models.views import MAX_VIEW_NAME_LENGTH
+from app.validators import verify_uuid_format
 
 VIEW_NAME_PATTERN = r"^[a-zA-Z0-9 _.'-]+$"
 VIEW_NAME_VALIDATION_ERROR = (
@@ -37,6 +38,8 @@ VALID_INCIDENT_STATUSES = ("present", "not_present", "not_analyzed")
 VALID_CVE_SEVERITIES = ("critical", "important", "moderate", "low", "not_evaluated")
 VALID_KNOWN_EXPLOIT_STATUSES = ("present", "not_present", "not_evaluated")
 VALID_SECURITY_RULE_STATUSES = ("present", "not_present", "not_evaluated")
+VALID_INSTALLABLE_ADVISORY_TYPES = ("security", "bugfix", "enhancement", "other", "not_evaluated")
+VALID_TEMPLATE_STATUSES = ("present", "not_present")
 
 
 class HostFiltersSchema(MarshmallowSchema):
@@ -48,6 +51,7 @@ class HostFiltersSchema(MarshmallowSchema):
     registered_with = fields.List(fields.Str(), required=False)
     tags = fields.List(fields.Str(), required=False)
     workspace_name = fields.List(fields.Str(), required=False)
+    workspace_id = fields.List(fields.Str(validate=verify_uuid_format), required=False)
     last_check_in_start = fields.Str(required=False)
     last_check_in_end = fields.Str(required=False)
     updated_start = fields.Str(required=False)
@@ -74,6 +78,14 @@ class HostFiltersSchema(MarshmallowSchema):
     )
     security_rule = fields.List(
         fields.Str(validate=marshmallow_validate.OneOf(VALID_SECURITY_RULE_STATUSES)),
+        required=False,
+    )
+    installable_advisory_type = fields.List(
+        fields.Str(validate=marshmallow_validate.OneOf(VALID_INSTALLABLE_ADVISORY_TYPES)),
+        required=False,
+    )
+    template = fields.Str(
+        validate=marshmallow_validate.OneOf(VALID_TEMPLATE_STATUSES),
         required=False,
     )
 

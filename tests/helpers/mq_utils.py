@@ -427,7 +427,7 @@ def assert_patch_event_is_valid(
     stale_warning_timestamp = (
         host.last_check_in.astimezone(UTC) + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
     ).isoformat()
-    deletion_timestamp = (
+    culled_timestamp = (
         host.last_check_in.astimezone(UTC) + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
     ).isoformat()
 
@@ -460,7 +460,7 @@ def assert_patch_event_is_valid(
             "reporter": reporter,
             "stale_timestamp": stale_timestamp,
             "stale_warning_timestamp": stale_warning_timestamp,
-            "deletion_timestamp": deletion_timestamp,
+            "culled_timestamp": culled_timestamp,
             "created": host.created_on.astimezone(UTC).isoformat(),
             "last_check_in": host.last_check_in.astimezone(UTC).isoformat(),
             "provider_id": host.provider_id,

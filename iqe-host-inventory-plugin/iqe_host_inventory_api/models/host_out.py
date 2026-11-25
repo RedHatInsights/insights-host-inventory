@@ -49,7 +49,7 @@ class HostOut:
         "facts": "list[FactSet]",
         "stale_timestamp": "datetime",
         "stale_warning_timestamp": "datetime",
-        "deletion_timestamp": "datetime",
+        "culled_timestamp": "datetime",
         "reporter": "str",
         "per_reporter_staleness": "dict(str, PerReporterStaleness)",
         "groups": "list[GroupOut]",
@@ -78,7 +78,7 @@ class HostOut:
         "facts": "facts",
         "stale_timestamp": "stale_timestamp",
         "stale_warning_timestamp": "stale_warning_timestamp",
-        "deletion_timestamp": "deletion_timestamp",
+        "culled_timestamp": "culled_timestamp",
         "reporter": "reporter",
         "per_reporter_staleness": "per_reporter_staleness",
         "groups": "groups",
@@ -108,7 +108,7 @@ class HostOut:
         facts=None,
         stale_timestamp=None,
         stale_warning_timestamp=None,
-        deletion_timestamp=None,
+        culled_timestamp=None,
         reporter=None,
         per_reporter_staleness=None,
         groups=None,
@@ -141,7 +141,7 @@ class HostOut:
         self._facts = None
         self._stale_timestamp = None
         self._stale_warning_timestamp = None
-        self._deletion_timestamp = None
+        self._culled_timestamp = None
         self._reporter = None
         self._per_reporter_staleness = None
         self._groups = None
@@ -173,7 +173,7 @@ class HostOut:
             self.facts = facts
         self.stale_timestamp = stale_timestamp
         self.stale_warning_timestamp = stale_warning_timestamp
-        self.deletion_timestamp = deletion_timestamp
+        self.culled_timestamp = culled_timestamp
         self.reporter = reporter
         if per_reporter_staleness is not None:
             self.per_reporter_staleness = per_reporter_staleness
@@ -625,27 +625,27 @@ class HostOut:
         self._stale_warning_timestamp = stale_warning_timestamp
 
     @property
-    def deletion_timestamp(self):
-        """Gets the deletion_timestamp of this HostOut.  # noqa: E501
+    def culled_timestamp(self):
+        """Gets the culled_timestamp of this HostOut.  # noqa: E501
 
-        Timestamp from which the host is considered deleted.  # noqa: E501
+        Timestamp from which the host is considered culled.  # noqa: E501
 
-        :return: The deletion_timestamp of this HostOut.  # noqa: E501
+        :return: The culled_timestamp of this HostOut.  # noqa: E501
         :rtype: datetime
         """
-        return self._deletion_timestamp
+        return self._culled_timestamp
 
-    @deletion_timestamp.setter
-    def deletion_timestamp(self, deletion_timestamp):
-        """Sets the deletion_timestamp of this HostOut.
+    @culled_timestamp.setter
+    def culled_timestamp(self, culled_timestamp):
+        """Sets the culled_timestamp of this HostOut.
 
-        Timestamp from which the host is considered deleted.  # noqa: E501
+        Timestamp from which the host is considered culled.  # noqa: E501
 
-        :param deletion_timestamp: The deletion_timestamp of this HostOut.  # noqa: E501
+        :param culled_timestamp: The culled_timestamp of this HostOut.  # noqa: E501
         :type: datetime
         """
 
-        self._deletion_timestamp = deletion_timestamp
+        self._culled_timestamp = culled_timestamp
 
     @property
     def reporter(self):

@@ -635,7 +635,7 @@ def test_add_host_without_stale_timestamp(mq_create_or_update_host):
         insights_id=expected_insights_id,
     )
 
-    host_keys_to_check = ["reporter", "stale_timestamp", "deletion_timestamp"]
+    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
 
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
     updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
@@ -647,7 +647,7 @@ def test_add_host_without_stale_timestamp(mq_create_or_update_host):
             "stale_warning_timestamp": (
                 updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
             ).isoformat(),
-            "deletion_timestamp": (
+            "culled_timestamp": (
                 updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
             ).isoformat(),
         }
@@ -670,7 +670,7 @@ def test_add_host_with_stale_timestamp_ignore(mq_create_or_update_host):
         stale_timestamp="2025-01-01T00:00:00Z",
     )
 
-    host_keys_to_check = ["reporter", "stale_timestamp", "deletion_timestamp"]
+    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
 
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
     updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
@@ -682,7 +682,7 @@ def test_add_host_with_stale_timestamp_ignore(mq_create_or_update_host):
             "stale_warning_timestamp": (
                 updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
             ).isoformat(),
-            "deletion_timestamp": (
+            "culled_timestamp": (
                 updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
             ).isoformat(),
         }

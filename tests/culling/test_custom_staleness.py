@@ -23,6 +23,7 @@ from app.models import Host
 from app.models import db
 from app.serialization import _serialize_per_reporter_staleness
 from app.staleness_serialization import AttrDict
+from app.staleness_serialization import _get_staleness_timestamps
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from app.staleness_states import HostStalenessStatesDbFilters
@@ -51,7 +52,7 @@ CUSTOM_STALENESS_HOST_BECAME_STALE = {
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
 }
 
-# ``get_staleness_timestamps`` still accepts ``Timestamps`` for API compatibility; these
+# ``_get_staleness_timestamps`` still accepts ``Timestamps`` for internal use; these
 # unit tests only need a minimal config for ``Timestamps.from_config``.
 _MINIMAL_TS_CONFIG = SimpleNamespace(
     culling_stale_warning_offset_delta=timedelta(hours=1),
@@ -66,7 +67,7 @@ def _utc(dt: datetime) -> datetime:
 
 
 def _attrdict_from_custom_staleness(config: dict[str, int]) -> AttrDict:
-    """Match ``conventional_time_to_*`` keys read by ``get_staleness_timestamps`` for custom staleness."""
+    """Match ``conventional_time_to_*`` keys read by ``_get_staleness_timestamps`` for custom staleness."""
     return AttrDict(
         {
             "conventional_time_to_stale": config["conventional_time_to_stale"],
@@ -266,7 +267,7 @@ def test_per_reporter_staleness_timestamps_match_host_level_timestamps(
     date_to_use = date_to_use.replace(tzinfo=UTC) if date_to_use.tzinfo is None else date_to_use.astimezone(UTC)
 
     # Explicit last_check_in path (reporter-specific reference instant)
-    calculated = get_staleness_timestamps(
+    calculated = _get_staleness_timestamps(
         db_host,
         staleness,
         last_check_in=date_to_use,
@@ -274,7 +275,7 @@ def test_per_reporter_staleness_timestamps_match_host_level_timestamps(
 
     # Default path: rely on host.last_check_in internally (no last_check_in argument)
     db_host.last_check_in = date_to_use
-    calculated_from_host = get_staleness_timestamps(db_host, staleness)
+    calculated_from_host = _get_staleness_timestamps(db_host, staleness)
     assert calculated_from_host == calculated
 
     # Calculate expected timestamps
@@ -289,6 +290,10 @@ def test_per_reporter_staleness_timestamps_match_host_level_timestamps(
             date_to_use, staleness["conventional_time_to_delete"]
         ),
     }
+    assert (
+        staleness_timestamps_obj.culled_timestamp(date_to_use, staleness["conventional_time_to_delete"])
+        == expected["deletion_timestamp"]
+    )
 
     # Verify calculated timestamps match expected (within 2 seconds tolerance)
     for key in ["stale_timestamp", "stale_warning_timestamp", "deletion_timestamp"]:
@@ -320,11 +325,13 @@ def test_get_staleness_timestamps_last_check_in_arg_overrides_host_last_check_in
         {"conventional_time_to_stale": 10, "conventional_time_to_stale_warning": 20, "conventional_time_to_delete": 30}
     )
 
-    result = get_staleness_timestamps(host, staleness, last_check_in=override)
+    result = _get_staleness_timestamps(host, staleness, last_check_in=override)
+    legacy_result = get_staleness_timestamps(host, staleness, last_check_in=override)
 
     assert result["stale_timestamp"] == override + timedelta(seconds=10)
     assert result["stale_warning_timestamp"] == override + timedelta(seconds=20)
     assert result["deletion_timestamp"] == override + timedelta(seconds=30)
+    assert legacy_result["culled_timestamp"] == result["deletion_timestamp"]
 
 
 def test_get_staleness_timestamps_raises_when_reference_instant_missing(
@@ -340,7 +347,7 @@ def test_get_staleness_timestamps_raises_when_reference_instant_missing(
     )
 
     with pytest.raises(ValueError, match="last_check_in is required"):
-        get_staleness_timestamps(host, staleness)
+        _get_staleness_timestamps(host, staleness)
 
 
 def test_registered_with_filter_puptoo_reporter_without_puptoo_prs(
@@ -407,7 +414,7 @@ def test_serialize_per_reporter_staleness_datetime_string_format(flask_app):
         assert puptoo["last_check_in"] == last_check_in_str
         assert "stale_timestamp" in puptoo
         assert "stale_warning_timestamp" in puptoo
-        assert "deletion_timestamp" in puptoo
+        assert "culled_timestamp" in puptoo
 
 
 def test_serialize_per_reporter_staleness_datetime_object_format(flask_app):
@@ -429,7 +436,7 @@ def test_serialize_per_reporter_staleness_datetime_object_format(flask_app):
         assert puptoo["last_check_in"] == "2024-06-15T10:00:00+00:00"
         assert "stale_timestamp" in puptoo
         assert "stale_warning_timestamp" in puptoo
-        assert "deletion_timestamp" in puptoo
+        assert "culled_timestamp" in puptoo
 
 
 def test_serialize_per_reporter_staleness_multiple_flat_reporters(flask_app):
@@ -450,11 +457,11 @@ def test_serialize_per_reporter_staleness_multiple_flat_reporters(flask_app):
 
         puptoo = result["puptoo"]
         assert puptoo["last_check_in"] == "2024-06-15T10:00:00+00:00"
-        assert "stale_timestamp" in puptoo and "deletion_timestamp" in puptoo
+        assert "stale_timestamp" in puptoo and "culled_timestamp" in puptoo
 
         yupana = result["yupana"]
         assert yupana["last_check_in"] == "2024-06-16T12:00:00+00:00"
-        assert "stale_timestamp" in yupana and "deletion_timestamp" in yupana
+        assert "stale_timestamp" in yupana and "culled_timestamp" in yupana
 
 
 def test_staleness_db_filter_fresh_uses_org_defaults_when_columns_null(db_create_host):

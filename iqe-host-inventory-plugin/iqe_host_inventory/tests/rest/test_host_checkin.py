@@ -23,7 +23,7 @@ def assert_checkin_response(response: dict, host: object) -> None:
     assert (
         datetime.fromisoformat(response["stale_warning_timestamp"]) > host.stale_warning_timestamp
     )
-    assert datetime.fromisoformat(response["deletion_timestamp"]) > host.deletion_timestamp
+    assert datetime.fromisoformat(response["culled_timestamp"]) > host.culled_timestamp
 
 
 @pytest.mark.smoke

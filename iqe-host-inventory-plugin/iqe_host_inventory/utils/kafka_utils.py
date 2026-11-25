@@ -109,7 +109,7 @@ def check_host_timestamps(
             "updated": data.pop("updated"),
             "stale_timestamp": data.pop("stale_timestamp"),
             "stale_warning_timestamp": data.pop("stale_warning_timestamp"),
-            "deletion_timestamp": data.pop("deletion_timestamp"),
+            "culled_timestamp": data.pop("culled_timestamp"),
         }
         for key, value in timestamps.items():
             timestamps[key] = datetime.fromisoformat(value) if isinstance(value, str) else value
@@ -131,7 +131,7 @@ def check_host_timestamps(
         updated_data["last_check_in"],
         stale_timestamp=updated_timestamps["stale_timestamp"],
         stale_warning_timestamp=updated_timestamps["stale_warning_timestamp"],
-        deletion_timestamp=updated_timestamps["deletion_timestamp"],
+        culled_timestamp=updated_timestamps["culled_timestamp"],
         staleness_settings=staleness_settings,
     )
 
@@ -157,7 +157,7 @@ def check_prs_timestamps(
             prs_timestamps["last_check_in"],
             stale_timestamp=prs_timestamps["stale_timestamp"],
             stale_warning_timestamp=prs_timestamps["stale_warning_timestamp"],
-            deletion_timestamp=prs_timestamps["deletion_timestamp"],
+            culled_timestamp=prs_timestamps["culled_timestamp"],
             staleness_settings=staleness_settings,
         )
 
@@ -366,12 +366,12 @@ def check_mq_create_or_update_event_host_data(
         event_host_data["last_check_in"],
         stale_timestamp=event_host_data.pop("stale_timestamp"),
         stale_warning_timestamp=event_host_data.pop("stale_warning_timestamp"),
-        deletion_timestamp=event_host_data.pop("deletion_timestamp"),
+        culled_timestamp=event_host_data.pop("culled_timestamp"),
         staleness_settings=staleness_settings,
     )
     expected_host_data.pop("stale_timestamp", None)
     expected_host_data.pop("stale_warning_timestamp", None)
-    expected_host_data.pop("deletion_timestamp", None)
+    expected_host_data.pop("culled_timestamp", None)
 
     check_prs_timestamps(
         event_host_data.pop("per_reporter_staleness"),

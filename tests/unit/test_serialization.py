@@ -30,7 +30,7 @@ from app.serialization import serialize_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.serialization import serialize_uuid
-from app.staleness_serialization import get_staleness_timestamps
+from app.staleness_serialization import _get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import add_seconds
@@ -710,7 +710,7 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
             "stale_warning_timestamp": timestamp_to_str(
                 add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
             ),
-            "deletion_timestamp": timestamp_to_str(
+            "culled_timestamp": timestamp_to_str(
                 add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_DELETE_SECONDS)
             ),
             "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness),
@@ -824,7 +824,7 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                     "stale_warning_timestamp": timestamp_to_str(
                         add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
                     ),
-                    "deletion_timestamp": timestamp_to_str(
+                    "culled_timestamp": timestamp_to_str(
                         add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_DELETE_SECONDS)
                     ),
                     "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness),
@@ -849,7 +849,7 @@ def test_serialize_host_lifecycle_fields_from_last_check_in(flask_app):
         host.last_check_in = ref
 
         staleness = get_sys_default_staleness()
-        expected = get_staleness_timestamps(host, staleness)
+        expected = _get_staleness_timestamps(host, staleness)
 
         expected_state = Conditions.find_host_state(
             expected["stale_timestamp"],
@@ -858,7 +858,7 @@ def test_serialize_host_lifecycle_fields_from_last_check_in(flask_app):
         serialized = serialize_host(host, staleness, False, additional_fields=("state",))
         assert serialized["stale_timestamp"] == timestamp_to_str(expected["stale_timestamp"])
         assert serialized["stale_warning_timestamp"] == timestamp_to_str(expected["stale_warning_timestamp"])
-        assert serialized["deletion_timestamp"] == timestamp_to_str(expected["deletion_timestamp"])
+        assert serialized["culled_timestamp"] == timestamp_to_str(expected["deletion_timestamp"])
         assert serialized["state"] == expected_state
 
 
@@ -936,7 +936,7 @@ def test_with_all_fields_serialization_serialize_host_mocked(
             "stale_warning_timestamp": timestamp_to_str(
                 host_attr_data["last_check_in"] + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
             ),
-            "deletion_timestamp": timestamp_to_str(
+            "culled_timestamp": timestamp_to_str(
                 host_attr_data["last_check_in"] + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
             ),
             "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness),
@@ -1196,5 +1196,5 @@ def test_stale_timestamp_config_serialization_serialize_host_compound(subtests, 
                 )
                 assert (
                     timestamp_to_str(add_seconds(host.last_check_in, culled_offset_seconds))
-                    == serialized["deletion_timestamp"]
+                    == serialized["culled_timestamp"]
                 )

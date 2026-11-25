@@ -59,6 +59,10 @@ class Timestamps(_WithConfig):
     def deletion_timestamp(self, stale_timestamp, deletion_seconds):
         return self._add_time(stale_timestamp, timedelta(seconds=deletion_seconds))
 
+    def culled_timestamp(self, stale_timestamp, culled_seconds):
+        """Keep the exported legacy method available for existing callers."""
+        return self.deletion_timestamp(stale_timestamp, culled_seconds)
+
 
 class Conditions:
     def __init__(self, staleness):

@@ -66,6 +66,14 @@ def _validate_vulnerability_filter_authorization(cve_severity, known_exploit, se
         flask.abort(HTTPStatus.FORBIDDEN, "Insufficient permissions to filter by vulnerability")
 
 
+def _validate_patch_filter_authorization(installable_advisory_type, template, allowed_apps):
+    """Reject Content host filters when the user lacks patch read permission."""
+    if allowed_apps is None:
+        return
+    if (installable_advisory_type or template) and "patch" not in allowed_apps:
+        flask.abort(HTTPStatus.FORBIDDEN, "Insufficient permissions to filter by patch")
+
+
 def _parse_sparse_fields(fields: dict | None) -> dict[str, list[str] | None]:
     """
     Parse sparse fields parameter into {app_name: [fields] or None for all}.
@@ -212,6 +220,8 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     cve_severity=None,
     known_exploit=None,
     security_rule=None,
+    installable_advisory_type=None,
+    template=None,
     filter=None,
     fields=None,
     rbac_filter=None,
@@ -240,6 +250,11 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     Supports sorting by app data fields using the format "app:field"
     (e.g., "vulnerability:critical_cves", "advisor:recommendations").
     """
+    # A string query parameter keeps the last repeated value. template is single-select,
+    # so two values are a bad request rather than a silent choice.
+    if len(flask.request.args.getlist("template")) > 1:
+        flask.abort(HTTPStatus.BAD_REQUEST, "template accepts a single value")
+
     total = 0
     host_list = ()
 
@@ -250,6 +265,7 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     _validate_filter_authorization(filter, allowed_apps, known_apps)
     _validate_advisor_filter_authorization(recommendation_severity, incident_status, allowed_apps)
     _validate_vulnerability_filter_authorization(cve_severity, known_exploit, security_rule, allowed_apps)
+    _validate_patch_filter_authorization(installable_advisory_type, template, allowed_apps)
 
     # Extract system_profile fields for the DB query layer; the rest is for app_data
     sp_fields = {"system_profile": fields["system_profile"]} if fields and "system_profile" in fields else None
@@ -279,6 +295,8 @@ def get_host_views(  # noqa: PLR0913, PLR0917
                 cve_severity=cve_severity,
                 known_exploit=known_exploit,
                 security_rule=security_rule,
+                installable_advisory_type=installable_advisory_type,
+                template=template,
                 query_filter=filter,
                 rbac_filter=rbac_filter,
             ),

@@ -32,14 +32,14 @@ class PerReporterStaleness(BaseModel):
     last_check_in: datetime | None = None
     stale_timestamp: datetime | None = None
     stale_warning_timestamp: datetime | None = None
-    deletion_timestamp: datetime | None = None
+    culled_timestamp: datetime | None = None
     check_in_succeeded: StrictBool | None = None
     additional_properties: dict[str, Any] = {}
     __properties: ClassVar[list[str]] = [
         "last_check_in",
         "stale_timestamp",
         "stale_warning_timestamp",
-        "deletion_timestamp",
+        "culled_timestamp",
         "check_in_succeeded",
     ]
 
@@ -103,7 +103,7 @@ class PerReporterStaleness(BaseModel):
             "last_check_in": obj.get("last_check_in"),
             "stale_timestamp": obj.get("stale_timestamp"),
             "stale_warning_timestamp": obj.get("stale_warning_timestamp"),
-            "deletion_timestamp": obj.get("deletion_timestamp"),
+            "culled_timestamp": obj.get("culled_timestamp"),
             "check_in_succeeded": obj.get("check_in_succeeded"),
         })
         # store additional fields in additional_properties

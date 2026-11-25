@@ -45,6 +45,7 @@ _COLLECTION_PARAMS = (
     "cve_severity",
     "known_exploit",
     "security_rule",
+    "installable_advisory_type",
 )
 
 

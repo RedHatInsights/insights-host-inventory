@@ -33,7 +33,7 @@ class PerReporterStaleness:
         "last_check_in": "datetime",
         "stale_timestamp": "datetime",
         "stale_warning_timestamp": "datetime",
-        "deletion_timestamp": "datetime",
+        "culled_timestamp": "datetime",
         "check_in_succeeded": "bool",
     }
 
@@ -41,7 +41,7 @@ class PerReporterStaleness:
         "last_check_in": "last_check_in",
         "stale_timestamp": "stale_timestamp",
         "stale_warning_timestamp": "stale_warning_timestamp",
-        "deletion_timestamp": "deletion_timestamp",
+        "culled_timestamp": "culled_timestamp",
         "check_in_succeeded": "check_in_succeeded",
     }
 
@@ -50,7 +50,7 @@ class PerReporterStaleness:
         last_check_in=None,
         stale_timestamp=None,
         stale_warning_timestamp=None,
-        deletion_timestamp=None,
+        culled_timestamp=None,
         check_in_succeeded=None,
         local_vars_configuration=None,
     ):
@@ -62,7 +62,7 @@ class PerReporterStaleness:
         self._last_check_in = None
         self._stale_timestamp = None
         self._stale_warning_timestamp = None
-        self._deletion_timestamp = None
+        self._culled_timestamp = None
         self._check_in_succeeded = None
         self.discriminator = None
 
@@ -72,8 +72,8 @@ class PerReporterStaleness:
             self.stale_timestamp = stale_timestamp
         if stale_warning_timestamp is not None:
             self.stale_warning_timestamp = stale_warning_timestamp
-        if deletion_timestamp is not None:
-            self.deletion_timestamp = deletion_timestamp
+        if culled_timestamp is not None:
+            self.culled_timestamp = culled_timestamp
         if check_in_succeeded is not None:
             self.check_in_succeeded = check_in_succeeded
 
@@ -141,25 +141,25 @@ class PerReporterStaleness:
         self._stale_warning_timestamp = stale_warning_timestamp
 
     @property
-    def deletion_timestamp(self):
-        """Gets the deletion_timestamp of this PerReporterStaleness.  # noqa: E501
+    def culled_timestamp(self):
+        """Gets the culled_timestamp of this PerReporterStaleness.  # noqa: E501
 
 
-        :return: The deletion_timestamp of this PerReporterStaleness.  # noqa: E501
+        :return: The culled_timestamp of this PerReporterStaleness.  # noqa: E501
         :rtype: datetime
         """
-        return self._deletion_timestamp
+        return self._culled_timestamp
 
-    @deletion_timestamp.setter
-    def deletion_timestamp(self, deletion_timestamp):
-        """Sets the deletion_timestamp of this PerReporterStaleness.
+    @culled_timestamp.setter
+    def culled_timestamp(self, culled_timestamp):
+        """Sets the culled_timestamp of this PerReporterStaleness.
 
 
-        :param deletion_timestamp: The deletion_timestamp of this PerReporterStaleness.  # noqa: E501
+        :param culled_timestamp: The culled_timestamp of this PerReporterStaleness.  # noqa: E501
         :type: datetime
         """
 
-        self._deletion_timestamp = deletion_timestamp
+        self._culled_timestamp = culled_timestamp
 
     @property
     def check_in_succeeded(self):

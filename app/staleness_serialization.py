@@ -18,7 +18,7 @@ class AttrDict(dict):
         self.__dict__ = self
 
 
-def get_staleness_timestamps(
+def _get_staleness_timestamps(
     host: Host,
     staleness: AttrDict,
     last_check_in: datetime | None = None,
@@ -54,6 +54,20 @@ def get_staleness_timestamps(
         "deletion_timestamp": staleness_timestamps.deletion_timestamp(
             reference, staleness["conventional_time_to_delete"]
         ),
+    }
+
+
+def get_staleness_timestamps(
+    host: Host,
+    staleness: AttrDict,
+    last_check_in: datetime | None = None,
+) -> dict:
+    """Return timestamps with the legacy ``culled_timestamp`` key for compatibility."""
+    timestamps = _get_staleness_timestamps(host, staleness, last_check_in)
+    return {
+        "stale_timestamp": timestamps["stale_timestamp"],
+        "stale_warning_timestamp": timestamps["stale_warning_timestamp"],
+        "culled_timestamp": timestamps["deletion_timestamp"],
     }
 
 
