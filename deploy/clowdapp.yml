@@ -1458,70 +1458,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_SP_VALIDATOR}
             memory: ${MEMORY_REQUEST_SP_VALIDATOR}
-    - name: pendo-syncher
-      schedule: ${PENDO_CRON_SCHEDULE}
-      suspend: ${{PENDO_SYNCHER_SUSPEND}}
-      restartPolicy: Never
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/pendo_syncher.py"]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: KAFKA_EVENT_TOPIC
-            value: ${KAFKA_EVENT_TOPIC}
-          - name: KAFKA_NOTIFICATION_TOPIC
-            value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
-          - <<: *namespaceFieldRef
-            name: NAMESPACE
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: UNLEASH_URL
-            value: ${UNLEASH_URL}
-          - <<: *unleashToken
-            name: UNLEASH_TOKEN
-          - name: BYPASS_UNLEASH
-            value: ${BYPASS_UNLEASH}
-          - name: UNLEASH_REFRESH_INTERVAL
-            value: ${UNLEASH_REFRESH_INTERVAL}
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-          - name: PENDO_SYNC_ACTIVE
-            value: ${PENDO_SYNC_ACTIVE}
-          - name: PENDO_INTEGRATION_KEY
-            valueFrom:
-              secretKeyRef:
-                key: apikey
-                name: pendo-creds
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_PENDO_SYNCHER}
-            memory: ${MEMORY_LIMIT_PENDO_SYNCHER}
-          requests:
-            cpu: ${CPU_REQUEST_PENDO_SYNCHER}
-            memory: ${MEMORY_REQUEST_PENDO_SYNCHER}
     - name: synchronizer
       restartPolicy: OnFailure
       podSpec: &synchronizerPodSpec
@@ -2728,14 +2664,6 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_SP_VALIDATOR
   value: 512Mi
-- name: CPU_REQUEST_PENDO_SYNCHER
-  value: 250m
-- name: CPU_LIMIT_PENDO_SYNCHER
-  value: 500m
-- name: MEMORY_REQUEST_PENDO_SYNCHER
-  value: 256Mi
-- name: MEMORY_LIMIT_PENDO_SYNCHER
-  value: 512Mi
 - name: CPU_REQUEST_SYNCHRONIZER
   value: 250m
 - name: CPU_LIMIT_SYNCHRONIZER
@@ -3093,14 +3021,6 @@ parameters:
   value: '0 0 * * *'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
-
-# -- Pendo Syncher Job --
-- name: PENDO_SYNCHER_SUSPEND
-  value: 'true'
-- name: PENDO_CRON_SCHEDULE
-  value: '@daily'
-- name: PENDO_SYNC_ACTIVE
-  value: 'false'
 
 # -- Delete Hosts from S3 Job --
 - name: DELETE_HOSTS_S3_AWS_SECRET
