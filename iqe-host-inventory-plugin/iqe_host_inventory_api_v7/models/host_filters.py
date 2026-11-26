@@ -87,6 +87,18 @@ class HostFilters(BaseModel):
         default=None,
         description="Filter by Content template assignment. present matches a template_uuid. not_present matches a published row with no template_uuid.",
     )
+    last_scan_result: list[StrictStr] | None = Field(
+        default=None,
+        description="Filter by Malware last scan result. Values are OR. not_scanned matches hosts with no Malware data.",
+    )
+    last_scan_start: datetime | None = Field(
+        default=None,
+        description="Only show hosts whose Malware last_scan is at or after this time.",
+    )
+    last_scan_end: datetime | None = Field(
+        default=None,
+        description="Only show hosts whose Malware last_scan is at or before this time.",
+    )
     __properties: ClassVar[list[str]] = [
         "hostname_or_id",
         "staleness",
@@ -105,6 +117,9 @@ class HostFilters(BaseModel):
         "security_rule",
         "installable_advisory_type",
         "template",
+        "last_scan_result",
+        "last_scan_start",
+        "last_scan_end",
     ]
 
     @field_validator("staleness")
@@ -221,6 +236,19 @@ class HostFilters(BaseModel):
             raise ValueError("must be one of enum values ('present', 'not_present')")
         return value
 
+    @field_validator("last_scan_result")
+    def last_scan_result_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        for i in value:
+            if i not in {"present", "not_present", "not_scanned"}:
+                raise ValueError(
+                    "each list item must be one of ('present', 'not_present', 'not_scanned')"
+                )
+        return value
+
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
@@ -295,5 +323,8 @@ class HostFilters(BaseModel):
             "security_rule": obj.get("security_rule"),
             "installable_advisory_type": obj.get("installable_advisory_type"),
             "template": obj.get("template"),
+            "last_scan_result": obj.get("last_scan_result"),
+            "last_scan_start": obj.get("last_scan_start"),
+            "last_scan_end": obj.get("last_scan_end"),
         })
         return _obj

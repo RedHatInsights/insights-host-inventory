@@ -74,6 +74,14 @@ def _validate_patch_filter_authorization(installable_advisory_type, template, al
         flask.abort(HTTPStatus.FORBIDDEN, "Insufficient permissions to filter by patch")
 
 
+def _validate_malware_filter_authorization(last_scan_result, last_scan_start, last_scan_end, allowed_apps):
+    """Reject Malware host filters when the user lacks malware read permission."""
+    if allowed_apps is None:
+        return
+    if (last_scan_result or last_scan_start or last_scan_end) and "malware" not in allowed_apps:
+        flask.abort(HTTPStatus.FORBIDDEN, "Insufficient permissions to filter by malware")
+
+
 def _parse_sparse_fields(fields: dict | None) -> dict[str, list[str] | None]:
     """
     Parse sparse fields parameter into {app_name: [fields] or None for all}.
@@ -222,6 +230,9 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     security_rule=None,
     installable_advisory_type=None,
     template=None,
+    last_scan_result=None,
+    last_scan_start=None,
+    last_scan_end=None,
     filter=None,
     fields=None,
     rbac_filter=None,
@@ -254,6 +265,9 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     # so two values are a bad request rather than a silent choice.
     if len(flask.request.args.getlist("template")) > 1:
         flask.abort(HTTPStatus.BAD_REQUEST, "template accepts a single value")
+    for single_value_param in ("last_scan_start", "last_scan_end"):
+        if len(flask.request.args.getlist(single_value_param)) > 1:
+            flask.abort(HTTPStatus.BAD_REQUEST, f"{single_value_param} accepts a single value")
 
     total = 0
     host_list = ()
@@ -266,6 +280,7 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     _validate_advisor_filter_authorization(recommendation_severity, incident_status, allowed_apps)
     _validate_vulnerability_filter_authorization(cve_severity, known_exploit, security_rule, allowed_apps)
     _validate_patch_filter_authorization(installable_advisory_type, template, allowed_apps)
+    _validate_malware_filter_authorization(last_scan_result, last_scan_start, last_scan_end, allowed_apps)
 
     # Extract system_profile fields for the DB query layer; the rest is for app_data
     sp_fields = {"system_profile": fields["system_profile"]} if fields and "system_profile" in fields else None
@@ -297,6 +312,9 @@ def get_host_views(  # noqa: PLR0913, PLR0917
                 security_rule=security_rule,
                 installable_advisory_type=installable_advisory_type,
                 template=template,
+                last_scan_result=last_scan_result,
+                last_scan_start=last_scan_start,
+                last_scan_end=last_scan_end,
                 query_filter=filter,
                 rbac_filter=rbac_filter,
             ),

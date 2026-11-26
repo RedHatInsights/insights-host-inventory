@@ -586,8 +586,19 @@ def test_create_empty_update_failing_system_profile(
         mq_create_or_update_host(host_minimal)  # This should raise a ValidationException
 
 
+_TEST_GITHUB_HEADERS = {
+    "Authorization": "Bearer test-token",
+    "Accept": "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+}
+
+
 class TestGitHubRateLimiting:
     """Tests for GitHub API rate limit handling via _GitHubRateLimiter."""
+
+    @pytest.fixture(autouse=True)
+    def _stub_github_auth(self, mocker):
+        mocker.patch("jobs.system_profile_validator._github_headers", return_value=_TEST_GITHUB_HEADERS)
 
     def _reset_global_limiter(self):
         _rate_limiter._remaining = None
@@ -680,7 +691,11 @@ class TestGitHubRateLimiting:
         result = _get_git_response("/test/path")
 
         assert result == {"key": "value"}
-        mock_get.assert_called_once()
+        mock_get.assert_called_once_with(
+            "https://api.github.com/test/path",
+            headers=_TEST_GITHUB_HEADERS,
+            timeout=30,
+        )
 
     def test_get_git_response_proactive_wait_on_exhausted_limiter(self, mocker):
         """Test that _get_git_response waits before making a request when the limiter is already exhausted."""

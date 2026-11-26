@@ -146,12 +146,11 @@ returns a detailed list of errors that can help with debugging.
 ### System Profile Validator
 
 The System Profile Validator is a job that validates changes to the
-System Profile against Production data. To see how a schema change
-would affect current data, open a PR to the [inventory-schemas repo](https://github.com/RedHatInsights/inventory-schemas)
-with your desired modifications. `dippy-bot`, our bot account, will then
-comment on the PR with a summary of the validation results per reporter,
-making it clear how each reporter's messages would be affected by the
-suggested change.
+System Profile against Production data. When a pull request in this
+repository modifies `swagger/system_profile.spec.yaml`, the
+`bugkiller-agent` GitHub App comments with a summary of the validation
+results per reporter, making it clear how each reporter's messages would
+be affected by the suggested change.
 
 Users with HBI Admin permissions are also able to use the
 [validator API endpoint](https://console.redhat.com/api/inventory/v1/ui/#/default/api.system_profile.validate_schema)
