@@ -142,6 +142,9 @@ paths:
         - $ref: '#/components/parameters/securityRuleParam'
         - $ref: '#/components/parameters/installableAdvisoryTypeParam'
         - $ref: '#/components/parameters/templateParam'
+        - $ref: '#/components/parameters/lastScanResultParam'
+        - $ref: '#/components/parameters/lastScanStartParam'
+        - $ref: '#/components/parameters/lastScanEndParam'
       responses:
         '200':
           description: Successfully read host views.
@@ -1883,6 +1886,46 @@ components:
         enum:
           - present
           - not_present
+    lastScanResultParam:
+      in: query
+      name: last_scan_result
+      required: false
+      style: form
+      explode: true
+      description: >-
+        Filters hosts by Malware last scan result. Repeat the parameter for
+        multiple values (last_scan_result=present&last_scan_result=not_scanned).
+        Values are OR. present matches last_matches greater than 0. not_present
+        matches a published Malware row with last_matches equal to 0.
+        not_scanned matches hosts with no Malware data.
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - present
+            - not_present
+            - not_scanned
+    lastScanStartParam:
+      in: query
+      name: last_scan_start
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: >-
+        Only show hosts whose Malware last_scan is at or after this time.
+        A host with no last_scan matches neither bound.
+    lastScanEndParam:
+      in: query
+      name: last_scan_end
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: >-
+        Only show hosts whose Malware last_scan is at or before this time.
+        A host with no last_scan matches neither bound.
     hostViewCombinedFilterParam:
       in: query
       name: filter
@@ -3587,6 +3630,26 @@ components:
           enum:
             - present
             - not_present
+        last_scan_result:
+          description: >-
+            Filter by Malware last scan result. Values are OR. present matches
+            last_matches greater than 0. not_present matches a published row with
+            last_matches equal to 0. not_scanned matches hosts with no Malware data.
+          type: array
+          items:
+            type: string
+            enum:
+              - present
+              - not_present
+              - not_scanned
+        last_scan_start:
+          description: Only show hosts whose Malware last_scan is at or after this time.
+          type: string
+          format: date-time
+        last_scan_end:
+          description: Only show hosts whose Malware last_scan is at or before this time.
+          type: string
+          format: date-time
       additionalProperties: false
     ViewIn:
       title: View Create Payload

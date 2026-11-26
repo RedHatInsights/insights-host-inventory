@@ -8,7 +8,6 @@ class RuntimeEnvironment(Enum):
     SERVER = auto()
     SERVICE = auto()
     JOB = auto()
-    PENDO_JOB = auto()
     COMMAND = auto()
     TEST = auto()
 
@@ -30,7 +29,7 @@ class RuntimeEnvironment(Enum):
 
     @property
     def metrics_pushgateway_enabled(self):
-        return self in (self.JOB, self.PENDO_JOB)
+        return self == self.JOB
 
     @property
     def payload_tracker_enabled(self):

@@ -1985,6 +1985,9 @@ class HostsApi:
         :param list[str] security_rule: Filter by CVEs with security rules. Repeat the parameter for multiple values.
         :param list[str] installable_advisory_type: Filter by Content installable advisory type. Repeat the parameter for multiple values.
         :param str template: Filter by Content template assignment. present or not_present.
+        :param list[str] last_scan_result: Filter by Malware last scan result. Repeat the parameter for multiple values.
+        :param datetime last_scan_start: Only show hosts whose Malware last_scan is at or after this time.
+        :param datetime last_scan_end: Only show hosts whose Malware last_scan is at or before this time.
         :param dict(str, HostViewCombinedFilterValue) filter: Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][name][eq]=rhel\" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[vulnerability][critical_cves][gte]=1\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[patch][template_name][eq]=production\" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1\"
         :param HostViewCombinedFields fields: Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations\"
         :param _preload_content: if False, the urllib3.HTTPResponse object will
@@ -2040,6 +2043,9 @@ class HostsApi:
         :param list[str] security_rule: Filter by CVEs with security rules. Repeat the parameter for multiple values.
         :param list[str] installable_advisory_type: Filter by Content installable advisory type. Repeat the parameter for multiple values.
         :param str template: Filter by Content template assignment. present or not_present.
+        :param list[str] last_scan_result: Filter by Malware last scan result. Repeat the parameter for multiple values.
+        :param datetime last_scan_start: Only show hosts whose Malware last_scan is at or after this time.
+        :param datetime last_scan_end: Only show hosts whose Malware last_scan is at or before this time.
         :param dict(str, HostViewCombinedFilterValue) filter: Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][name][eq]=rhel\" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[vulnerability][critical_cves][gte]=1\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[patch][template_name][eq]=production\" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1\"
         :param HostViewCombinedFields fields: Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations\"
         :param _return_http_data_only: response data without head status code
@@ -2088,6 +2094,9 @@ class HostsApi:
             "security_rule",
             "installable_advisory_type",
             "template",
+            "last_scan_result",
+            "last_scan_start",
+            "last_scan_end",
             "filter",
             "fields",
         ]
@@ -2206,6 +2215,13 @@ class HostsApi:
             collection_formats["installable_advisory_type"] = "multi"
         if "template" in local_var_params and local_var_params["template"] is not None:
             query_params.append(("template", local_var_params["template"]))
+        if "last_scan_result" in local_var_params and local_var_params["last_scan_result"] is not None:
+            query_params.append(("last_scan_result", local_var_params["last_scan_result"]))
+            collection_formats["last_scan_result"] = "multi"
+        if "last_scan_start" in local_var_params and local_var_params["last_scan_start"] is not None:
+            query_params.append(("last_scan_start", local_var_params["last_scan_start"]))
+        if "last_scan_end" in local_var_params and local_var_params["last_scan_end"] is not None:
+            query_params.append(("last_scan_end", local_var_params["last_scan_end"]))
         if "filter" in local_var_params and local_var_params["filter"] is not None:
             query_params.append(("filter", local_var_params["filter"]))
         if "fields" in local_var_params and local_var_params["fields"] is not None:
