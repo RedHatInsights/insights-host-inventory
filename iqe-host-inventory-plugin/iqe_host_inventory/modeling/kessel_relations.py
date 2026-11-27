@@ -160,7 +160,9 @@ class HBIKesselRelationsGRPC:
             resource_namespace="hbi",
             resource_type="host",
             relation="workspace",
-            subject_filter=RelationSubjectFilter(subject_namespace="rbac", subject_type="workspace"),
+            subject_filter=RelationSubjectFilter(
+                subject_namespace="rbac", subject_type="workspace"
+            ),
         )
         if host_id is not None:
             filter.resource_id = host_id
