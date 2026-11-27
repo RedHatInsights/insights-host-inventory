@@ -40,6 +40,7 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from api.cache import delete_cached_system
 from api.cache import delete_cached_system_keys
+from api.cache import get_org_cache_generation
 from api.cache import get_system_cache_generations
 from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
@@ -1419,13 +1420,25 @@ def system_cache_has_multiple_hosts(org_id: str, insights_id: str, owner_id: str
         return False
 
 
-def cache_ingested_system(output_host: dict, insights_id: str | None, *, created: bool, groups: list) -> None:
+def cache_ingested_system(
+    output_host: dict,
+    insights_id: str | None,
+    *,
+    created: bool,
+    groups: list,
+    staleness_org_generation: int | None = None,
+) -> None:
     """Refresh the system-client cache for one ingested host.
 
     The cache stores a single host per insights ID and owner. When more than one
     visible host shares that pair, drop the entry instead of writing the host
     that was just ingested. Missing insights ID or owner is skipped so this never
     falls through to a Redis scan.
+
+    ``staleness_org_generation`` is the org-level generation counter captured at
+    the time the staleness snapshot was taken for serialization. If a staleness
+    change incremented the counter between serialization and this cache write,
+    we skip the write to avoid storing stale timestamps under the new key.
     """
     org_id = output_host.get("org_id")
     owner_id = (output_host.get("system_profile") or {}).get("owner_id")
@@ -1438,7 +1451,23 @@ def cache_ingested_system(output_host: dict, insights_id: str | None, *, created
         # Pass owner_id so this increments one generation counter.
         delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
 
-    generation, org_generation = get_system_cache_generations(insights_id, org_id, owner_id)
+    generations = get_system_cache_generations(insights_id, org_id, owner_id)
+    if generations is None:
+        # Redis error — skip the cache write rather than risk stale data.
+        return
+
+    generation, org_generation = generations
+
+    # If the org generation moved since the staleness snapshot was captured,
+    # the serialized host may contain outdated timestamps — skip the write.
+    if staleness_org_generation is not None and org_generation != staleness_org_generation:
+        logger.info(
+            "Skipping cache write: org generation changed (%s -> %s) since staleness snapshot",
+            staleness_org_generation,
+            org_generation,
+        )
+        return
+
     system_key = make_system_cache_key(
         insights_id, org_id, owner_id, generation=generation, org_generation=org_generation
     )
@@ -1474,6 +1503,9 @@ def write_add_update_event_message(
         inventory_id=result.row.id,
     ) as tracker_ctx:
         staleness = result.staleness_object or get_staleness_obj(result.row.org_id)
+        # Snapshot the org generation *before* serialization so we can detect
+        # staleness changes that happen between now and the cache write.
+        staleness_org_generation = get_org_cache_generation(result.row.org_id)
         output_host = serialize_host(result.row, staleness)
         event, headers = build_event_and_headers(
             result.event_type,
@@ -1508,6 +1540,7 @@ def write_add_update_event_message(
                 serialize_uuid(result.row.insights_id),
                 created=result.event_type.name == HOST_EVENT_TYPE_CREATED,
                 groups=result.row.groups or [],
+                staleness_org_generation=staleness_org_generation,
             )
         except Exception:
             logger.exception("Error during set cache")

@@ -524,7 +524,7 @@ def test_get_system_cache_generations_returns_zeros_when_redis_disabled():
 @patch("api.cache.REDIS_CLIENT")
 def test_get_system_cache_generations_handles_redis_error(redis_client_mock):
     redis_client_mock.mget.side_effect = Exception("Redis connection lost")
-    assert get_system_cache_generations(generate_uuid(), "test_org", "abc") == (0, 0)
+    assert get_system_cache_generations(generate_uuid(), "test_org", "abc") is None
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
@@ -578,7 +578,7 @@ def test_get_flag_value_org_specific_targeting(_enable_unleash, org_id, expected
 @patch("api.cache.REDIS_CLIENT")
 def test_get_org_cache_generation_handles_redis_error(redis_client_mock):
     redis_client_mock.get.side_effect = Exception("Redis connection lost")
-    assert get_org_cache_generation("test_org") == 0
+    assert get_org_cache_generation("test_org") is None
 
 
 @patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})

@@ -123,8 +123,9 @@ def get_system_cache_generation(insights_id, org_id, owner_id):
 def get_org_cache_generation(org_id):
     """Read the current org-level cache generation counter.
 
-    Returns 0 when Redis is unavailable or the generation key does not exist.
-    When the key is absent, it is lazily initialised to 0 without expiry.
+    Returns 0 when Redis is not configured, or None when Redis is configured
+    but the read fails.  Returning None lets callers skip the cache rather than
+    risk writing stale data under a valid key.
     """
     if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE):
         return 0
@@ -137,13 +138,16 @@ def get_org_cache_generation(org_id):
         return _lazy_init_counter(client, org_gen_key)
     except Exception as exc:
         logger.exception("Failed to read org cache generation", exc_info=exc)
-        return 0
+        return None
 
 
 def get_system_cache_generations(insights_id, org_id, owner_id):
     """Fetch both the per-system generation and the per-org generation in a single MGET call.
 
-    Returns (generation, org_generation). Returns (0, 0) when Redis is unavailable or on error.
+    Returns (generation, org_generation), or None when Redis is unavailable or
+    on error.  Returning None lets callers distinguish "generation unknown" from
+    a genuine (0, 0) and skip the system cache for that operation rather than
+    risk serving stale data under a valid key.
     """
     if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE):
         return (0, 0)
@@ -170,7 +174,7 @@ def get_system_cache_generations(insights_id, org_id, owner_id):
         return (sys_gen, org_gen)
     except Exception as exc:
         logger.exception("Failed to read system cache generations", exc_info=exc)
-        return (0, 0)
+        return None
 
 
 def _invalidate_system_cache_redis(insights_id, org_id, owner_id):
