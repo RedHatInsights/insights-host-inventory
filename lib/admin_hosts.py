@@ -9,6 +9,7 @@ from uuid import UUID
 
 from flask import current_app
 
+from api.cache import get_org_cache_generation
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import to_auth_header
@@ -87,6 +88,7 @@ def create_or_update_host_via_admin(host_data: dict[str, Any] | None) -> tuple[U
         operation_results_to_event_type(add_result),
         success_logger,
     )
+    result.staleness_org_generation = get_org_cache_generation(identity.org_id)
 
     with no_expire_on_commit(db.session):
         db.session.commit()
