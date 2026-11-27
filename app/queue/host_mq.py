@@ -1441,7 +1441,8 @@ def cache_ingested_system(
     ``staleness_org_generation`` is the org-level generation counter captured at
     the time the staleness snapshot was taken for serialization. If a staleness
     change incremented the counter between serialization and this cache write,
-    we skip the write to avoid storing stale timestamps under the new key.
+    or if the initial generation could not be determined (None), we skip the
+    write to avoid storing stale timestamps under the new key.
     """
     org_id = output_host.get("org_id")
     owner_id = (output_host.get("system_profile") or {}).get("owner_id")
@@ -1470,10 +1471,8 @@ def cache_ingested_system(
 
     # If the org generation moved since the staleness snapshot was captured,
     # the serialized host may contain outdated timestamps — skip the write.
-    # A None snapshot means the caller never captured the generation (e.g.
-    # Redis was not configured at ingestion time); in that case we allow the
-    # write since there is no evidence of a staleness change.
-    if staleness_org_generation is not None and staleness_org_generation != org_generation:
+    # Using != so that a None snapshot (failed initial read) also skips.
+    if staleness_org_generation != org_generation:
         logger.info(
             "Skipping cache write: org generation mismatch (snapshot=%s, current=%s)",
             staleness_org_generation,

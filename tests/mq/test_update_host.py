@@ -356,6 +356,7 @@ def test_write_add_update_event_message(mocker):
         et=EventType.created,
         sl=mock_success_logger,
     )
+    result.staleness_org_generation = 0
 
     # Act
     write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
@@ -372,6 +373,12 @@ def test_write_add_update_event_message(mocker):
 
     # Assert synchronous flush per ADR-0002
     assert mock_event_producer.write_event.call_args.kwargs["wait"] is True
+
+    # Assert that a None staleness_org_generation (e.g. failed lookup) skips the cache write
+    mock_set_cached_system.reset_mock()
+    result.staleness_org_generation = None
+    write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
+    mock_set_cached_system.assert_not_called()
 
 
 @pytest.mark.usefixtures("flask_app")
