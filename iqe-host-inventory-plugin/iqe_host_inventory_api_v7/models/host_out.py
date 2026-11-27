@@ -103,7 +103,7 @@ class HostOut(BaseModel):
         description="Timestamp from which the host is considered too stale to be listed without an explicit toggle.",
     )
     culled_timestamp: datetime | None = Field(
-        default=None, description="Timestamp from which the host is considered deleted."
+        default=None, description="Timestamp from which the host is considered culled."
     )
     reporter: StrictStr | None = Field(
         default=None,

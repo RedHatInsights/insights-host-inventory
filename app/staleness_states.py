@@ -15,7 +15,7 @@ class HostStalenessStatesDbFilters:
     """Host-level staleness predicates for SQL filtering.
 
     Always derived from ``last_check_in`` plus the org's ``conventional_time_to_*``
-    seconds (same as ``Timestamps`` / ``get_staleness_timestamps``).
+    seconds (same as ``Timestamps`` / ``_get_staleness_timestamps``).
     """
 
     def __init__(self, staleness: dict):

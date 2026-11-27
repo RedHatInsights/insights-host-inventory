@@ -2536,7 +2536,7 @@ components:
               format: date-time
               nullable: true
             culled_timestamp:
-              description: Timestamp from which the host is considered deleted.
+              description: Timestamp from which the host is considered culled.
               type: string
               format: date-time
               nullable: true

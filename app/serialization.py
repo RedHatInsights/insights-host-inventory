@@ -27,7 +27,7 @@ from app.models.system_profile_transformer import DYNAMIC_FIELDS
 from app.models.system_profile_transformer import STATIC_FIELDS
 from app.models.views import InventoryView
 from app.staleness_serialization import AttrDict
-from app.staleness_serialization import get_staleness_timestamps
+from app.staleness_serialization import _get_staleness_timestamps
 from app.utils import Tag
 
 logger = get_logger(__name__)
@@ -220,7 +220,7 @@ def serialize_host(
     """
 
     # Compute staleness timestamps for this host
-    st_timestamps = get_staleness_timestamps(host, staleness)
+    st_timestamps = _get_staleness_timestamps(host, staleness)
 
     fields = DEFAULT_FIELDS + additional_fields
 
@@ -242,7 +242,7 @@ def serialize_host(
         "per_reporter_staleness": lambda: _serialize_per_reporter_staleness(host, staleness),
         "stale_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["stale_timestamp"]),
         "stale_warning_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["stale_warning_timestamp"]),
-        "culled_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["culled_timestamp"]),
+        "culled_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["deletion_timestamp"]),
         "created": lambda: _serialize_datetime(host.created_on),
         "updated": lambda: _serialize_datetime(host.modified_on),
         "last_check_in": lambda: _serialize_datetime(host.last_check_in),
@@ -346,7 +346,7 @@ def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = 
 
     last_check_in = getattr(row, "last_check_in", None)
     if last_check_in:
-        st_timestamps = get_staleness_timestamps(row, staleness, last_check_in=last_check_in)
+        st_timestamps = _get_staleness_timestamps(row, staleness, last_check_in=last_check_in)
         state = Conditions.find_host_state(
             stale_timestamp=st_timestamps["stale_timestamp"],
             stale_warning_timestamp=st_timestamps["stale_warning_timestamp"],
@@ -735,12 +735,12 @@ def _full_per_reporter_staleness_dict(
     if isinstance(stored_value, dict):
         return stored_value
     last_check_in_dt = _deserialize_datetime(stored_value)
-    ts = get_staleness_timestamps(host, staleness, last_check_in=last_check_in_dt)
+    ts = _get_staleness_timestamps(host, staleness, last_check_in=last_check_in_dt)
     return {
         "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
         "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),
         "stale_warning_timestamp": _serialize_staleness_to_string(ts["stale_warning_timestamp"]),
-        "culled_timestamp": _serialize_staleness_to_string(ts["culled_timestamp"]),
+        "culled_timestamp": _serialize_staleness_to_string(ts["deletion_timestamp"]),
         "check_in_succeeded": True,
     }
 

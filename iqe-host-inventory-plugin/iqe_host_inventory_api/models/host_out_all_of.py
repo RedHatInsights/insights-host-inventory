@@ -376,7 +376,7 @@ class HostOutAllOf:
     def culled_timestamp(self):
         """Gets the culled_timestamp of this HostOutAllOf.  # noqa: E501
 
-        Timestamp from which the host is considered deleted.  # noqa: E501
+        Timestamp from which the host is considered culled.  # noqa: E501
 
         :return: The culled_timestamp of this HostOutAllOf.  # noqa: E501
         :rtype: datetime
@@ -387,7 +387,7 @@ class HostOutAllOf:
     def culled_timestamp(self, culled_timestamp):
         """Sets the culled_timestamp of this HostOutAllOf.
 
-        Timestamp from which the host is considered deleted.  # noqa: E501
+        Timestamp from which the host is considered culled.  # noqa: E501
 
         :param culled_timestamp: The culled_timestamp of this HostOutAllOf.  # noqa: E501
         :type: datetime

@@ -18,13 +18,13 @@ class AttrDict(dict):
         self.__dict__ = self
 
 
-def get_staleness_timestamps(
+def _get_staleness_timestamps(
     host: Host,
     staleness: AttrDict,
     last_check_in: datetime | None = None,
 ) -> dict:
     """
-    Compute stale / stale_warning / culled timestamps from a reference check-in instant.
+    Compute stale / stale_warning / deletion timestamps from a reference check-in instant.
     By default uses ``host.last_check_in`` (host-level serialization).
     Pass ``last_check_in`` for a different reference instant (e.g. one reporter's stored check-in).
 
@@ -34,7 +34,7 @@ def get_staleness_timestamps(
         last_check_in: Optional reference instant.
 
     Returns:
-        dict with keys ``stale_timestamp``, ``stale_warning_timestamp``, ``culled_timestamp``.
+        dict with keys ``stale_timestamp``, ``stale_warning_timestamp``, ``deletion_timestamp``.
 
     Raises:
         ValueError: If both ``last_check_in`` and ``host.last_check_in`` are missing.
@@ -51,7 +51,23 @@ def get_staleness_timestamps(
         "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
             reference, staleness["conventional_time_to_stale_warning"]
         ),
-        "culled_timestamp": staleness_timestamps.culled_timestamp(reference, staleness["conventional_time_to_delete"]),
+        "deletion_timestamp": staleness_timestamps.deletion_timestamp(
+            reference, staleness["conventional_time_to_delete"]
+        ),
+    }
+
+
+def get_staleness_timestamps(
+    host: Host,
+    staleness: AttrDict,
+    last_check_in: datetime | None = None,
+) -> dict:
+    """Return timestamps with the legacy ``culled_timestamp`` key for compatibility."""
+    timestamps = _get_staleness_timestamps(host, staleness, last_check_in)
+    return {
+        "stale_timestamp": timestamps["stale_timestamp"],
+        "stale_warning_timestamp": timestamps["stale_warning_timestamp"],
+        "culled_timestamp": timestamps["deletion_timestamp"],
     }
 
 

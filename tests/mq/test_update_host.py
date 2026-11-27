@@ -280,11 +280,11 @@ def test_write_add_update_event_message(mocker):
     mocker.patch("app.queue.host_mq.PayloadTrackerProcessingContext")
     mocker.patch("app.queue.host_mq.get_payload_tracker", return_value=mocker.Mock())
     mocker.patch(
-        "app.serialization.get_staleness_timestamps",
+        "app.serialization._get_staleness_timestamps",
         return_value={
             "stale_timestamp": datetime.now(),
             "stale_warning_timestamp": datetime.now(),
-            "culled_timestamp": datetime.now(),
+            "deletion_timestamp": datetime.now(),
         },
     )
     mock_set_cached_system = mocker.patch("app.queue.host_mq.set_cached_system")

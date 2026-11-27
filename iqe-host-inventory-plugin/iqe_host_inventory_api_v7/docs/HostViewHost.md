@@ -24,7 +24,7 @@ Name | Type | Description | Notes
 **facts** | [**List[FactSet]**](FactSet.md) | A set of facts belonging to the host. | [optional]
 **stale_timestamp** | **datetime** | Timestamp from which the host is considered stale. | [optional]
 **stale_warning_timestamp** | **datetime** | Timestamp from which the host is considered too stale to be listed without an explicit toggle. | [optional]
-**culled_timestamp** | **datetime** | Timestamp from which the host is considered deleted. | [optional]
+**culled_timestamp** | **datetime** | Timestamp from which the host is considered culled. | [optional]
 **reporter** | **str** | Reporting source of the host. Used when updating the stale_timestamp. | [optional]
 **per_reporter_staleness** | [**Dict[str, PerReporterStaleness]**](PerReporterStaleness.md) | Reporting source of the last checkin status, stale_timestamp, and last_check_in. | [optional]
 **groups** | [**List[GroupOut]**](GroupOut.md) | The groups that the host belongs to, if any. | [optional]
