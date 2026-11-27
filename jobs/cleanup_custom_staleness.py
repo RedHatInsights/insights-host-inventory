@@ -24,13 +24,13 @@ from logging import Logger
 from connexion import FlaskApp
 from sqlalchemy.orm import Session
 
+from api.cache import invalidate_org_staleness_caches
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Staleness
-from app.models.utils import StalenessCache
 from jobs.common import excepthook
 from jobs.common import job_setup
 from lib.db import session_guard
@@ -111,10 +111,10 @@ def run(logger: Logger, session: Session, application: FlaskApp) -> None:
 
         for org_id in candidate_org_ids:
             try:
-                StalenessCache.delete(org_id)
-                logger.info("Invalidated staleness cache for org_id=%s", org_id)
+                invalidate_org_staleness_caches(org_id)
+                logger.info("Invalidated staleness caches for org_id=%s", org_id)
             except Exception:
-                logger.exception("Failed to invalidate cache for org_id=%s (DB delete succeeded)", org_id)
+                logger.exception("Failed to invalidate caches for org_id=%s (DB delete succeeded)", org_id)
 
 
 if __name__ == "__main__":

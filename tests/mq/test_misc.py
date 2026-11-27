@@ -1228,3 +1228,46 @@ def test_created_host_invalidates_only_owner_system_cache(
         mock_delete_cache.assert_called_once_with(insights_id=insights_id, org_id="org-id", owner_id=owner_id)
     else:
         mock_delete_cache.assert_not_called()
+
+
+def test_cache_ingested_system_passes_org_generation(mocker):
+    mocker.patch("app.queue.host_mq.system_cache_has_multiple_hosts", return_value=False)
+    mocker.patch("app.queue.host_mq.get_system_cache_generations", return_value=(2, 7))
+    mock_make_key = mocker.patch("app.queue.host_mq.make_system_cache_key")
+    mocker.patch("app.queue.host_mq.set_cached_system")
+
+    insights_id = generate_uuid()
+    org_id = "test-org"
+    owner_id = "test-owner"
+    cache_ingested_system(
+        {"org_id": org_id, "system_profile": {"owner_id": owner_id}},
+        insights_id,
+        created=False,
+        groups=[],
+    )
+
+    mock_make_key.assert_called_once_with(insights_id, org_id, owner_id, generation=2, org_generation=7)
+
+
+def test_cache_ingested_system_multiple_hosts_deletes_cache_with_org_generation(mocker):
+    mocker.patch("app.queue.host_mq.system_cache_has_multiple_hosts", return_value=True)
+    mocker.patch("app.queue.host_mq.get_system_cache_generations", return_value=(3, 8))
+    mock_make_key = mocker.patch(
+        "app.queue.host_mq.make_system_cache_key",
+        return_value="test-key:g3:o8",
+    )
+    mock_delete_cached_system = mocker.patch("app.queue.host_mq.delete_cached_system")
+    mocker.patch("app.queue.host_mq.delete_cached_system_keys")
+
+    insights_id = generate_uuid()
+    org_id = "test-org"
+    owner_id = "test-owner"
+    cache_ingested_system(
+        {"org_id": org_id, "system_profile": {"owner_id": owner_id}},
+        insights_id,
+        created=False,
+        groups=[],
+    )
+
+    mock_make_key.assert_called_once_with(insights_id, org_id, owner_id, generation=3, org_generation=8)
+    mock_delete_cached_system.assert_called_once_with("test-key:g3:o8")

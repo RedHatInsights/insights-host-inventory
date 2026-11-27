@@ -15,7 +15,7 @@ from api import metrics
 from api import pagination_params
 from api.cache import CACHE
 from api.cache import delete_cached_system_keys
-from api.cache import get_system_cache_generation
+from api.cache import get_system_cache_generations
 from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
 from api.filtering.db_filters import update_query_for_owner_id
@@ -150,24 +150,28 @@ def get_host_list(
         and page == 1
         and not has_complex_params
     )
+    system_key = None
     if is_cached_insights_client_system_query:
         owner_id = current_identity.system.get("cn")
         forwarded_identity = get_satellite_forwarded_identity(current_identity)
-        generation = get_system_cache_generation(insights_id, current_identity.org_id, owner_id)
-        system_key = make_system_cache_key(
-            insights_id,
-            current_identity.org_id,
-            owner_id,
-            forwarded_identity=forwarded_identity,
-            generation=generation,
-        )
-        stored_system = CACHE.get(system_key)
-        if stored_system:
-            host_list = [stored_system]
-            total = 1 if get_total else None
-            json_data = build_paginated_host_list_response(total, page, per_page, host_list, serialize_hosts=False)
-            metrics.api_cached_systems_hit.inc()
-            return flask_json_response(json_data)
+        generations = get_system_cache_generations(insights_id, current_identity.org_id, owner_id)
+        if generations is not None:
+            generation, org_generation = generations
+            system_key = make_system_cache_key(
+                insights_id,
+                current_identity.org_id,
+                owner_id,
+                forwarded_identity=forwarded_identity,
+                generation=generation,
+                org_generation=org_generation,
+            )
+            stored_system = CACHE.get(system_key)
+            if stored_system:
+                host_list = [stored_system]
+                total = 1 if get_total else None
+                json_data = build_paginated_host_list_response(total, page, per_page, host_list, serialize_hosts=False)
+                metrics.api_cached_systems_hit.inc()
+                return flask_json_response(json_data)
 
     try:
         host_list, total, additional_fields, system_profile_fields = get_host_list_from_db(
@@ -208,7 +212,7 @@ def get_host_list(
     json_data = build_paginated_host_list_response(
         total, page, per_page, host_list, additional_fields, system_profile_fields
     )
-    if is_cached_insights_client_system_query and len(host_list) == 1:
+    if is_cached_insights_client_system_query and len(host_list) == 1 and system_key is not None:
         output_host = serialize_host_with_params(host_list[0])
         set_cached_system(system_key, output_host)
 
