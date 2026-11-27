@@ -1,9 +1,8 @@
 # RBAC Setup for HBI Tests
 
 Ansible playbooks that provision dedicated Red Hat users with specific RBAC
-permissions for HBI testing. Each user gets exactly one role (or zero
-for the no-permissions user), eliminating the need to reconfigure RBAC
-between test classes.
+permissions for HBI testing. Each user gets only its designated roles.
+The `-no-perms` and legacy `-2` users have no roles by default.
 
 ## Prerequisites
 

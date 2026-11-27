@@ -113,8 +113,8 @@ prod:
           vault_path: secrets/qe/prod/users/insights_inventory_qe_2
           vault_key: password
         refresh_token:
-          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
-          vault_key: refresh_token
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: 2-refresh_token
       cert_auth:
         cert:
           vault_path: secrets/qe/prod/users/insights_inventory_qe_2
@@ -343,8 +343,8 @@ prod:
           vault_path: secrets/qe/prod/users/insights_inventory_test_2
           vault_key: password
         refresh_token:
-          vault_path: secrets/qe/prod/users/insights_inventory_test_2
-          vault_key: refresh_token
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: 2-refresh_token
       cert_auth:
         cert:
           vault_path: secrets/qe/prod/users/insights_inventory_test_2
@@ -777,8 +777,8 @@ stage: &stage
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
           vault_key: password
         refresh_token:
-          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
-          vault_key: refresh_token
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: 2-refresh_token
       cert_auth:
         cert:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
@@ -1007,8 +1007,8 @@ stage: &stage
           vault_path: secrets/qe/stage/users/insights_inventory_test_2
           vault_key: password
         refresh_token:
-          vault_path: secrets/qe/stage/users/insights_inventory_test_2
-          vault_key: refresh_token
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: 2-refresh_token
       cert_auth:
         cert:
           vault_path: secrets/qe/stage/users/insights_inventory_test_2
