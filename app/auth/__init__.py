@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import connexion
 from flask import Request
-from flask import abort
 
 from api.metrics import login_failure_count
 from app.auth.identity import Identity
@@ -34,10 +33,12 @@ def authentication_header_handler(
 def bearer_token_handler(token):
     try:
         identity = from_bearer_token(token)
-    except Exception:
+    except Exception as exc:
         login_failure_count.inc()
         logger.error("Failed to validate bearer token value", exc_info=True)
-        abort(401, "Failed to validate bearer token value")
+        # Authentication runs in Connexion's ASGI security layer, before Flask.
+        # A Werkzeug abort here is rendered as 500 instead of the intended 401.
+        raise connexion.exceptions.OAuthProblem("Failed to validate bearer token value") from exc
 
     return {"uid": identity}
 

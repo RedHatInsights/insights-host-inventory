@@ -28,6 +28,7 @@ from urllib.parse import urlparse
 from opentelemetry import context as otel_context_api
 
 from app.logging import get_logger
+from app.security_logging import snapshot_security_audit_trace
 
 logger = get_logger(__name__)
 
@@ -404,13 +405,14 @@ def _outbound_request_hook(span, request, *_args, **_kwargs):
     span.update_name(f"{request.method} {path}")
 
 
-def _request_hook(span, environ):  # noqa: ARG001
+def _request_hook(span, environ):
     """Add Red Hat platform attributes to every request span.
 
     Adds org_id and request_id so traces can be filtered in Grafana/Tempo:
         - rh.org_id = "12345"         → all traces for an org
         - rh.request_id = "abc-..."   → find a specific request
     """
+    snapshot_security_audit_trace(span, environ)
     if not span or not span.is_recording():
         return
 

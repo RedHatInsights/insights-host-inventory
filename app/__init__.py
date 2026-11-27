@@ -6,6 +6,7 @@ from os.path import join
 import connexion
 import segment.analytics as analytics
 import yaml
+from connexion.middleware import MiddlewarePosition
 from connexion.options import SwaggerUIOptions
 from connexion.resolver import RestyResolver
 from flask import current_app
@@ -39,6 +40,7 @@ from app.queue.metrics import notification_event_producer_failure
 from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
+from app.security_logging import SecurityAuditMiddleware
 from app.tags_blueprint import tags_bp
 from app.telemetry import instrument_botocore
 from app.telemetry import instrument_flask_app
@@ -241,6 +243,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
         uri_parser_class=customURIParser,
         swagger_ui_options=swagger_options,
     )
+    app.add_middleware(SecurityAuditMiddleware, position=MiddlewarePosition.BEFORE_EXCEPTION)
 
     parser = TranslatingParser(SPECIFICATION_FILE)
     parser.parse()
