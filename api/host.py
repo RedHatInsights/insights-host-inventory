@@ -150,6 +150,7 @@ def get_host_list(
         and page == 1
         and not has_complex_params
     )
+    system_key = None
     if is_cached_insights_client_system_query:
         owner_id = current_identity.system.get("cn")
         forwarded_identity = get_satellite_forwarded_identity(current_identity)
@@ -211,7 +212,7 @@ def get_host_list(
     json_data = build_paginated_host_list_response(
         total, page, per_page, host_list, additional_fields, system_profile_fields
     )
-    if is_cached_insights_client_system_query and len(host_list) == 1:
+    if is_cached_insights_client_system_query and len(host_list) == 1 and system_key is not None:
         output_host = serialize_host_with_params(host_list[0])
         set_cached_system(system_key, output_host)
 

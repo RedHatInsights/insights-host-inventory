@@ -211,6 +211,7 @@ class OperationResult:
         self.application: str | None = None
         self.request_id: str | None = None
         self.org_id: str | None = None
+        self.staleness_org_generation: int | None = None
         self.persisted_host_ids: list[UUID] = []
         self.committed_at_ns: int | None = None
         self.otel_context: OtelContext | None = None
@@ -833,13 +834,15 @@ class HostMessageConsumer(HBIMessageConsumerBase):
                 )
                 event_type = operation_results_to_event_type(operation_result)
 
+                staleness_obj = get_staleness_obj(identity.org_id)
                 result = OperationResult(
                     host_row,
                     platform_metadata,
-                    get_staleness_obj(identity.org_id),
+                    staleness_obj,
                     event_type,
                     success_logger,
                 )
+                result.staleness_org_generation = get_org_cache_generation(identity.org_id)
                 result.persisted_host_ids = [host_row.id]
                 return result
 
@@ -1458,21 +1461,22 @@ def cache_ingested_system(
 
     generation, org_generation = generations
 
-    # If the org generation moved since the staleness snapshot was captured,
-    # the serialized host may contain outdated timestamps — skip the write.
-    if staleness_org_generation is not None and org_generation != staleness_org_generation:
-        logger.info(
-            "Skipping cache write: org generation changed (%s -> %s) since staleness snapshot",
-            staleness_org_generation,
-            org_generation,
-        )
-        return
-
     system_key = make_system_cache_key(
         insights_id, org_id, owner_id, generation=generation, org_generation=org_generation
     )
     if multiple_hosts:
         delete_cached_system(system_key)
+        return
+
+    # If the org generation moved since the staleness snapshot was captured,
+    # the serialized host may contain outdated timestamps — skip the write.
+    # Using != so that a None snapshot (failed initial read) also skips.
+    if staleness_org_generation != org_generation:
+        logger.info(
+            "Skipping cache write: org generation mismatch (snapshot=%s, current=%s)",
+            staleness_org_generation,
+            org_generation,
+        )
         return
 
     if "tags" in output_host:
@@ -1503,9 +1507,9 @@ def write_add_update_event_message(
         inventory_id=result.row.id,
     ) as tracker_ctx:
         staleness = result.staleness_object or get_staleness_obj(result.row.org_id)
-        # Snapshot the org generation *before* serialization so we can detect
-        # staleness changes that happen between now and the cache write.
-        staleness_org_generation = get_org_cache_generation(result.row.org_id)
+        # Use the org generation captured when the staleness object was loaded,
+        # so we can detect staleness changes that happen between then and the cache write.
+        staleness_org_generation = result.staleness_org_generation
         output_host = serialize_host(result.row, staleness)
         event, headers = build_event_and_headers(
             result.event_type,
