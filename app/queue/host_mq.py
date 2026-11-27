@@ -1470,8 +1470,10 @@ def cache_ingested_system(
 
     # If the org generation moved since the staleness snapshot was captured,
     # the serialized host may contain outdated timestamps — skip the write.
-    # Using != so that a None snapshot (failed initial read) also skips.
-    if staleness_org_generation != org_generation:
+    # A None snapshot means the caller never captured the generation (e.g.
+    # Redis was not configured at ingestion time); in that case we allow the
+    # write since there is no evidence of a staleness change.
+    if staleness_org_generation is not None and staleness_org_generation != org_generation:
         logger.info(
             "Skipping cache write: org generation mismatch (snapshot=%s, current=%s)",
             staleness_org_generation,
