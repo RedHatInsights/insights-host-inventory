@@ -1799,6 +1799,18 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StalenessOutput"
+                },
+                "example": {
+                  "conventional_time_to_stale": 86400,
+                  "conventional_time_to_stale_warning": 1209600,
+                  "conventional_time_to_delete": 2592000,
+                  "immutable_time_to_stale": 86400,
+                  "immutable_time_to_stale_warning": 1209600,
+                  "immutable_time_to_delete": 2592000,
+                  "id": "3f5b8c2e-9d4a-4c67-b1e2-8a9f0c1d2e3a",
+                  "org_id": "000102",
+                  "created": "2026-11-20T10:30:00.123456+00:00",
+                  "updated": "2026-11-21T08:15:00.234567+00:00"
                 }
               }
             }
@@ -1830,6 +1842,11 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/StalenessIn"
+              },
+              "example": {
+                "conventional_time_to_stale": 86400,
+                "conventional_time_to_stale_warning": 1209600,
+                "conventional_time_to_delete": 2592000
               }
             }
           }
@@ -1841,6 +1858,18 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StalenessOutput"
+                },
+                "example": {
+                  "conventional_time_to_stale": 86400,
+                  "conventional_time_to_stale_warning": 1209600,
+                  "conventional_time_to_delete": 2592000,
+                  "immutable_time_to_stale": 86400,
+                  "immutable_time_to_stale_warning": 1209600,
+                  "immutable_time_to_delete": 2592000,
+                  "id": "3f5b8c2e-9d4a-4c67-b1e2-8a9f0c1d2e3a",
+                  "org_id": "000102",
+                  "created": "2026-11-20T10:30:00.123456+00:00",
+                  "updated": "2026-11-20T10:30:00.123456+00:00"
                 }
               }
             }
@@ -1872,6 +1901,9 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/StalenessIn"
+              },
+              "example": {
+                "conventional_time_to_delete": 15552000
               }
             }
           }
@@ -1883,6 +1915,18 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StalenessOutput"
+                },
+                "example": {
+                  "conventional_time_to_stale": 86400,
+                  "conventional_time_to_stale_warning": 1209600,
+                  "conventional_time_to_delete": 15552000,
+                  "immutable_time_to_stale": 86400,
+                  "immutable_time_to_stale_warning": 1209600,
+                  "immutable_time_to_delete": 15552000,
+                  "id": "3f5b8c2e-9d4a-4c67-b1e2-8a9f0c1d2e3a",
+                  "org_id": "000102",
+                  "created": "2026-11-20T10:30:00.123456+00:00",
+                  "updated": "2026-11-24T09:00:00.345678+00:00"
                 }
               }
             }
