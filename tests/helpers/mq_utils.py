@@ -1,6 +1,10 @@
 import json
 import os
+import sys
 from collections import namedtuple
+from collections.abc import Iterator
+from contextlib import contextmanager
+from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -11,6 +15,7 @@ from uuid import UUID
 
 from confluent_kafka import TopicPartition
 from dateutil.parser import isoparse
+from sqlalchemy import event as sa_event
 
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
@@ -24,7 +29,6 @@ from app.queue.events import extract_system_profile_fields_for_headers
 from app.serialization import _deserialize_tags
 from app.serialization import _serialize_per_reporter_staleness
 from app.serialization import build_system_profile_from_normalized
-from app.serialization import serialize_facts
 from app.serialization import serialize_uuid
 from app.utils import Tag
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -38,6 +42,22 @@ from tests.helpers.test_utils import minimal_host
 MockFutureCallback = namedtuple("MockFutureCallback", ("method", "args", "kwargs", "extra_arg"))
 
 
+@contextmanager
+def mq_service_host_listeners() -> Iterator[None]:
+    """Exclude the API-only Host listener during ingestion, even after an in-process API request."""
+    staleness = sys.modules.get("api.staleness")
+    if staleness is None or not sa_event.contains(Host, "before_update", staleness.receive_before_host_update):
+        yield
+        return
+
+    listener = staleness.receive_before_host_update
+    sa_event.remove(Host, "before_update", listener)
+    try:
+        yield
+    finally:
+        sa_event.listen(Host, "before_update", listener)
+
+
 class MockEventProducer:
     def __init__(self):
         self.event = None
@@ -45,6 +65,7 @@ class MockEventProducer:
         self.headers = None
         self.topic = None
         self.wait = None
+        self.events = []
         self._kafka_producer = Mock()
         self._kafka_producer.flush = Mock(return_value=True)
 
@@ -53,6 +74,7 @@ class MockEventProducer:
         self.key = key
         self.headers = headers
         self.wait = wait
+        self.events.append(SimpleNamespace(event=event, key=key, headers=deepcopy(headers), wait=wait))
 
 
 class FakeMessage:
@@ -220,27 +242,27 @@ def assert_delete_event_is_valid(
 
     assert event["type"] == "delete"
 
+    assert event["id"] == str(host.id)
+    assert event["account"] == host.account
+    assert event["org_id"] == host.org_id
     assert serialize_uuid(host.insights_id) == event["insights_id"]
+    assert event["subscription_manager_id"] == serialize_uuid(host.subscription_manager_id)
 
     assert event["initiated_by_frontend"] is initiated_by_frontend
 
-    if initiated_by_frontend:
-        assert event["subscription_manager_id"] is not None
-
     assert event_producer.key == str(host.id)
-    _, os_name, _ = extract_system_profile_fields_for_headers(host)
+    host_type, os_name, is_bootc = extract_system_profile_fields_for_headers(host)
     assert event_producer.headers == expected_headers(
-        "delete", event["request_id"], serialize_uuid(host.insights_id), host.reporter, host.host_type, os_name
+        "delete", expected_request_id, serialize_uuid(host.insights_id), host.reporter, host_type, os_name, is_bootc
     )
 
     if identity:
         assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=identity))}
 
-    if expected_request_id:
-        assert event["request_id"] == expected_request_id
-
-    if expected_metadata:
-        assert event["metadata"] == expected_metadata
+    assert event["request_id"] == expected_request_id
+    assert event["metadata"] == (
+        expected_metadata if expected_metadata is not None else {"request_id": expected_request_id}
+    )
 
 
 def assert_delete_notification_is_valid(notification_event_producer, host):
@@ -411,73 +433,98 @@ def assert_stale_notification_is_valid(notification_event_producer: MockEventPro
     _assert_stale_notification_payload(event_item["payload"], host)
 
 
+def host_event_snapshot(host):
+    """Capture expected event fields before a mutation, independently of its output."""
+    last_check_in = host.last_check_in.astimezone(UTC)
+    return deepcopy(
+        {
+            "id": str(host.id),
+            "org_id": host.org_id,
+            "account": host.account,
+            "display_name": host.display_name,
+            "ansible_host": host.ansible_host,
+            "fqdn": host.fqdn,
+            "groups": [
+                {"id": group["id"], "name": group["name"], "ungrouped": group.get("ungrouped", False)}
+                for group in host.groups
+            ],
+            "insights_id": serialize_uuid(host.insights_id),
+            "bios_uuid": host.bios_uuid,
+            "ip_addresses": host.ip_addresses,
+            "mac_addresses": host.mac_addresses,
+            "facts": [{"namespace": namespace, "facts": facts or {}} for namespace, facts in host.facts.items()],
+            "satellite_id": host.satellite_id,
+            "subscription_manager_id": host.subscription_manager_id,
+            "system_profile": build_system_profile_from_normalized(host),
+            "per_reporter_staleness": _serialize_per_reporter_staleness(host, get_staleness_obj(host.org_id)),
+            "tags": [tag.data() for tag in Tag.create_tags_from_nested(host.tags)],
+            "reporter": host.reporter,
+            "stale_timestamp": (last_check_in + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat(),
+            "stale_warning_timestamp": (
+                last_check_in + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ).isoformat(),
+            "culled_timestamp": (last_check_in + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)).isoformat(),
+            "created": host.created_on.astimezone(UTC).isoformat(),
+            "updated": host.modified_on.astimezone(UTC).isoformat(),
+            "last_check_in": last_check_in.isoformat(),
+            "provider_id": host.provider_id,
+            "provider_type": host.provider_type,
+            "openshift_cluster_id": host.openshift_cluster_id,
+        }
+    )
+
+
+# Each row changes one header source; expected values are literals, not production extraction.
+HOST_EVENT_HEADER_CASES: tuple[tuple[dict[str, Any], str, str | None, str], ...] = (
+    ({}, "conventional", None, "False"),
+    ({"host_type": "edge"}, "edge", None, "False"),
+    ({"operating_system": {"name": "RHEL", "major": 9, "minor": 4}}, "conventional", "RHEL", "False"),
+    ({"operating_system": {"name": "CentOS", "major": 9, "minor": 4}}, "conventional", "CentOS", "False"),
+    ({"operating_system": {"name": "CentOS Linux", "major": 8, "minor": 9}}, "conventional", "CentOS Linux", "False"),
+    ({"bootc_status": {}}, "conventional", None, "False"),
+    ({"bootc_status": {"staged": {"image_digest": "sha256:" + "a" * 64}}}, "conventional", None, "False"),
+    ({"bootc_status": {"booted": {"image_digest": "sha256:" + "b" * 64}}}, "bootc", None, "True"),
+)
+
+
 def assert_patch_event_is_valid(
     host,
     event_producer,
     expected_request_id,
     expected_timestamp,
     display_name="patch_event_test",
-    stale_timestamp=None,
     reporter=None,
     identity=USER_IDENTITY,
+    expected_host=None,
+    updated_after=None,
 ):
-    stale_timestamp = (
-        host.last_check_in.astimezone(UTC) + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
-    ).isoformat()
-    stale_warning_timestamp = (
-        host.last_check_in.astimezone(UTC) + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
-    ).isoformat()
-    culled_timestamp = (
-        host.last_check_in.astimezone(UTC) + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
-    ).isoformat()
-
-    reporter = reporter or host.reporter
-
     event = json.loads(event_producer.event)
-
     assert isinstance(event, dict)
-
+    if expected_host is None:
+        expected_host = host_event_snapshot(host)
+        expected_host["display_name"] = display_name
+        expected_host["reporter"] = reporter or host.reporter
+    else:
+        expected_host = deepcopy(expected_host)
     expected_event = {
         "type": "updated",
-        "host": {
-            "id": str(host.id),
-            "org_id": host.org_id,
-            "account": host.account,
-            "display_name": display_name,
-            "ansible_host": host.ansible_host,
-            "fqdn": host.fqdn,
-            "groups": host.groups,
-            "insights_id": serialize_uuid(host.insights_id),
-            "bios_uuid": host.bios_uuid,
-            "ip_addresses": host.ip_addresses,
-            "mac_addresses": host.mac_addresses,
-            "facts": serialize_facts(host.facts),
-            "satellite_id": host.satellite_id,
-            "subscription_manager_id": host.subscription_manager_id,
-            "system_profile": build_system_profile_from_normalized(host),
-            "per_reporter_staleness": _serialize_per_reporter_staleness(host, get_staleness_obj(host.org_id)),
-            "tags": [tag.data() for tag in Tag.create_tags_from_nested(host.tags)],
-            "reporter": reporter,
-            "stale_timestamp": stale_timestamp,
-            "stale_warning_timestamp": stale_warning_timestamp,
-            "culled_timestamp": culled_timestamp,
-            "created": host.created_on.astimezone(UTC).isoformat(),
-            "last_check_in": host.last_check_in.astimezone(UTC).isoformat(),
-            "provider_id": host.provider_id,
-            "provider_type": host.provider_type,
-            "openshift_cluster_id": host.openshift_cluster_id,
-        },
+        "host": expected_host,
         "platform_metadata": {"b64_identity": to_auth_header(Identity(obj=identity))},
         "metadata": {"request_id": expected_request_id},
         "timestamp": expected_timestamp.isoformat(),
     }
 
-    # We don't have this information without retrieving the host after the patch request
-    del event["host"]["updated"]
+    updated = isoparse(event["host"]["updated"])
+    if updated_after is not None:
+        assert updated > updated_after.astimezone(UTC)
+        assert updated <= datetime.now(UTC)
+    else:
+        assert updated == host.modified_on.astimezone(UTC)
+    expected_event["host"]["updated"] = updated.isoformat()
 
     assert event == expected_event
     assert event_producer.key == str(host.id)
-    host_type, os_name, _ = extract_system_profile_fields_for_headers(host)
+    host_type, os_name, is_bootc = extract_system_profile_fields_for_headers(host)
     assert event_producer.headers == expected_headers(
         "updated",
         expected_request_id,
@@ -485,6 +532,7 @@ def assert_patch_event_is_valid(
         host.reporter,
         host_type,
         os_name,
+        is_bootc,
     )
 
 

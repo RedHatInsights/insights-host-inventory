@@ -1,3 +1,5 @@
+import pytest
+
 from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url
@@ -15,11 +17,12 @@ def test_dont_get_only_culled(api_get):
     assert response_status == 400
 
 
-def test_fail_patch_culled_host(mq_create_deleted_hosts, api_patch):
+@pytest.mark.parametrize("patch_doc", ({"display_name": "patched"}, {"ansible_host": "patched.example.com"}))
+def test_fail_patch_culled_host(mq_create_deleted_hosts, api_patch, patch_doc):
     culled_host = mq_create_deleted_hosts["culled"]
 
     url = build_hosts_url(host_list_or_id=[culled_host])
-    response_status, _ = api_patch(url, {"display_name": "patched"})
+    response_status, _ = api_patch(url, patch_doc)
 
     assert response_status == 404
 

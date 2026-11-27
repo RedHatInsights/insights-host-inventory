@@ -17,6 +17,7 @@ from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_groups_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -137,30 +138,41 @@ def test_add_associated_host_to_same_group(
     api_add_hosts_to_group,
     event_producer,
     mocker,
+    api_get,
 ):
     mocker.patch.object(event_producer, "write_event")
 
-    # Create a group and 3 hosts
+    # Preserve unrequested members when adding two new hosts and one existing member.
     group = db_create_group("test_group")
     group_id = group.id
-    host_id_list = [db_create_host().id for _ in range(3)]
+    host_id_list = [db_create_host().id for _ in range(5)]
 
-    # Add 1 host to the group
-    db_create_host_group_assoc(host_id_list[1], group_id)
+    # Three original members, two of which will not appear in the POST body.
+    for host_id in host_id_list[1:4]:
+        db_create_host_group_assoc(host_id, group_id)
 
-    # get update time with 1 host in the group
+    # Capture the timestamp before the membership change.
     first_update = group.modified_on
 
     # Confirm that the association exists
     hosts_before = db_get_hosts_for_group(group_id)
-    assert len(hosts_before) == 1
+    assert len(hosts_before) == 3
 
     # Confirm that the API is allowed to add the hosts even though one is associated
-    response_status, updated_group = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list])
+    requested_ids = [str(host_id_list[0]), str(host_id_list[1]), str(host_id_list[4])]
+    response_status, updated_group = api_add_hosts_to_group(group_id, requested_ids)
     assert response_status == 200
+    assert updated_group["id"] == str(group_id)
+    assert updated_group["name"] == "test_group"
+    assert updated_group["host_count"] == 5
+    assert updated_group["org_id"] == USER_IDENTITY["org_id"]
+    assert updated_group["ungrouped"] is False
 
-    # Confirm the host count afterwards
-    assert len(db_get_hosts_for_group(group_id)) == 3
+    # Confirm the exact union, including the unrequested original members.
+    assert {host.id for host in db_get_hosts_for_group(group_id)} == set(host_id_list)
+    status, fetched = api_get(build_groups_url(str(group_id)))
+    assert status == 200
+    assert fetched["results"][0] == updated_group
 
     # Make sure that the events were produced
     assert event_producer.write_event.call_count == 3
@@ -179,18 +191,37 @@ def test_add_hosts_to_group_timestamp_with_kessel_groups_flag(
     event_producer,
     mocker,
     kessel_groups_enabled,
+    db_create_host_group_assoc,
+    api_get,
 ):
     mocker.patch.object(event_producer, "write_event")
     mocker.patch("lib.group_repository.is_rbac_v2_enabled", return_value=kessel_groups_enabled)
 
+    creation_start = datetime.now(tz=UTC)
     group = db_create_group("test_group")
     group_id = group.id
+    created_on = group.created_on
     orig_modified_on = group.modified_on
+    db_create_host_group_assoc(db_create_host().id, group_id)
+    creation_end = datetime.now(tz=UTC)
 
     host_id_list = [str(db_create_host().id) for _ in range(2)]
-    response_status, _ = api_add_hosts_to_group(group_id, host_id_list)
+    response_status, response_data = api_add_hosts_to_group(group_id, host_id_list)
+    operation_end = datetime.now(tz=UTC)
     assert response_status == 200
-    assert len(db_get_hosts_for_group(group_id)) == 2
+    assert len(db_get_hosts_for_group(group_id)) == 3
+
+    status, fetched = api_get(build_groups_url(str(group_id)))
+    assert status == 200
+    assert fetched["results"][0] == response_data
+    assert response_data["id"] == str(group_id)
+    assert response_data["name"] == "test_group"
+    assert response_data["host_count"] == 3
+    assert response_data["org_id"] == USER_IDENTITY["org_id"]
+    assert response_data["ungrouped"] is False
+    assert parse(response_data["created"]) == created_on
+    assert creation_start < parse(response_data["created"]) < creation_end
+    assert creation_start < parse(response_data["updated"]) < operation_end
 
     updated_group = db_get_group_by_id(group_id)
     if kessel_groups_enabled:
@@ -207,14 +238,18 @@ def test_add_associated_host_to_different_group(
     api_add_hosts_to_group,
     event_producer,
     mocker,
+    api_get,
 ):
     """Adding hosts that are in other groups should move them to the target group."""
     mocker.patch.object(event_producer, "write_event")
 
-    # Create two groups and 3 hosts
+    # Keep two unrequested source members while moving one host to the target.
     group1_id = db_create_group("test_group").id
     group2_id = db_create_group("test_group2").id
     host_id_list = [str(db_create_host().id) for _ in range(3)]
+    retained_ids = {str(db_create_host().id) for _ in range(2)}
+    for host_id in retained_ids:
+        db_create_host_group_assoc(host_id, group2_id)
 
     # Host 1 in group1, host 2 in group2, host 0 in no group (or ungrouped)
     db_create_host_group_assoc(host_id_list[1], group1_id)
@@ -222,17 +257,22 @@ def test_add_associated_host_to_different_group(
 
     # Confirm initial state
     assert len(db_get_hosts_for_group(group1_id)) == 1
-    assert len(db_get_hosts_for_group(group2_id)) == 1
+    assert len(db_get_hosts_for_group(group2_id)) == 3
 
     # Add all 3 hosts to group1; hosts should be moved from their previous groups
     response_status, _ = api_add_hosts_to_group(group1_id, host_id_list)
     assert response_status == 200
 
-    # Verify host-group associations: exact host IDs in each group, old group empty
+    # Verify exact target membership and preservation of the other source members.
     group1_hosts = db_get_hosts_for_group(group1_id)
     group2_hosts = db_get_hosts_for_group(group2_id)
     assert sorted(str(h.id) for h in group1_hosts) == sorted(host_id_list)
-    assert group2_hosts == []
+    assert {str(host.id) for host in group2_hosts} == retained_ids
+    for group_id, name, count in [(group1_id, "test_group", 3), (group2_id, "test_group2", 2)]:
+        status, fetched = api_get(build_groups_url(str(group_id)))
+        assert status == 200
+        assert fetched["results"][0]["name"] == name
+        assert fetched["results"][0]["host_count"] == count
 
     # Update events should have been produced for the moved/added hosts
     calls = event_producer.write_event.call_args_list

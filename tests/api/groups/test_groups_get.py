@@ -1,10 +1,16 @@
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from urllib.parse import parse_qs
+from urllib.parse import quote
+from urllib.parse import urlencode
 from urllib.parse import urlparse
 
 import pytest
 from requests.exceptions import ConnectionError
 from requests.exceptions import Timeout
 
+from app.models import db
 from lib.middleware import VISIBLE_WORKSPACE_TYPES
 from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import GROUP_URL
@@ -81,17 +87,30 @@ def test_get_groups_RBAC_allowed_specific_groups(mocker, db_create_group, api_ge
         assert group_result["id"] in group_id_list
 
 
-@pytest.mark.parametrize("search", ["testGroup", "TesT", "Group", "ro"])
-def test_query_variables_group_name(db_create_group, api_get, search):
-    group_id = db_create_group("testGroup").id
-    query = f"?name={search}"
+def test_query_variables_group_name(subtests, db_create_group_with_hosts, api_get):
+    groups = [db_create_group_with_hosts(name, count) for name, count in (("testGroup", 0), ("second", 1))]
+    db_create_group_with_hosts("unused", 0)
 
-    response_status, response_data = api_get(build_groups_url(query=query))
-
-    assert_response_status(response_status, 200)
-    assert response_data["total"] == 1
-    assert response_data["count"] == 1
-    assert response_data["results"][0]["id"] == str(group_id)
+    for group, host_count in zip(groups, (0, 1), strict=True):
+        expected = {
+            "id": str(group.id),
+            "name": group.name,
+            "org_id": USER_IDENTITY["org_id"],
+            "account": USER_IDENTITY["account_number"],
+            "ungrouped": False,
+            "host_count": host_count,
+            "created": group.created_on.isoformat(),
+            "updated": group.modified_on.isoformat(),
+        }
+        searches = [group.name, group.name.upper()]
+        if host_count == 0:
+            searches += ["TesT", "ro", "t"]  # Substring and the one-character boundary.
+        for search in searches:
+            with subtests.test(name=group.name, search=search):
+                response_status, response_data = api_get(build_groups_url(query="?" + urlencode({"name": search})))
+                assert response_status == 200
+                _assert_group_page(response_data, total=1, count=1)
+                assert response_data["results"] == [expected]
 
 
 @pytest.mark.parametrize(
@@ -193,16 +212,14 @@ def test_sort_by_host_count(
         assert group_data["host_count"] == len(db_get_hosts_for_group(group_id_list[idx]))
 
 
-def test_query_variables_group_name_not_found(db_create_group, api_get):
+def test_query_variables_group_name_not_found(subtests, db_create_group, api_get):
     db_create_group("testGroup")
-    query = "?name=different_group"
-
-    response_status, response_data = api_get(build_groups_url(query=query))
-
-    assert_response_status(response_status, 200)
-    assert response_data["total"] == 0
-    assert response_data["count"] == 0
-    assert len(response_data["results"]) == 0
+    for name in ("different_group", "x" * 256):
+        with subtests.test(name_length=len(name)):
+            response_status, response_data = api_get(build_groups_url(query=f"?name={name}"))
+            assert response_status == 200
+            _assert_group_page(response_data, total=0, count=0)
+            assert response_data["results"] == []
 
 
 @pytest.mark.parametrize(
@@ -271,35 +288,181 @@ def test_group_ids_not_found_omits_missing_ids_when_results_incomplete(api_get, 
 
 def test_mixed_valid_and_missing_group_ids_response_includes_only_missing_ids(db_create_group, api_get):
     # Verify 404 response only includes the missing IDs, not the valid ones
-    valid_group_id = str(db_create_group("test_group").id)
+    valid_group_ids = [str(db_create_group(f"test_group_{idx}").id) for idx in range(2)]
     missing_group_id = generate_uuid()
 
-    response_status, response_data = api_get(f"{GROUP_URL}/{valid_group_id},{missing_group_id}")
+    response_status, response_data = api_get(f"{GROUP_URL}/{','.join(valid_group_ids)},{missing_group_id}")
 
     assert response_status == 404
     assert "not_found_ids" in response_data
     assert response_data["not_found_ids"] == [missing_group_id]
-    assert valid_group_id not in response_data["not_found_ids"]
+    assert set(valid_group_ids).isdisjoint(response_data["not_found_ids"])
+
+    response_status, response_data = api_get(f"{GROUP_URL}/{','.join(valid_group_ids)}")
+    assert response_status == 200
+    _assert_group_page(response_data, total=2, count=2)
+    assert {group["id"] for group in response_data["results"]} == set(valid_group_ids)
 
 
-def test_group_query_pagination(subtests, db_create_group, api_get):
-    num_groups = 40
-    for idx in range(num_groups):
-        # Use leading zeros so that we can sort by name
-        db_create_group(f"testGroup_{idx:03}")
+def _assert_group_page(response_data, *, total, count, page=1, per_page=50):
+    assert response_data["page"] == page
+    assert response_data["per_page"] == per_page
+    assert response_data["total"] == total
+    assert response_data["count"] == count
+    assert len(response_data["results"]) == count
+    for group in response_data["results"]:
+        assert group["org_id"] == USER_IDENTITY["org_id"]
 
-    for per_page in [1, 5, 10]:
-        for page in [1, 2, 3]:
-            with subtests.test():
-                query = f"?page={page}&per_page={per_page}&order_by=name"
-                response_status, response_data = api_get(build_groups_url(query=query))
 
+def test_group_query_pagination(subtests, db_create_group_with_hosts, api_get):
+    # Reuse one small dataset for both routes, sorting, defaults, and page boundaries.
+    # Counts and timestamps deliberately disagree with name/insertion/request order.
+    names = ["Zulu", "alpha", "Mike", "bravo", "Yankee", "charlie", "Xray", "delta", "Whiskey", "echo"]
+    groups = [db_create_group_with_hosts(f"query-{name}", idx % 3) for idx, name in enumerate(names)]
+    extras = [db_create_group_with_hosts(f"extra-{idx}", 0) for idx in range(3)]
+    for idx, group in enumerate(groups + extras):
+        group.modified_on = datetime(2026, 1, 1, tzinfo=UTC) + timedelta(hours=(idx * 7) % 13)
+    db.session.commit()
+    expected = [
+        {
+            "id": str(group.id),
+            "name": group.name,
+            "host_count": idx % 3 if idx < 10 else 0,
+            "updated": group.modified_on.isoformat(),
+        }
+        for idx, group in enumerate(groups + extras)
+    ]
+    by_id_url = f"{GROUP_URL}/{','.join(str(group.id) for group in reversed(groups))}"
+
+    for url, selected in ((GROUP_URL, expected), (by_id_url, expected[:10])):
+        # Explicit direction, field-specific default direction, and default field.
+        for order_by in ("name", "host_count", "updated", None):
+            for order_how in ("ASC", "DESC", None) if order_by else (None,):
+                with subtests.test(url=url, order_by=order_by, order_how=order_how):
+                    query = {key: value for key, value in (("order_by", order_by), ("order_how", order_how)) if value}
+                    response_status, response_data = api_get(url + "?" + urlencode(query))
+                    assert response_status == 200
+                    _assert_group_page(response_data, total=len(selected), count=len(selected))
+                    field = order_by or "name"
+                    reverse = order_how == "DESC" if order_how else field != "name"
+                    values = [
+                        group[field].lower() if field == "name" else group[field] for group in response_data["results"]
+                    ]
+                    assert values == sorted(values, reverse=reverse)
+                    assert {group["id"] for group in response_data["results"]} == {group["id"] for group in selected}
+                    assert {
+                        group["id"]: {key: group[key] for key in ("name", "host_count", "updated")}
+                        for group in response_data["results"]
+                    } == {
+                        group["id"]: {key: group[key] for key in ("name", "host_count", "updated")}
+                        for group in selected
+                    }
+
+        for query, page, per_page in (
+            ({}, 1, 50),
+            ({"page": 1}, 1, 50),
+            ({"per_page": 1}, 1, 1),
+            ({"per_page": 100}, 1, 100),
+            ({"page": 21474837}, 21474837, 50),
+            ({"page": len(selected) + 1, "per_page": 1}, len(selected) + 1, 1),
+        ):
+            with subtests.test(url=url, query=query):
+                response_status, response_data = api_get(url + "?" + urlencode(query))
                 assert response_status == 200
-                assert response_data["total"] == num_groups
-                assert response_data["count"] == per_page
-                assert len(response_data["results"]) == per_page
-                for idx in range(per_page):
-                    assert response_data["results"][idx]["name"] == f"testGroup_{((page - 1) * per_page + idx):03}"
+                count = min(per_page, max(0, len(selected) - (page - 1) * per_page))
+                _assert_group_page(response_data, total=len(selected), count=count, page=page, per_page=per_page)
+
+        # Traverse every page, including the short last page; name order isn't needed
+        # here, so paging remains independently discriminating if name sorting regresses.
+        found = []
+        ordered = sorted(selected, key=lambda group: group["updated"])
+        for page in range(1, (len(selected) + 2) // 3 + 1):
+            with subtests.test(url=url, page=page):
+                response_status, response_data = api_get(
+                    f"{url}?page={page}&per_page=3&order_by=updated&order_how=ASC"
+                )
+                assert response_status == 200
+                page_expected = ordered[(page - 1) * 3 : page * 3]
+                _assert_group_page(response_data, total=len(selected), count=len(page_expected), page=page, per_page=3)
+                assert [group["id"] for group in response_data["results"]] == [group["id"] for group in page_expected]
+                found.extend(group["id"] for group in response_data["results"])
+        assert len(found) == len(set(found)) == len(selected)
+        assert set(found) == {group["id"] for group in selected}
+
+    # Filtering must precede ordering/paging, excluding the three competing groups.
+    for order_by in ("name", "host_count"):
+        for order_how in ("ASC", "DESC"):
+            with subtests.test(filtered=True, order_by=order_by, order_how=order_how):
+                found = []
+                for page in range(1, 5):
+                    query = urlencode(
+                        {"name": "QUERY-", "order_by": order_by, "order_how": order_how, "page": page, "per_page": 3}
+                    )
+                    response_status, response_data = api_get(f"{GROUP_URL}?{query}")
+                    assert response_status == 200
+                    _assert_group_page(response_data, total=10, count=3 if page < 4 else 1, page=page, per_page=3)
+                    found.extend(response_data["results"])
+                assert {group["id"] for group in found} == {group["id"] for group in expected[:10]}
+                values = [group[order_by].lower() if order_by == "name" else group[order_by] for group in found]
+                assert values == sorted(values, reverse=order_how == "DESC")
+
+    response_status, response_data = api_get(f"{GROUP_URL}?name=")
+    assert response_status == 200
+    _assert_group_page(response_data, total=13, count=13)
+    assert {group["id"] for group in response_data["results"]} == {group["id"] for group in expected}
+
+
+def test_group_read_invalid_queries(subtests, db_create_group, api_get):
+    group_ids = [str(db_create_group(f"group-{idx}").id) for idx in range(2)]
+    bad_types = ["[]", "{}", "", "[1]", "[1, 2]", "1.5", generate_uuid(), "True", "False", "None"]
+    for url in (GROUP_URL, f"{GROUP_URL}/{','.join(group_ids)}"):
+        for field, maximum in (("page", 21474837), ("per_page", 100)):
+            for value in (0, -1, maximum + 1):
+                with subtests.test(url=url, field=field, value=value):
+                    response_status, response_data = api_get(url + "?" + urlencode({field: value}))
+                    assert response_status == 400
+                    detail = response_data["detail"]
+                    assert str(value) in detail
+                    assert ("minimum" if value < 1 else "maximum") in detail
+                    assert str(1 if value < 1 else maximum) in detail
+            for value in bad_types:
+                with subtests.test(url=url, field=field, value=value):
+                    response_status, response_data = api_get(url + "?" + urlencode({field: value}))
+                    assert response_status == 400
+                    assert "integer" in response_data["detail"]
+                    assert field in response_data["detail"]
+
+        for value in ["[]", "{}", "", "1", "['name', 'host_count']", "1.5", generate_uuid(), "True", "False", "None"]:
+            with subtests.test(url=url, order_by=value):
+                response_status, response_data = api_get(url + "?" + urlencode({"order_by": value}))
+                assert response_status == 400
+                detail = response_data["detail"]
+                assert value in detail
+                assert all(field in detail for field in ("name", "host_count", "updated"))
+
+        for order_by in ("name", "host_count"):
+            for value in ["[]", "{}", "", "1", "1.5", generate_uuid(), "True", "False", "None"]:
+                with subtests.test(url=url, order_by=order_by, order_how=value):
+                    response_status, response_data = api_get(
+                        url + "?" + urlencode({"order_by": order_by, "order_how": value})
+                    )
+                    assert response_status == 400
+                    detail = response_data["detail"]
+                    assert value in detail
+                    assert "order_how" in detail or "match" in detail
+
+    # A malformed member invalidates the whole list (400), unlike an absent UUID (404).
+    for value in ["[]", "{}", "", "1", "1.5", generate_uuid() + "a", "z" * 36, "True", "False", "None"]:
+        paths = [f"{group_ids[0]},{value},{group_ids[1]}"]
+        if value:  # A single empty path would be the list route, not a malformed-ID request.
+            paths.append(value)
+        for path in paths:
+            with subtests.test(group_id=value, path=path):
+                response_status, response_data = api_get(f"{GROUP_URL}/{quote(path, safe=',')}")
+                assert response_status == 400
+                detail = response_data["detail"]
+                assert value in detail
+                assert "match" in detail or "uuid" in detail.lower()
 
 
 @pytest.mark.parametrize(

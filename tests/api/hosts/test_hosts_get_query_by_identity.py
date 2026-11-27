@@ -116,6 +116,16 @@ def test_query_using_display_name_substring(mq_create_three_specific_hosts, api_
     assert response_status == 200
     assert_host_lists_equal(expected_host_list, response_data["results"])
 
+    page_ids = []
+    for page in range(1, len(created_hosts) + 1):
+        status, data = api_get(url, query_parameters={"page": page, "per_page": 1})
+        assert status == 200
+        assert data["total"] == len(created_hosts)
+        assert data["count"] == len(data["results"]) == 1
+        page_ids.append(data["results"][0]["id"])
+    assert len(page_ids) == len(set(page_ids))
+    assert set(page_ids) == {host.id for host in created_hosts}
+
 
 def test_query_using_display_name_as_hostname(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts

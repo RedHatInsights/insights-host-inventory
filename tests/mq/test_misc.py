@@ -15,6 +15,7 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from api.staleness_query import get_staleness_obj
 from app import create_app
+from app.config import DEFAULT_INSIGHTS_ID
 from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
 from app.logging import threadctx
@@ -30,8 +31,9 @@ from app.queue.host_mq import cache_ingested_system
 from app.queue.host_mq import write_add_update_event_message
 from app.queue.host_mq import write_delete_event_message
 from inv_mq_service import build_topic_to_consumer_map
+from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.db_utils import create_reference_host_in_db
-from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.mq_utils import generate_kessel_workspace_message
 from tests.helpers.mq_utils import wrap_message
@@ -384,23 +386,35 @@ def test_groups_not_overwritten_for_existing_hosts(
     assert retrieved_host.groups[0]["ungrouped"] is False
 
 
+@pytest.mark.parametrize("with_insights_id", [False, True], ids=["subman-only", "subman-and-insights"])
 def test_batch_mq_do_dedup_within_batch(
     mocker: MockerFixture,
     event_producer: EventProducer,
     flask_app: FlaskApp,
     db_get_hosts_by_subman_id: Callable[[str], list[Host]],
+    api_get,
+    with_insights_id,
 ):
     """This test sends 2 kafka payloads for the same host in the same MQ batch and checks that
     HBI applies dedup logic for messages within the same batch and doesn't create duplicates.
     """
     subman_id = generate_uuid()
+    shared_ids = {"subscription_manager_id": subman_id}
+    if with_insights_id:
+        shared_ids["insights_id"] = generate_uuid()
+    rhc_client_id = generate_uuid()
+    rhc_config_state = generate_uuid()
     host1 = minimal_host(
-        subscription_manager_id=subman_id,
+        **shared_ids,
         fqdn=generate_random_string(),
+        reporter="puptoo",
+        system_profile={"rhc_client_id": rhc_client_id},
     ).data()
     host2 = minimal_host(
-        subscription_manager_id=subman_id,
+        **shared_ids,
         satellite_id=generate_uuid(),
+        reporter="cloud-connector",
+        system_profile={"rhc_config_state": rhc_config_state},
     ).data()
 
     msgs = [json.dumps(wrap_message(host, "add_host", get_platform_metadata())) for host in (host1, host2)]
@@ -426,6 +440,20 @@ def test_batch_mq_do_dedup_within_batch(
     assert len(db_hosts) == 1
     assert db_hosts[0].fqdn == host1["fqdn"]
     assert db_hosts[0].subscription_manager_id == host2["subscription_manager_id"]
+    assert str(db_hosts[0].satellite_id) == host2["satellite_id"]
+    assert set(db_hosts[0].per_reporter_staleness) == {"puptoo", "cloud-connector"}
+    assert str(db_hosts[0].static_system_profile.rhc_client_id) == rhc_client_id
+    assert str(db_hosts[0].static_system_profile.rhc_config_state) == rhc_config_state
+    filter_field = "insights_id" if with_insights_id else "subscription_manager_id"
+    status, response = api_get(build_hosts_url(), query_parameters={filter_field: shared_ids[filter_field]})
+    assert status == 200
+    assert len(response["results"]) == 1
+    assert response["results"][0]["id"] == str(db_hosts[0].id)
+    assert set(response["results"][0]["per_reporter_staleness"]) == {"puptoo", "cloud-connector"}
+    status, response = api_get(build_system_profile_url(str(db_hosts[0].id)))
+    assert status == 200
+    assert response["results"][0]["system_profile"]["rhc_client_id"] == rhc_client_id
+    assert response["results"][0]["system_profile"]["rhc_config_state"] == rhc_config_state
 
 
 def test_batch_mq_two_different_hosts(
@@ -433,16 +461,19 @@ def test_batch_mq_two_different_hosts(
     event_producer: EventProducer,
     flask_app: FlaskApp,
     db_get_hosts_by_display_name: Callable[[str], list[Host]],
+    api_get,
 ):
     """This test sends 2 kafka payloads for different hosts in one MQ batch and checks that
     2 different hosts are created.
     """
     display_name = generate_random_string()
     host1 = minimal_host(
+        insights_id=generate_uuid(),
         subscription_manager_id=generate_uuid(),
         display_name=display_name,
     ).data()
     host2 = minimal_host(
+        insights_id=generate_uuid(),
         subscription_manager_id=generate_uuid(),
         display_name=display_name,
     ).data()
@@ -470,15 +501,29 @@ def test_batch_mq_two_different_hosts(
     assert len(db_hosts) == 2
     assert db_hosts[0].id != db_hosts[1].id
     assert db_hosts[0].subscription_manager_id != db_hosts[1].subscription_manager_id
+    expected_insights_ids = {host1["insights_id"], host2["insights_id"]}
+    assert {str(host.insights_id) for host in db_hosts} == expected_insights_ids
+    assert {str(host.subscription_manager_id) for host in db_hosts} == {
+        host1["subscription_manager_id"],
+        host2["subscription_manager_id"],
+    }
+    status, response = api_get(build_hosts_url(query=f"?display_name={display_name}"))
+    assert status == 200
+    assert len(response["results"]) == 2
+    assert {host["insights_id"] for host in response["results"]} == expected_insights_ids
+    assert {host["id"] for host in response["results"]} == {str(host.id) for host in db_hosts}
 
 
+@pytest.mark.parametrize("with_insights_id", [False, True], ids=["subman-only", "subman-and-insights"])
 def test_batch_mq_do_dedup_in_db(
     mocker: MockerFixture,
     event_producer: EventProducer,
     flask_app: FlaskApp,
     db_get_hosts_by_subman_id: Callable[[str], list[Host]],
     db_get_hosts_by_display_name: Callable[[str], list[Host]],
-    db_create_host: Callable[..., Host],
+    mq_create_or_update_host,
+    api_get,
+    with_insights_id,
 ):
     """This test sends 2 kafka payloads for different hosts in one MQ batch and checks that
     HBI falls back to do dedup on hosts in the DB if it can't find the host in already processed
@@ -486,16 +531,29 @@ def test_batch_mq_do_dedup_in_db(
     """
     subman_id = generate_uuid()
     display_name = generate_random_string()
-    existing_host_data = minimal_db_host(
-        subscription_manager_id=subman_id,
+    shared_ids = {"subscription_manager_id": subman_id}
+    if with_insights_id:
+        shared_ids["insights_id"] = generate_uuid()
+    rhc_client_id = generate_uuid()
+    rhc_config_state = generate_uuid()
+    existing_host_data = minimal_host(
+        **shared_ids,
         fqdn=generate_random_string(),
         display_name=display_name,
+        reporter="puptoo",
+        system_profile={"rhc_client_id": rhc_client_id},
     )
-    existing_host = db_create_host(host=existing_host_data)
+    existing_host = mq_create_or_update_host(existing_host_data)
 
-    msg_host1 = minimal_host(subscription_manager_id=generate_uuid(), display_name=display_name).data()
+    msg_host1 = minimal_host(
+        subscription_manager_id=generate_uuid(), insights_id=generate_uuid(), display_name=display_name
+    ).data()
     msg_host2 = minimal_host(
-        subscription_manager_id=subman_id, satellite_id=generate_uuid(), display_name=display_name
+        **shared_ids,
+        satellite_id=generate_uuid(),
+        display_name=display_name,
+        reporter="cloud-connector",
+        system_profile={"rhc_config_state": rhc_config_state},
     ).data()
 
     msgs = [json.dumps(wrap_message(host, "add_host", get_platform_metadata())) for host in (msg_host1, msg_host2)]
@@ -519,12 +577,86 @@ def test_batch_mq_do_dedup_in_db(
     # Check that 2 different hosts have the same display_name
     db_hosts = db_get_hosts_by_display_name(display_name)
     assert len(db_hosts) == 2
+    expected_insights_ids = {shared_ids.get("insights_id", DEFAULT_INSIGHTS_ID), msg_host1["insights_id"]}
+    assert {str(host.insights_id) for host in db_hosts} == expected_insights_ids
+    assert len({host.id for host in db_hosts}) == 2
+    status, response = api_get(build_hosts_url(query=f"?display_name={display_name}"))
+    assert status == 200
+    assert len(response["results"]) == 2
+    assert {host["insights_id"] for host in response["results"]} == expected_insights_ids
+    assert {host["id"] for host in response["results"]} == {str(host.id) for host in db_hosts}
 
     # Check that there is still only 1 host in DB with the same subman_id and it was properly updated
     db_hosts = db_get_hosts_by_subman_id(subman_id)
     assert len(db_hosts) == 1
     assert db_hosts[0].fqdn == existing_host.fqdn
     assert db_hosts[0].subscription_manager_id == msg_host2["subscription_manager_id"]
+    assert str(db_hosts[0].id) == existing_host.id
+    assert str(db_hosts[0].satellite_id) == msg_host2["satellite_id"]
+    assert set(db_hosts[0].per_reporter_staleness) == {"puptoo", "cloud-connector"}
+    assert str(db_hosts[0].static_system_profile.rhc_client_id) == rhc_client_id
+    assert str(db_hosts[0].static_system_profile.rhc_config_state) == rhc_config_state
+    original = next(host for host in response["results"] if host["id"] == existing_host.id)
+    assert set(original["per_reporter_staleness"]) == {"puptoo", "cloud-connector"}
+    status, response = api_get(build_system_profile_url(existing_host.id))
+    assert status == 200
+    assert response["results"][0]["system_profile"]["rhc_client_id"] == rhc_client_id
+    assert response["results"][0]["system_profile"]["rhc_config_state"] == rhc_config_state
+
+
+def test_batch_mq_three_hosts_and_org_keyed_update(mocker, flask_app, api_get):
+    # The consumer deliberately ignores record keys; model an org-keyed record
+    # rather than incorrectly putting the organization key in the JSON body.
+    mocker.patch(
+        "app.queue.host_mq.inventory_config",
+        return_value=SimpleNamespace(mq_db_batch_max_messages=3, mq_db_batch_max_seconds=1),
+    )
+    hosts = [
+        minimal_host(insights_id=generate_uuid(), display_name=f"batch-host-{index}").data() for index in range(3)
+    ]
+    records = []
+    for index, host in enumerate(hosts):
+        record = mocker.Mock(
+            wraps=FakeMessage(message=json.dumps(wrap_message(host, platform_metadata=get_platform_metadata())))
+        )
+        record.key = mocker.Mock(return_value=SYSTEM_IDENTITY["org_id"].encode() if index == 0 else None)
+        records.append(record)
+    fake_consumer = mocker.Mock(**{"consume.return_value": records})
+    producer = mocker.Mock()
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, producer, mocker.Mock())
+    consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+    fake_consumer.consume.assert_called_once_with(num_messages=3, timeout=1)
+    events = [json.loads(call.args[0]) for call in producer.write_event.call_args_list]
+    assert len(events) == 3
+    assert {event["host"]["insights_id"] for event in events} == {host["insights_id"] for host in hosts}
+    assert len({event["host"]["id"] for event in events}) == 3
+    for event in events:
+        assert event["type"] == "created"
+        status, response = api_get(build_hosts_url(query=f"?insights_id={event['host']['insights_id']}"))
+        assert status == 200
+        assert len(response["results"]) == 1
+        assert response["results"][0]["id"] == event["host"]["id"]
+        assert response["results"][0]["insights_id"] == event["host"]["insights_id"]
+
+    original = next(event["host"] for event in events if event["host"]["insights_id"] == hosts[1]["insights_id"])
+    hosts[1]["display_name"] = "org-keyed-replacement"
+    record = mocker.Mock(
+        wraps=FakeMessage(message=json.dumps(wrap_message(hosts[1], platform_metadata=get_platform_metadata())))
+    )
+    record.key = mocker.Mock(return_value=SYSTEM_IDENTITY["org_id"].encode())
+    fake_consumer.consume.return_value = [record]
+    producer.reset_mock()
+    consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+    producer.write_event.assert_called_once()
+    updated = json.loads(producer.write_event.call_args.args[0])
+    assert updated["type"] == "updated"
+    assert updated["host"]["id"] == original["id"]
+    assert updated["host"]["display_name"] == "org-keyed-replacement"
+    status, response = api_get(build_hosts_url(host_list_or_id=original["id"]))
+    assert status == 200
+    assert len(response["results"]) == 1
+    assert response["results"][0]["id"] == original["id"]
+    assert response["results"][0]["display_name"] == "org-keyed-replacement"
 
 
 def test_batch_mq_graceful_rollback(mocker, flask_app):

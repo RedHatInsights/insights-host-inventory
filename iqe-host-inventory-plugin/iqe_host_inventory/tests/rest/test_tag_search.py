@@ -11,7 +11,6 @@ from iqe_host_inventory.utils.datagen_utils import TagDict
 from iqe_host_inventory.utils.datagen_utils import gen_tag_with_parameters
 from iqe_host_inventory.utils.datagen_utils import rand_str
 from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale
-from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning
 from iqe_host_inventory.utils.tag_utils import convert_tag_to_string
 
 logger = logging.getLogger(__name__)
@@ -164,93 +163,6 @@ class TestTagsTotal:
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize(
-    "tags",
-    [
-        [
-            gen_tag_with_parameters(
-                namespace=rand_str(),
-                key=rand_str() + "test",
-                value=rand_str() + "test-tag",
-            )
-        ],
-        [
-            gen_tag_with_parameters(
-                namespace=" " + rand_str(),
-                key=rand_str() + " test",
-                value=rand_str() + "test tag",
-            )
-        ],
-        [gen_tag_with_parameters(key="test-key-&+0@%$")],
-        [gen_tag_with_parameters(namespace=None, key="test-𝗤Ɍ𝓢ȚЦ𝒱Ѡ𝓧ƳȤ")],
-        [gen_tag_with_parameters(namespace=None, key="test-Ça}{?:", value=None)],
-        [
-            gen_tag_with_parameters(
-                namespace="test-+[{]};:",
-                key="test-+(!*%",
-                value="test-٤ḞԍНǏ𝙅ƘԸⲘ𝙉০",
-            )
-        ],
-    ],
-)
-@pytest.mark.parametrize("case_insensitive", [False, True], ids=["correct-case", "wrong-case"])
-def test_search_tags_with_multiple_search_term_combinations(
-    host_inventory: ApplicationHostInventory,
-    tags: list[TagDict],
-    case_insensitive: bool,
-):
-    """
-    Ensure that is possible filter tags by multiple search term combinations.
-
-    JIRA: https://projects.engineering.redhat.com/browse/RHCLOUD-5676
-
-    1. Create a new host with a valid tag combination
-    2. Filter the account tags by multiple search term combinations
-    3. Ensure the expected tags are returned as result of the query
-
-    metadata:
-        assignee: fstavela
-        importance: high
-        title: Confirm that is possible search through the tags using
-            multiple search term combinations
-    """
-    host_data = host_inventory.datagen.create_host_data(tags=tags)
-    host_inventory.kafka.create_host(host_data=host_data)
-
-    search_tag = tags[0]
-    # Search tags by its namespace, key or value
-    for key, value in {k: v for (k, v) in search_tag.items() if v}.items():
-        if case_insensitive:
-            value = value.upper()  # type: ignore[attr-defined]
-        logger.info(f"Searching tags by sending the search term: {value}")
-        get_tags_response = acceptance(
-            host_inventory.apis.tags.get_tags_json,
-            search=value,
-            per_page=1,
-            criteria=[(criterion_count_eq, 1)],
-        )
-        assert get_tags_response["count"] == 1
-        str_tag = convert_tag_to_string(search_tag)
-        str_result_tag = convert_tag_to_string(get_tags_response["results"][0]["tag"])
-        assert search_tag[key] in str_result_tag  # type: ignore[literal-required]
-        assert str_result_tag == str_tag
-
-    # Search tags by a combination of namespace, key and value
-    str_tag = convert_tag_to_string(search_tag)
-    search_str_tag = str_tag.upper() if case_insensitive else str_tag
-    logger.info(f"Searching tags by sending the search term: {str_tag}")
-    get_tags_response = acceptance(
-        host_inventory.apis.tags.get_tags_json,
-        search=search_str_tag,
-        per_page=1,
-        criteria=[(criterion_count_eq, 1)],
-    )
-    assert get_tags_response["count"] == 1
-    str_result_tag = convert_tag_to_string(get_tags_response["results"][0]["tag"])
-    assert str_tag == str_result_tag
-
-
-@pytest.mark.ephemeral
 @pytest.mark.parametrize("case_insensitive", [False, True], ids=["correct-case", "wrong-case"])
 def test_search_tags_with_registered_with_filter(
     host_inventory: ApplicationHostInventory,
@@ -327,82 +239,6 @@ def test_search_tags_with_registered_with_filter(
     result_tags = [convert_tag_to_string(item["tag"]) for item in get_tags_response["results"]]
     assert insights_client_str_tag in result_tags
     assert non_insights_client_str_tag in result_tags
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_search_tags_with_staleness_filter(host_inventory: ApplicationHostInventory):
-    """
-    Ensure that is possible filter tags using the staleness filter to filter
-    tags from hosts in different states.
-
-    JIRA: https://projects.engineering.redhat.com/browse/RHCLOUD-5676
-
-    1. Create three hosts with valid tags in
-       three different states (fresh, stale and stale_warning)
-    2. Search the tags by sending a search term that matches the tags from all of the
-       created hosts, but also send the staleness filter to return the tags from hosts
-       in a specific state
-    3. Make sure only the tags from the hosts in the specific state are returned as result
-    4. Search the tags by sending a search term that matches the tags from all of the
-       created hosts, but also send the staleness filter with all the possible values
-       (staleness=[fresh, stale, stale_warning])
-    5. Make sure the tags from all of the three hosts are returned as result
-
-    metadata:
-        assignee: fstavela
-        importance: high
-        title: Confirm that is possible search tags using the
-            staleness filter to filter tags from hosts in different states
-    """
-
-    tag_key = rand_str() + "-test-staleness-filter"
-    tags = {
-        "fresh": gen_tag_with_parameters(rand_str(), tag_key, rand_str()),
-        "stale": gen_tag_with_parameters(rand_str(), tag_key, rand_str()),
-        "stale_warning": gen_tag_with_parameters(rand_str(), tag_key, rand_str()),
-    }
-
-    logger.info("Creating three hosts in different states (fresh, stale and stale_warning)")
-    hosts_data = [host_inventory.datagen.create_host_data(tags=[tag]) for tag in tags.values()]
-
-    create_hosts_fresh_stale_stalewarning(
-        host_inventory,
-        fresh_hosts_data=hosts_data[:1],
-        stale_hosts_data=hosts_data[1:2],
-        stale_warning_hosts_data=hosts_data[2:],
-    )
-
-    tag_key = tag_key.upper()  # Make sure the filter is case-insensitive
-    for host_state, tag in tags.items():
-        logger.info(
-            f"Search tags by sending the search term: {tag_key} "
-            f"and the filter staleness={host_state}"
-        )
-        get_tags_response = acceptance(
-            host_inventory.apis.tags.get_tags_json,
-            search=tag_key,
-            staleness=[host_state],
-            criteria=[(criterion_count_eq, 1)],
-        )
-        assert get_tags_response["count"] == 1
-        str_result_tag = convert_tag_to_string(get_tags_response["results"][0]["tag"])
-        assert convert_tag_to_string(tag) in str_result_tag
-
-    logger.info(
-        f"Search tags by sending the search term: {tag_key}"
-        f"and the filter staleness=[fresh, stale, stale_warning]"
-    )
-    get_tags_response = acceptance(
-        host_inventory.apis.tags.get_tags_json,
-        search=tag_key,
-        staleness=["fresh", "stale", "stale_warning"],
-        criteria=[(criterion_count_eq, 3)],
-    )
-    assert get_tags_response["count"] == 3
-    result_tags = [convert_tag_to_string(item["tag"]) for item in get_tags_response["results"]]
-    for tag in tags.values():
-        assert convert_tag_to_string(tag) in result_tags
 
 
 @pytest.mark.ephemeral
@@ -484,56 +320,3 @@ def test_search_host_tags(
     response_tags = response.results[host.id]
     for tag in response_tags:
         assert expected_term in convert_tag_to_string(tag.to_dict())
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize(
-    "tags,search_term",
-    [
-        pytest.param(
-            [gen_tag_with_parameters(rand_str(), rand_str(), rand_str())],
-            rand_str(min_chars=256, max_chars=500),
-            id="random_search too long",
-        ),
-        pytest.param(
-            [
-                gen_tag_with_parameters(rand_str(), None, rand_str()),
-                gen_tag_with_parameters(rand_str(), None, None),
-            ],
-            ".",
-            id="dot is invaluid",
-        ),
-        pytest.param(
-            [
-                gen_tag_with_parameters(rand_str(), None, None),
-                gen_tag_with_parameters(rand_str(), rand_str(), None),
-                gen_tag_with_parameters(rand_str(), rand_str(), rand_str()),
-            ],
-            rand_str(min_chars=10, max_chars=20),
-            id="too_short",
-        ),
-    ],
-)
-def test_search_host_tags_with_invalid_terms(
-    host_inventory: ApplicationHostInventory,
-    tags: list[TagDict],
-    search_term: str,
-):
-    """
-    Create a host with one or multiple tags and search through those tags using
-    invalid terms.
-
-    1. Create a host with one or multiple tags via MQ
-    2. Filter the host's tags by an invalid search term via REST API
-    3. Make sure NO tag is being returned in the response
-
-    metadata:
-        assignee: fstavela
-        importance: medium
-        title: Inventory: tags search using invalid terms return empty result
-    """
-    host_data = host_inventory.datagen.create_host_data(tags=tags)
-    host = host_inventory.kafka.create_host(host_data)
-
-    response = host_inventory.apis.hosts.get_host_tags_response(host.id, search=search_term)
-    assert len(response.results[host.id]) == 0

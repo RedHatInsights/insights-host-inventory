@@ -50,64 +50,6 @@ class TestExports:
         report = host_inventory.apis.exports.export_hosts(format=format)
         host_inventory.apis.exports.validate_export_report(hosts, report, format=format)
 
-    def test_export_hosts_add_reexport(
-        self, host_inventory: ApplicationHostInventory, exports_setup_resources: ExportResources
-    ) -> None:
-        """
-        Perform an export, add some hosts, re-export, and verify that the new
-        hosts are included
-
-        metadata:
-          assignee: msager
-          importance: high
-          title: Export, then add hosts, then export again
-        """
-        hosts = exports_setup_resources.hosts
-        report = host_inventory.apis.exports.export_hosts()
-        host_inventory.apis.exports.validate_export_report(hosts, report)
-
-        new_hosts = host_inventory.kafka.create_random_hosts(10)
-        expected_host_ids = [host.id for host in hosts + new_hosts]
-        # Get the HostOut objects from the API to avoid using HostWrapper objects
-        new_hosts_from_api = host_inventory.apis.hosts.get_hosts_by_id(new_hosts)
-
-        report = host_inventory.apis.exports.export_hosts()
-        host_ids = host_inventory.apis.exports.validate_export_report(
-            hosts + new_hosts_from_api,
-            report,
-        ).keys()
-
-        assert sorted(host_ids) == sorted(expected_host_ids)
-
-    def test_export_hosts_delete_reexport(
-        self, host_inventory: ApplicationHostInventory, exports_setup_resources: ExportResources
-    ) -> None:
-        """
-        Perform an export, delete some hosts, re-export, and verify that the deleted
-        hosts are not included
-
-        metadata:
-          assignee: msager
-          importance: high
-          title: Export hosts, then delete hosts, then export again
-        """
-        hosts = exports_setup_resources.hosts
-        expected_host_ids = [host.id for host in hosts]
-
-        new_hosts = host_inventory.kafka.create_random_hosts(10)
-        # Get the HostOut objects from the API to avoid using HostWrapper objects
-        new_hosts_from_api = host_inventory.apis.hosts.get_hosts_by_id(new_hosts)
-
-        report = host_inventory.apis.exports.export_hosts()
-        host_inventory.apis.exports.validate_export_report(hosts + new_hosts_from_api, report)
-
-        host_inventory.apis.hosts.delete_by_id(new_hosts)
-
-        report = host_inventory.apis.exports.export_hosts()
-        host_ids = host_inventory.apis.exports.validate_export_report(hosts, report).keys()
-
-        assert sorted(host_ids) == sorted(expected_host_ids)
-
     def test_export_hosts_proper_account(
         self,
         host_inventory: ApplicationHostInventory,

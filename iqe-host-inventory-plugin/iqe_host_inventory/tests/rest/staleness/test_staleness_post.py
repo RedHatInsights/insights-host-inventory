@@ -1,12 +1,8 @@
 import logging
-from typing import Any
 
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.utils.staleness_utils import DAY_SECS
-from iqe_host_inventory.utils.staleness_utils import MIN_DELTA
-from iqe_host_inventory.utils.staleness_utils import STALENESS_LIMITS
 from iqe_host_inventory.utils.staleness_utils import TIME_TO_DELETE
 from iqe_host_inventory.utils.staleness_utils import TIME_TO_STALE
 from iqe_host_inventory.utils.staleness_utils import TIME_TO_STALE_WARNING
@@ -15,25 +11,6 @@ from iqe_host_inventory.utils.staleness_utils import validate_staleness_response
 
 pytestmark = [pytest.mark.backend, pytest.mark.usefixtures("hbi_staleness_cleanup")]
 logger = logging.getLogger(__name__)
-
-
-def test_staleness_create_random_data(
-    host_inventory: ApplicationHostInventory, hbi_staleness_defaults: dict[str, int]
-) -> None:
-    """
-    metadata:
-      assignee: msager
-      importance: high
-      title: Create staleness settings via POST /account/staleness request
-    """
-
-    test_data = gen_staleness_settings()
-    logger.info(f"Creating account record with:\n{test_data}")
-    response = host_inventory.apis.account_staleness.create_staleness(**test_data).json()
-    validate_staleness_response(response, hbi_staleness_defaults, test_data)
-
-    response = host_inventory.apis.account_staleness.get_staleness()
-    validate_staleness_response(response, hbi_staleness_defaults, test_data)
 
 
 @pytest.mark.parametrize(
@@ -85,132 +62,6 @@ def test_staleness_create_all_fields(
     validate_staleness_response(response, hbi_staleness_defaults, test_data)
 
 
-@pytest.mark.parametrize(
-    "field,value",
-    [
-        (TIME_TO_STALE, MIN_DELTA),
-        (TIME_TO_DELETE, STALENESS_LIMITS[TIME_TO_DELETE]),
-    ],
-)
-def test_staleness_create_min_max(
-    host_inventory: ApplicationHostInventory,
-    hbi_staleness_defaults: dict[str, int],
-    field: str,
-    value: int,
-) -> None:
-    """
-    metadata:
-      assignee: msager
-      importance: low
-      title: Create staleness settings using min and max allowed deltas
-    """
-
-    test_data = {field: value}
-    logger.info(f"Creating account record with:\n{test_data}")
-    response = host_inventory.apis.account_staleness.create_staleness(**test_data).json()
-    validate_staleness_response(response, hbi_staleness_defaults, test_data)
-
-    response = host_inventory.apis.account_staleness.get_staleness()
-    validate_staleness_response(response, hbi_staleness_defaults, test_data)
-
-
-def test_staleness_create_existing_record(host_inventory: ApplicationHostInventory) -> None:
-    """
-    metadata:
-      assignee: msager
-      importance: low
-      negative: true
-      title: Attempt to create a new staleness record when one already exists
-    """
-    test_data = gen_staleness_settings()
-    logger.info("Creating account record")
-    host_inventory.apis.account_staleness.create_staleness(**test_data)
-
-    resp = host_inventory.apis.account_staleness.create_staleness(**test_data)
-    assert resp.status_code == 400
-    assert "already exists" in resp.text
-
-
-@pytest.mark.parametrize(
-    "field",
-    [
-        TIME_TO_STALE,
-        TIME_TO_STALE_WARNING,
-        TIME_TO_DELETE,
-    ],
-)
-def test_staleness_create_value_too_big(
-    host_inventory: ApplicationHostInventory, field: str
-) -> None:
-    """
-    metadata:
-      assignee: msager
-      importance: low
-      negative: true
-      title: Attempt to create a new staleness record with a value that's too big
-    """
-    test_data = {field: STALENESS_LIMITS[field] + 1}
-    logger.info(f"Creating account record with:\n{test_data}")
-
-    resp = host_inventory.apis.account_staleness.create_staleness(**test_data)
-    assert resp.status_code == 400
-    assert f"less than or equal to {STALENESS_LIMITS[field]}" in resp.text
-
-
-def test_staleness_create_invalid_field(host_inventory: ApplicationHostInventory) -> None:
-    """
-    metadata:
-      assignee: msager
-      importance: low
-      negative: true
-      title: Attempt to create a new staleness record with an invalid field
-    """
-    test_data = {TIME_TO_STALE: DAY_SECS, "bad_field": DAY_SECS}
-    logger.info(f"Creating account record with:\n{test_data}")
-
-    # Current API ignores unknown body fields; assert they are not persisted.
-    host_inventory.apis.account_staleness.raw_post_request(test_data)
-    settings = host_inventory.apis.account_staleness.get_staleness()
-    assert "bad_field" not in settings
-
-
-@pytest.mark.parametrize(
-    "field",
-    [
-        TIME_TO_STALE,
-        TIME_TO_STALE_WARNING,
-        TIME_TO_DELETE,
-    ],
-)
-@pytest.mark.parametrize(
-    "value",
-    [0, "abc", -1, 3.5, [], {}],
-    ids=["zero", "string", "negative", "float", "list", "dict"],
-)
-def test_staleness_create_invalid_value(
-    host_inventory: ApplicationHostInventory, field: str, value: Any
-) -> None:
-    """
-    metadata:
-      assignee: str
-      importance: low
-      negative: true
-      title: Attempt to create a new staleness record with an invalid value
-    """
-    body = {field: value}
-    logger.info(f"Creating account record with:\n{body}")
-
-    match_message = ""
-    if not isinstance(value, int):
-        match_message = "is not of type 'integer'"
-    elif value <= 0:
-        match_message = "less than the minimum"
-
-    resp = host_inventory.apis.account_staleness.raw_post_request(body)
-    assert resp.status_code == 400
-    assert match_message in resp.text
-
-
 def test_staleness_create_proper_account(
     host_inventory: ApplicationHostInventory,
     host_inventory_secondary: ApplicationHostInventory,
@@ -245,45 +96,3 @@ def test_staleness_create_proper_account(
 
 # Any trivial unordered set is fine.  Could add some additional permutations,
 # but this is probably sufficient enough to validate correctness.
-@pytest.mark.parametrize(
-    "settings",
-    [
-        ({
-            TIME_TO_STALE: STALENESS_LIMITS[TIME_TO_STALE],
-            TIME_TO_STALE_WARNING: 1,
-        }),
-        ({TIME_TO_DELETE: 1}),
-        ({
-            TIME_TO_STALE: 1,
-            TIME_TO_STALE_WARNING: 3,
-            TIME_TO_DELETE: 2,
-        }),
-        ({
-            TIME_TO_STALE: 2,
-            TIME_TO_STALE_WARNING: 1,
-            TIME_TO_DELETE: 3,
-        }),
-        ({
-            TIME_TO_STALE: 2,
-            TIME_TO_STALE_WARNING: 3,
-            TIME_TO_DELETE: 1,
-        }),
-    ],
-)
-def test_staleness_create_invalid_ordering(
-    host_inventory: ApplicationHostInventory, settings: dict[str, int]
-) -> None:
-    """
-    Jira: https://issues.redhat.com/browse/ESSNTL-5541
-
-    metadata:
-      assignee: msager
-      importance: low
-      negative: true
-      title: Attempt to create a staleness record with an invalid sequence of settings
-    """
-    logger.info(f"Attempting to create account record with unordered settings:\n{settings}")
-
-    resp = host_inventory.apis.account_staleness.create_staleness(**settings)
-    assert resp.status_code == 400
-    assert "must be lower than" in resp.text

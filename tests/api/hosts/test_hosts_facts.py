@@ -14,7 +14,10 @@ from tests.helpers.api_utils import get_id_list_from_hosts
 from tests.helpers.db_utils import DB_FACTS
 from tests.helpers.db_utils import DB_FACTS_NAMESPACE
 from tests.helpers.db_utils import DB_NEW_FACTS
+from tests.helpers.db_utils import db_host
 from tests.helpers.db_utils import get_expected_facts_after_update
+from tests.helpers.mq_utils import assert_patch_event_is_valid
+from tests.helpers.mq_utils import host_event_snapshot
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
@@ -65,15 +68,17 @@ def test_replace_facts_to_multiple_hosts_with_empty_key_value_pair(db_create_mul
     assert all(host.facts == expected_facts for host in db_get_hosts(host_id_list))
 
 
-def test_replace_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts, api_patch):
-    new_facts = {}
+def test_replace_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts, api_put, event_producer_mock):
+    new_facts = {"new": "fact"}
 
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     facts_url = build_facts_url(host_list_or_id=created_hosts, namespace="imanonexistentnamespace")
 
-    response_status, _ = api_patch(facts_url, new_facts)
-    assert_response_status(response_status, expected_status=400)
+    response_status, data = api_put(facts_url, new_facts)
+    assert_response_status(response_status, expected_status=404)
+    assert "number of hosts" in data.lower()
+    assert event_producer_mock.events == []
 
 
 def test_replace_facts_without_fact_dict(api_put):
@@ -83,9 +88,13 @@ def test_replace_facts_without_fact_dict(api_put):
     assert_error_response(response_data, expected_status=400, expected_detail="Request body must not be empty")
 
 
-@pytest.mark.usefixtures("event_producer_mock")
-def test_replace_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put):
-    created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
+def test_replace_facts_on_multiple_hosts(
+    db_create_multiple_hosts, db_get_hosts, api_put, event_producer_mock, event_datetime_mock
+):
+    created_hosts = db_create_multiple_hosts(
+        hosts=[db_host(facts={"ns1": {"old": "remove"}, "other": {"keep": "me"}}) for _ in range(2)]
+    )
+    originals = {str(host.id): (host_event_snapshot(host), host.modified_on, host) for host in created_hosts}
 
     host_id_list = get_id_list_from_hosts(created_hosts)
     facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
@@ -93,9 +102,20 @@ def test_replace_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts,
     response_status, _ = api_put(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=200)
 
-    expected_facts = get_expected_facts_after_update("replace", DB_FACTS_NAMESPACE, DB_FACTS, DB_NEW_FACTS)
+    expected_facts = {"ns1": DB_NEW_FACTS, "other": {"keep": "me"}}
 
     assert all(host.facts == expected_facts for host in db_get_hosts(host_id_list))
+    assert len(event_producer_mock.events) == 2
+    assert {record.key for record in event_producer_mock.events} == set(originals)
+    for record in event_producer_mock.events:
+        expected, previous, host = originals[record.key]
+        expected["facts"] = [
+            {"namespace": "ns1", "facts": DB_NEW_FACTS},
+            {"namespace": "other", "facts": {"keep": "me"}},
+        ]
+        assert_patch_event_is_valid(
+            host, record, None, event_datetime_mock, expected_host=expected, updated_after=previous
+        )
 
 
 @pytest.mark.usefixtures("event_producer_mock")

@@ -4,12 +4,14 @@ from collections.abc import Callable
 from uuid import UUID
 
 import pytest
+from pytest_subtests import SubTests
 
 from app.models import Host
 from app.utils import HostWrapper
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.test_utils import generate_random_string
+from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 
 
@@ -90,6 +92,7 @@ def test_rhsm_update_display_name_ignored_after_updated_by_puptoo(
 @pytest.mark.parametrize(
     "orig_reporter",
     (
+        "puptoo",
         "yupana",
         "yuptoo",
         "satellite",
@@ -105,13 +108,14 @@ def test_rhsm_update_display_name_ignored_after_updated_by_api(
     mq_create_or_update_host: Callable[..., HostWrapper],
     db_get_host: Callable[[UUID | str], Host | None],
     api_patch: Callable[..., tuple[int, dict]],
+    api_get: Callable[..., tuple[int, dict]],
     orig_reporter: str,
     rhsm_reporter: str,
 ) -> None:
     # Create a host without setting the display_name
-    host_data = minimal_host(reporter=orig_reporter)
+    host_data = minimal_host(reporter=orig_reporter, fqdn="original.example.test")
     host = mq_create_or_update_host(host_data)
-    assert host.display_name == host.id
+    assert host.display_name == host_data.fqdn
     assert host.reporter == orig_reporter
 
     db_host = db_get_host(host.id)
@@ -143,6 +147,59 @@ def test_rhsm_update_display_name_ignored_after_updated_by_api(
     assert db_host.display_name_reporter == "API"
     assert db_host.display_name == api_display_name
     assert db_host.reporter == rhsm_reporter
+    status, response = api_get(build_hosts_url(host_list_or_id=host.id))
+    assert status == 200
+    assert len(response["results"]) == 1
+    assert response["results"][0]["display_name"] == api_display_name
+    assert response["results"][0]["reporter"] == rhsm_reporter
+
+
+def test_display_name_fallback_and_update_precedence(
+    mq_create_or_update_host: Callable[..., HostWrapper], api_get: Callable, subtests: SubTests
+) -> None:
+    for has_name, has_fqdn in ((True, True), (True, False), (False, True), (False, False)):
+        with subtests.test(create_name=has_name, create_fqdn=has_fqdn):
+            values = {"display_name": "custom-name"} if has_name else {}
+            if has_fqdn:
+                values["fqdn"] = "original.example.test"
+            host_data = minimal_host(insights_id=generate_uuid(), ansible_host="not-a-display-name", **values)
+            host = mq_create_or_update_host(host_data)
+            expected = "custom-name" if has_name else "original.example.test" if has_fqdn else host.id
+            assert host.display_name == expected
+            status, response = api_get(build_hosts_url(query=f"?insights_id={host_data.insights_id}"))
+            assert status == 200
+            assert len(response["results"]) == 1
+            assert response["results"][0]["id"] == host.id
+            assert response["results"][0]["display_name"] == expected
+
+    for origin in ("custom", "fqdn", "id"):
+        for has_name, has_fqdn in ((True, True), (True, False), (False, True), (False, False)):
+            with subtests.test(origin=origin, update_name=has_name, update_fqdn=has_fqdn):
+                values = {"display_name": "custom-name", "fqdn": "original.example.test"} if origin == "custom" else {}
+                if origin == "fqdn":
+                    values["fqdn"] = "original.example.test"
+                host_data = minimal_host(insights_id=generate_uuid(), ansible_host="original-ansible", **values)
+                host = mq_create_or_update_host(host_data)
+                values = {"display_name": "replacement-name"} if has_name else {}
+                if has_fqdn:
+                    values["fqdn"] = "replacement.example.test"
+                update = minimal_host(insights_id=host_data.insights_id, ansible_host="replacement-ansible", **values)
+                updated = mq_create_or_update_host(update)
+                if has_name:
+                    expected = "replacement-name"
+                elif has_fqdn and origin != "custom":
+                    expected = "replacement.example.test"
+                else:
+                    expected = host.display_name
+                assert updated.id == host.id
+                assert updated.display_name == expected
+                assert updated.ansible_host == "replacement-ansible"
+                status, response = api_get(build_hosts_url(query=f"?insights_id={host_data.insights_id}"))
+                assert status == 200
+                assert len(response["results"]) == 1
+                assert response["results"][0]["id"] == host.id
+                assert response["results"][0]["display_name"] == expected
+                assert response["results"][0]["ansible_host"] == "replacement-ansible"
 
 
 @pytest.mark.parametrize(

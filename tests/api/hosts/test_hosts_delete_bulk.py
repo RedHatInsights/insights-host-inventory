@@ -71,6 +71,10 @@ def test_delete_hosts_filtered_by_system_type(
     host_to_delete_id = mq_create_or_update_host(
         minimal_host(system_profile={"host_type": host_type} if host_type else {})
     ).id
+    extra_survivors = []
+    if system_type == "edge":
+        for profile in ({}, {"bootc_status": {"booted": {"image_digest": "sha256:" + "b" * 64}}}):
+            extra_survivors.append(mq_create_or_update_host(minimal_host(system_profile=profile)).id)
 
     response_status, response_data = api_delete_filtered_hosts(query_parameters={"system_type": system_type})
 
@@ -80,27 +84,37 @@ def test_delete_hosts_filtered_by_system_type(
 
     assert not db_get_host(host_to_delete_id)
     assert db_get_host(host_to_keep_id)
+    assert all(db_get_host(host_id) for host_id in extra_survivors)
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
+@pytest.mark.parametrize("how_many", (1, 3))
 def test_delete_all_hosts(
     event_producer_mock: MockEventProducer,
     db_create_multiple_hosts: Callable[..., list[Host]],
     db_get_hosts: Callable,
     api_delete_all_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    event_datetime_mock: datetime,
+    how_many: int,
 ) -> None:
-    created_hosts = db_create_multiple_hosts(how_many=5)
+    created_hosts = db_create_multiple_hosts(how_many=how_many)
     host_ids = [str(host.id) for host in created_hosts]
+    originals = {}
+    for host in created_hosts:
+        _ = host.static_system_profile
+        originals[str(host.id)] = deepcopy(host)
 
     response_status, response_data = api_delete_all_hosts({"confirm_delete_all": True})
 
-    assert '"type": "delete"' in event_producer_mock.event
+    assert len(event_producer_mock.events) == how_many
+    assert {record.key for record in event_producer_mock.events} == set(host_ids)
+    for record in event_producer_mock.events:
+        assert_delete_event_is_valid(record, originals[record.key], event_datetime_mock)
     assert response_data.get("hosts_deleted") == len(created_hosts)
     assert_response_status(response_status, expected_status=202)
     assert len(host_ids) == response_data["hosts_deleted"]
 
-    host_id_list = [str(host.id) for host in created_hosts]
-    deleted_hosts = db_get_hosts(host_id_list)
+    deleted_hosts = db_get_hosts(host_ids)
     assert deleted_hosts.count() == 0
 
 
@@ -108,7 +122,10 @@ def test_delete_all_hosts(
 def test_delete_bulk_wrong_delete_all_params(
     api_delete_all_hosts: Callable[..., tuple[int, dict[str, Any]]],
     confirm_delete_all: Any,
+    db_create_host: Callable,
+    event_producer_mock: MockEventProducer,
 ) -> None:
+    db_create_host()
     params: dict[str, Any] = {}
     if confirm_delete_all is not None:
         params["confirm_delete_all"] = confirm_delete_all
@@ -116,6 +133,7 @@ def test_delete_bulk_wrong_delete_all_params(
     response_status, response_data = api_delete_all_hosts(params)
     assert response_status == 400
     assert "confirm_delete_all" in response_data["detail"]
+    assert event_producer_mock.events == []
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
@@ -156,17 +174,21 @@ def test_postgres_delete_filtered_hosts(
     assert response_data["results"][0]["id"] == not_deleted_host_id
 
 
-@pytest.mark.usefixtures("event_producer_mock")
+@pytest.mark.parametrize("filter_name", ("insights_id", "display_name"))
 def test_postgres_delete_filtered_hosts_nomatch(
     db_create_host: Callable[..., Host],
     api_get: Callable[..., tuple[int, dict[str, Any]]],
     api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    event_producer_mock: MockEventProducer,
+    filter_name: str,
 ) -> None:
     not_deleted_host_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
 
-    response_status, response_data = api_delete_filtered_hosts({"insights_id": generate_uuid()})
+    response_status, response_data = api_delete_filtered_hosts({filter_name: generate_uuid()})
+    assert response_status == 202
     assert response_data["hosts_found"] == 0
     assert response_data["hosts_deleted"] == 0
+    assert event_producer_mock.events == []
 
     response_status, response_data = api_get(build_hosts_url(not_deleted_host_id))
     assert_response_status(response_status, expected_status=200)
@@ -221,25 +243,60 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     assert response_data["results"][0]["id"] == different_org_host_id
 
 
-@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+@pytest.mark.usefixtures("notification_event_producer_mock")
+@pytest.mark.parametrize("how_many", (1, 3))
 def test_delete_bulk_by_display_name(
     db_create_host: Callable[..., Host],
     db_get_host: Callable[..., Host | None],
     api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    event_producer_mock: MockEventProducer,
+    event_datetime_mock: datetime,
+    how_many: int,
 ) -> None:
     target_name = "delete-me-display"
-    match_ids = [str(db_create_host(extra_data={"display_name": target_name}).id) for _ in range(3)]
+    originals = [db_create_host(extra_data={"display_name": target_name}) for _ in range(how_many)]
+    match_ids = [str(host.id) for host in originals]
     nomatch_ids = [str(db_create_host(extra_data={"display_name": "keep-me"}).id) for _ in range(2)]
+    originals_by_id = {str(host.id): deepcopy(host) for host in originals}
 
     response_status, response_data = api_delete_filtered_hosts(query_parameters={"display_name": target_name})
     assert response_status == 202
-    assert response_data["hosts_found"] == 3
-    assert response_data["hosts_deleted"] == 3
+    assert response_data["hosts_found"] == how_many
+    assert response_data["hosts_deleted"] == how_many
+    assert len(event_producer_mock.events) == how_many
+    assert {record.key for record in event_producer_mock.events} == set(match_ids)
+    for record in event_producer_mock.events:
+        assert_delete_event_is_valid(record, originals_by_id[record.key], event_datetime_mock)
 
     for host_id in match_ids:
         assert not db_get_host(host_id)
     for host_id in nomatch_ids:
         assert db_get_host(host_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_sap_presence(
+    mq_create_or_update_host: Callable,
+    db_get_host: Callable,
+    api_delete_filtered_hosts: Callable,
+    api_get: Callable,
+) -> None:
+    profiles: tuple[dict[str, Any], ...] = (
+        {"workloads": {"sap": {"sap_system": True, "sids": ["ABC"]}}},
+        {"workloads": {"sap": {"sap_system": True}}},
+        {"workloads": {"ansible": {"controller_version": "4.0"}}},
+        {},
+    )
+    ids = [mq_create_or_update_host(minimal_host(system_profile=profile)).id for profile in profiles]
+    query = {"filter[system_profile][workloads][sap][sap_system][is]": "not_nil"}
+    status, data = api_delete_filtered_hosts(query)
+    assert status == 202
+    assert data["hosts_found"] == data["hosts_deleted"] == 2
+    assert all(not db_get_host(host_id) for host_id in ids[:2])
+    assert all(db_get_host(host_id) for host_id in ids[2:])
+    status, data = api_get(build_hosts_url(), query_parameters=query)
+    assert status == 200
+    assert data["results"] == []
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")

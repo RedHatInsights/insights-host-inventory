@@ -1,16 +1,20 @@
 import json
-import time
+from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
+from datetime import timedelta
+from threading import Event
 from threading import Thread
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from dateutil.parser import isoparse
 
 from app.auth.identity import from_auth_header
 from app.models import db
 from app.queue.event_producer import MessageDetails
+from app.queue.event_producer import _encode_headers
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_canonical_facts
 from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
@@ -30,7 +34,10 @@ from tests.helpers.db_utils import DB_FACTS_NAMESPACE
 from tests.helpers.db_utils import DB_NEW_FACTS
 from tests.helpers.db_utils import db_host
 from tests.helpers.db_utils import get_expected_facts_after_update
+from tests.helpers.mq_utils import HOST_EVENT_HEADER_CASES
 from tests.helpers.mq_utils import assert_patch_event_is_valid
+from tests.helpers.mq_utils import expected_headers
+from tests.helpers.mq_utils import host_event_snapshot
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
@@ -113,23 +120,30 @@ def test_checkin_ignores_branch_id(db_create_host, api_post, branch_id):
 
 
 @pytest.mark.usefixtures("event_producer_mock")
-def test_checkin_checkin_frequency_valid(db_create_host, api_post, mocker):
+def test_checkin_checkin_frequency_valid(db_create_host, api_post, api_get, mocker):
     extra_data = {"insights_id": generate_uuid()}
     created_host = db_create_host(extra_data=extra_data)
+    created_host.last_check_in = datetime.now(UTC) - timedelta(days=1)
+    db.session.commit()
+    status, data = api_get(build_hosts_url(created_host.id))
+    assert status == 200
+    original = data["results"][0]
 
     deserialize_canonical_facts_mock = mocker.patch(
         "api.host.deserialize_canonical_facts", wraps=deserialize_canonical_facts
     )
 
-    canonical_facts = serialize_canonical_facts(created_host, include_none=False)
-
-    post_doc = {**canonical_facts, "checkin_frequency": 720}
-    response_status, _ = api_post(
+    post_doc = {"insights_id": str(created_host.insights_id), "checkin_frequency": 60}
+    response_status, response_data = api_post(
         build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
     )
 
     assert_response_status(response_status, expected_status=201)
     deserialize_canonical_facts_mock.assert_called_once_with(post_doc)
+    assert response_data["id"] == str(created_host.id)
+    assert response_data["insights_id"] == original["insights_id"]
+    for field in ("last_check_in", "stale_timestamp", "stale_warning_timestamp", "culled_timestamp"):
+        assert isoparse(response_data[field]) > isoparse(original[field])
 
 
 @pytest.mark.usefixtures("event_producer_mock")
@@ -230,15 +244,23 @@ def test_patch_on_multiple_hosts_with_some_non_existent(db_create_host, db_get_h
 
 @pytest.mark.parametrize(
     "invalid_data",
-    [{"ansible_host": "a" * 256}, {"ansible_host": None}, {}, {"display_name": None}, {"display_name": ""}],
+    [
+        {"ansible_host": "a" * 256},
+        {"ansible_host": None},
+        {},
+        {"display_name": None},
+        {"display_name": ""},
+        {"display_name": "a" * 300},
+    ],
 )
-def test_invalid_data(invalid_data, db_create_host, api_patch):
+def test_invalid_data(invalid_data, db_create_host, api_patch, event_producer_mock):
     host = db_create_host()
 
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, _ = api_patch(url, invalid_data)
 
     assert_response_status(response_status, expected_status=400)
+    assert event_producer_mock.events == []
 
 
 def test_invalid_host_id(db_create_host, api_patch, subtests):
@@ -319,10 +341,18 @@ def test_patch_produces_update_event_no_insights_id(
 
 
 def test_patch_by_namespace_produces_update_event(event_producer_mock, event_datetime_mock, db_create_host, api_patch):
-    created_host = db_create_host(host=db_host(), extra_data={"facts": DB_FACTS})
+    created_host = db_create_host(
+        host=db_host(facts={"ns1": {"fact1": "keep", "fact2": "old"}, "other": {"keep": "me"}})
+    )
+    expected = host_event_snapshot(created_host)
+    previous_updated = created_host.modified_on
+    expected["facts"] = [
+        {"namespace": "ns1", "facts": {"fact1": "keep", "fact2": "replaced", "fact3": "added"}},
+        {"namespace": "other", "facts": {"keep": "me"}},
+    ]
 
     facts_url = build_facts_url(host_list_or_id=created_host.id, namespace=DB_FACTS_NAMESPACE)
-    response_status, _ = api_patch(facts_url, DB_NEW_FACTS)
+    response_status, _ = api_patch(facts_url, {"fact2": "replaced", "fact3": "added"})
     assert_response_status(response_status, expected_status=200)
 
     assert_patch_event_is_valid(
@@ -331,7 +361,59 @@ def test_patch_by_namespace_produces_update_event(event_producer_mock, event_dat
         expected_request_id=None,
         expected_timestamp=event_datetime_mock,
         display_name="test-display-name",
+        expected_host=expected,
+        updated_after=previous_updated,
     )
+    assert len(event_producer_mock.events) == 1
+
+
+@pytest.mark.parametrize("how_many", (1, 3))
+def test_patch_event_header_contracts(
+    how_many,
+    db_create_host,
+    api_patch,
+    event_producer_mock,
+    event_datetime_mock,
+    subtests,
+    db_create_group,
+    db_create_host_group_assoc,
+):
+    group_id = db_create_group("event-group").id
+    request_ids = (None, "", "91a80cc0-309c-4cf5-b079-73fe588a9db4")
+    for case_index, (profile, host_type, os_name, is_bootc) in enumerate(HOST_EVENT_HEADER_CASES):
+        for with_insights_id in (False, True):
+            with subtests.test(profile=profile, with_insights_id=with_insights_id):
+                originals = []
+                for _ in range(how_many):
+                    host = db_create_host(host=db_host(insights_id=generate_uuid() if with_insights_id else None))
+                    host.update_system_profile(deepcopy(profile))
+                    db.session.commit()
+                    db_create_host_group_assoc(host.id, group_id)
+                    originals.append((host, host_event_snapshot(host), host.modified_on))
+                request_id = request_ids[case_index % len(request_ids)]
+                headers = {} if request_id is None else {"x-rh-insights-request-id": request_id}
+                patch_doc = {"display_name": "patch_event_test", "ansible_host": "patched.example.com"}
+                event_producer_mock.events.clear()
+                status, _ = api_patch(
+                    build_hosts_url([host for host, _, _ in originals]), patch_doc, extra_headers=headers
+                )
+                assert status == 200
+                records = event_producer_mock.events
+                assert len(records) == how_many
+                assert {record.key for record in records} == {str(host.id) for host, _, _ in originals}
+                by_id = {str(host.id): (host, expected, previous) for host, expected, previous in originals}
+                for record in records:
+                    host, expected, previous = by_id[record.key]
+                    expected.update(patch_doc)
+                    assert_patch_event_is_valid(
+                        host, record, request_id, event_datetime_mock, expected_host=expected, updated_after=previous
+                    )
+                    assert record.headers == expected_headers(
+                        "updated", request_id, expected["insights_id"], "test-reporter", host_type, os_name, is_bootc
+                    )
+                    assert dict(_encode_headers(record.headers))["request_id"] == (
+                        request_id.encode() if request_id else b""
+                    )
 
 
 def test_patch_by_namespace_on_multiple_hosts_produces_multiple_update_events(
@@ -451,17 +533,22 @@ def test_add_facts_to_multiple_hosts_add_empty_fact_set(db_create_multiple_hosts
     assert_response_status(response_status, expected_status=400)
 
 
-def test_add_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts, api_patch):
+@pytest.mark.parametrize("facts_to_update,expected_status", (({}, 400), ({"new": "fact"}, 404)))
+def test_add_facts_to_namespace_that_does_not_exist(
+    db_create_multiple_hosts, api_patch, event_producer_mock, facts_to_update, expected_status
+):
     facts_namespace = "ns1"
     facts = {facts_namespace: {"key1": "value1"}}
-    facts_to_update = {}
 
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": facts})
 
     facts_url = build_facts_url(host_list_or_id=created_hosts, namespace="imanonexistentnamespace")
 
-    response_status, _ = api_patch(facts_url, facts_to_update)
-    assert_response_status(response_status, expected_status=400)
+    response_status, data = api_patch(facts_url, facts_to_update)
+    assert_response_status(response_status, expected_status=expected_status)
+    if expected_status == 404:
+        assert "number of hosts" in data.lower()
+    assert event_producer_mock.events == []
 
 
 @pytest.mark.usefixtures("event_producer_mock")
@@ -583,11 +670,14 @@ def test_update_delete_race(event_producer, db_create_host, db_get_host, api_pat
     mocker.patch.object(event_producer, "write_event")
     mocker.patch("lib.host_delete.kafka_available")
 
-    # slow down the execution of update_display_name so that it's more likely we hit the race condition
-    def sleep(data):  # noqa: ARG001, required by patch
-        time.sleep(1)
+    patch_started = Event()
+    delete_finished = Event()
 
-    mocker.patch("app.models.Host.update_display_name", wraps=sleep)
+    def wait_for_delete(_display_name, _reporter):
+        patch_started.set()
+        assert delete_finished.wait(timeout=10)
+
+    mocker.patch("app.models.Host.update_display_name", wraps=wait_for_delete)
 
     host_id = db_create_host().id
 
@@ -598,9 +688,11 @@ def test_update_delete_race(event_producer, db_create_host, db_get_host, api_pat
     # run PATCH asynchronously
     patchThread = Thread(target=patch_host, daemon=True)
     patchThread.start()
+    assert patch_started.wait(timeout=10)
 
     # as PATCH is running, concurrently delete the host
     response_status, _ = api_delete_host(host_id)
+    delete_finished.set()
     assert_response_status(response_status, expected_status=200)
 
     # wait for PATCH to finish

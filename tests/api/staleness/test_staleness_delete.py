@@ -5,6 +5,7 @@ from tests.helpers.api_utils import STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FIL
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import run_rbac_test
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_delete_existing_staleness(db_create_staleness_culling, api_delete_staleness, db_get_staleness_culling):
@@ -24,8 +25,10 @@ def test_delete_existing_staleness(db_create_staleness_culling, api_delete_stale
 
 
 def test_delete_non_existing_staleness(api_delete_staleness):
-    response_status, _ = api_delete_staleness()
+    response_status, response_data = api_delete_staleness()
     assert_response_status(response_status, 404)
+    assert "does not exist" in response_data["detail"]
+    assert USER_IDENTITY["org_id"] in response_data["detail"]
 
 
 @pytest.mark.usefixtures("enable_rbac")

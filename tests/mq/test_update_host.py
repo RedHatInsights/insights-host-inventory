@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import json
 import logging
+import subprocess
+import sys
 from collections.abc import Callable
 from datetime import datetime
+from datetime import timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -18,9 +22,11 @@ from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import OperationResult
 from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import write_add_update_event_message
+from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.mq_utils import generate_kessel_workspace_message
+from tests.helpers.mq_utils import mq_service_host_listeners
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.outbox_utils import capture_outbox_calls
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -28,6 +34,7 @@ from tests.helpers.test_utils import generate_random_string
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_platform_metadata
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import now
 
 
 def _change_case_of_outbox_fields(host_data: dict) -> dict:
@@ -51,26 +58,103 @@ def _change_irrelevant_outbox_fields(host_data: dict) -> dict:
     }
 
 
-def test_update_display_name(mq_create_or_update_host, db_get_host_by_insights_id):
-    insights_id = generate_uuid()
+def test_update_display_name(mq_create_or_update_host, db_get_host_by_insights_id, api_get, subtests):
+    # Exercise the field/reporter classes without resetting the DB for every pair.
+    fields = ("display_name", "ansible_host", "fqdn", "bios_uuid", "satellite_id", "subscription_manager_id")
+    pairs = [(reporter, field) for reporter in ("iqe-host-inventory", "yupana") for field in fields]
+    pairs.append(("rhsm-conduit", "display_name"))
+    for reporter, field in pairs:
+        with subtests.test(reporter=reporter, field=field):
+            host = minimal_host(
+                insights_id=generate_uuid(),
+                reporter="iqe-host-inventory",
+                display_name="original-name",
+                ansible_host="original-ansible",
+                fqdn=generate_random_string(),
+                bios_uuid=generate_uuid(),
+                satellite_id=generate_uuid(),
+                subscription_manager_id=generate_uuid(),
+            )
+            key, created, _ = mq_create_or_update_host(host, return_all_data=True)
+            assert created["type"] == "created"
+            replacement = generate_uuid() if field.endswith("id") else f"updated-{generate_random_string()}"
+            setattr(host, field, replacement)
+            host.reporter = reporter
+            updated_key, updated, _ = mq_create_or_update_host(host, return_all_data=True)
+            assert updated["type"] == "updated"
+            assert updated_key == key == updated["host"]["id"] == created["host"]["id"]
+            assert updated["host"][field] == replacement
+            assert updated["host"]["reporter"] == reporter
+            record = db_get_host_by_insights_id(host.insights_id)
+            assert str(getattr(record, field)) == replacement
+            status, response = api_get(build_hosts_url(host_list_or_id=key))
+            assert status == 200
+            assert len(response["results"]) == 1
+            assert response["results"][0]["id"] == key
+            assert response["results"][0][field] == replacement
 
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        display_name="test_host",
-        insights_id=insights_id,
+
+def test_mq_service_does_not_load_api_host_listeners():
+    # mq_service_host_listeners relies on this; api.staleness would freeze modified_on on MQ updates.
+    script = (
+        "import sys, inv_mq_service\n"
+        "inv_mq_service.create_app(inv_mq_service.RuntimeEnvironment.SERVICE)\n"
+        "assert 'api.staleness' not in sys.modules\n"
     )
-    mq_create_or_update_host(host)
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        display_name="better_test_host",
-        insights_id=insights_id,
+    result = subprocess.run(
+        [sys.executable, "-c", script], cwd=Path(__file__).parents[2], capture_output=True, text=True, timeout=60
     )
-    mq_create_or_update_host(host)
+    assert result.returncode == 0, result.stderr[-2000:]
 
-    record = db_get_host_by_insights_id(insights_id)
 
-    assert record.display_name == "better_test_host"
+def test_mq_check_in_and_updated_timestamps(mocker, flask_app, event_producer_mock, api_get):
+    def ingest(host):
+        message = json.dumps(wrap_message(host.data(), platform_metadata=get_platform_metadata()))
+        fake_consumer = mocker.Mock(**{"consume.return_value": [FakeMessage(message=message)]})
+        consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer_mock, mocker.Mock())
+        event_producer_mock.event = None
+        with mq_service_host_listeners():
+            consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+        assert event_producer_mock.event is not None
+        return json.loads(event_producer_mock.event)
+
+    start = now()
+    clock = mocker.patch("app.models.utils.datetime")
+    clock.now.return_value = start
+    host = minimal_host(
+        insights_id=generate_uuid(),
+        reporter="iqe-host-inventory",
+        system_profile={"arch": "x86_64", "number_of_cpus": 2},
+    )
+    created = ingest(host)
+    status, response = api_get(build_hosts_url(host_list_or_id=created["host"]["id"]))
+    assert status == 200
+    assert len(response["results"]) == 1
+    original = response["results"][0]
+    for result in (created["host"], original):
+        checked_in = datetime.fromisoformat(result["last_check_in"])
+        updated = datetime.fromisoformat(result["updated"])
+        assert abs(checked_in - updated) <= timedelta(milliseconds=100)
+        assert start <= checked_in <= start + timedelta(milliseconds=100)
+        assert start <= updated <= start + timedelta(milliseconds=100)
+
+    clock.now.return_value = start + timedelta(hours=1)
+    host.reporter = "rhsm-conduit"
+    event = ingest(host)
+    assert event["type"] == "updated"
+    updated_host = event["host"]
+    assert updated_host["id"] == original["id"]
+    assert updated_host["created"] == original["created"]
+    assert abs(
+        datetime.fromisoformat(updated_host["last_check_in"]) - datetime.fromisoformat(updated_host["updated"])
+    ) <= timedelta(milliseconds=100)
+    for field in ("last_check_in", "updated"):
+        assert datetime.fromisoformat(updated_host[field]) > datetime.fromisoformat(original[field])
+        assert (
+            start + timedelta(hours=1)
+            <= datetime.fromisoformat(updated_host[field])
+            <= start + timedelta(hours=1, milliseconds=100)
+        )
 
 
 def test_cant_update_host_groups_via_mq(

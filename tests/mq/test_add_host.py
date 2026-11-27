@@ -17,6 +17,7 @@ from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.queue.events import EventType
 from app.queue.host_mq import IngressMessageConsumer
+from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.mq_utils import assert_mq_host_data
@@ -35,7 +36,7 @@ from tests.helpers.test_utils import valid_system_profile
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
-def test_add_host_simple(mq_create_or_update_host):
+def test_add_host_simple(mq_create_or_update_host, api_get):
     """
     Tests adding a host with some simple data
     """
@@ -55,6 +56,11 @@ def test_add_host_simple(mq_create_or_update_host):
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+    assert event["type"] == "created"
+    status, response = api_get(build_hosts_url(query=f"?insights_id={event['host']['insights_id']}"))
+    assert status == 200
+    assert len(response["results"]) == 1
+    assert response["results"][0]["id"] == event["host"]["id"]
 
 
 @pytest.mark.usefixtures("event_datetime_mock")

@@ -26,9 +26,11 @@ from app.telemetry import _build_rh_attribute_span_processor
 from tests.helpers import export_service_utils as es_utils
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import mocked_export_post
 from tests.helpers.db_utils import db_host
+from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import USER_IDENTITY
 
 
@@ -320,6 +322,121 @@ def test_export_one_host(flask_app, db_create_host, inventory_config):
         )
 
         assert len(host_list) == 1
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_json_reexports_observe_additions_and_api_deletions(
+    flask_app,
+    inventory_config,
+    db_create_host,
+    db_create_group,
+    db_create_host_group_assoc,
+    api_get,
+    api_delete_host,
+    mocker,
+):
+    """Each export uploads a fresh, real serialized DB snapshot to a local sink."""
+    with flask_app.app.app_context():
+        minimal = db_create_host(host=minimal_db_host())
+        populated = db_create_host(
+            host=db_host(
+                system_profile_facts={
+                    "os_release": "9.4",
+                    "satellite_managed": True,
+                    "cloud_provider": "aws",
+                    "is_marketplace": False,
+                }
+            )
+        )
+        group = db_create_group("export-group")
+        db_create_host_group_assoc(populated.id, group.id)
+        edge = db_create_host(
+            host=db_host(
+                tags={"namespace1": {"key1": ["val1"]}, "namespace2": {"key2": []}, "null": {"key3": ["val2"]}},
+                system_profile_facts={"host_type": "edge", "os_release": "8.10"},
+            )
+        )
+        original_ids = {str(host.id) for host in (minimal, populated, edge)}
+        uploads = []
+
+        def capture_upload(_session, url, **kwargs):
+            assert url.endswith("/upload")
+            body = kwargs["data"]
+            assert isinstance(body, _StreamingExportBody)
+            uploads.append(json.loads(b"".join(body)))
+            assert body.host_count == len(uploads[-1])
+            return mocker.Mock(status_code=HTTPStatus.ACCEPTED, text="")
+
+        mocker.patch("requests.Session.post", autospec=True, side_effect=capture_upload)
+
+        def export_and_check(expected_ids):
+            message = parse_export_service_message(es_utils.create_export_message_mock())
+            assert create_export(message, inventory_config)
+            records = uploads[-1]
+            assert len(records) == len(expected_ids)
+            assert {row["host_id"] for row in records} == expected_ids
+            ids = ",".join(sorted(expected_ids))
+            status, result = api_get(f"{HOST_URL}/{ids}")
+            assert status == 200
+            hosts = {host["id"]: host for host in result["results"]}
+            assert set(hosts) == expected_ids
+            status, result = api_get(f"{HOST_URL}/{ids}/system_profile")
+            assert status == 200
+            profiles = {host["id"]: host["system_profile"] for host in result["results"]}
+            status, result = api_get(f"{HOST_URL}/{ids}/tags")
+            assert status == 200
+            tags = result["results"]
+            for record in records:
+                assert set(record) == {
+                    "display_name",
+                    "fqdn",
+                    "host_id",
+                    "subscription_manager_id",
+                    "satellite_id",
+                    "group_id",
+                    "group_name",
+                    "os_release",
+                    "updated",
+                    "state",
+                    "tags",
+                    "host_type",
+                    "bios_uuid",
+                    "satellite_managed",
+                    "cloud_provider",
+                    "is_marketplace",
+                    "ip_addresses",
+                }
+                host_id = record["host_id"]
+                host, profile = hosts[host_id], profiles[host_id]
+                for field in (
+                    "display_name",
+                    "fqdn",
+                    "subscription_manager_id",
+                    "satellite_id",
+                    "bios_uuid",
+                    "ip_addresses",
+                    "updated",
+                ):
+                    assert record[field] == host.get(field)
+                for field in ("os_release", "satellite_managed", "cloud_provider", "is_marketplace"):
+                    assert record[field] == profile.get(field)
+                assert record["host_type"] == profile.get("host_type", "conventional")
+                expected_group = host["groups"][0] if host["groups"] else {}
+                assert record["group_id"] == expected_group.get("id")
+                assert record["group_name"] == expected_group.get("name")
+                assert sorted(
+                    record["tags"], key=lambda tag: (tag["namespace"] or "", tag["key"], tag["value"] or "")
+                ) == sorted(tags[host_id], key=lambda tag: (tag["namespace"] or "", tag["key"], tag["value"] or ""))
+            return {row["host_id"]: row for row in records}
+
+        original = export_and_check(original_ids)
+        added_id = str(db_create_host(host=db_host(display_name="added-after-first-export")).id)
+        expanded = export_and_check(original_ids | {added_id})
+        assert {host_id: expanded[host_id] for host_id in original_ids} == original
+        status, _ = api_delete_host(added_id)
+        assert status == 200
+        assert export_and_check(original_ids) == original
+        assert len(uploads) == 3
 
 
 def test_export_catches_db_error(flask_app, inventory_config, mocker, db_create_host):

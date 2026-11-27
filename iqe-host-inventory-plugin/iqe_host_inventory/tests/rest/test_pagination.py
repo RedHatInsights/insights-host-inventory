@@ -10,7 +10,6 @@ from iqe_host_inventory.utils import rand_start_end
 from iqe_host_inventory.utils.api_utils import acceptance
 from iqe_host_inventory.utils.api_utils import criterion_count_eq
 from iqe_host_inventory.utils.api_utils import criterion_total_gte
-from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.tag_utils import convert_tag_to_string
 from iqe_host_inventory_api import GroupOutWithHostCount
 
@@ -53,66 +52,6 @@ def test_pagination(host_inventory, hbi_setup_hosts_for_pagination):
     page2_content = _getpage(2)
 
     assert page1_content != page2_content
-
-
-def test_pagination_invalid_page_index(host_inventory, hbi_setup_hosts_for_pagination):
-    """
-    Test Pagination with Invalid Page Index.
-
-    JIRA: https://projects.engineering.redhat.com/browse/RHIPLAT1-637
-
-    Try to navigate by specifying invalid page indexes.
-
-    1. first page -1
-    2. last page +1
-
-    metadata:
-        assignee: fstavela
-        importance: low
-        title: Inventory: Test Pagination with Invalid Page Index
-    """
-    pg = host_inventory.apis.hosts.get_host_pagination_info()
-
-    # last page +1
-    with raises_apierror(404):
-        host_inventory.apis.hosts.get_hosts(per_page=pg.per_page, page=pg.total_pages + 1)
-
-    # first page -1
-    with raises_apierror(400):
-        host_inventory.apis.hosts.get_hosts(per_page=pg.per_page, page=0)
-
-
-@pytest.mark.parametrize(
-    "invalid_page_number",
-    [
-        "?",
-        "-1",
-        ".",
-        "1.",
-        "x",
-    ],
-)
-def test_pagination_invalid_pages(
-    invalid_page_number, host_inventory, hbi_setup_hosts_for_pagination
-):
-    """
-    Test Pagination with Invalid Page Number Values.
-
-    JIRA: https://projects.engineering.redhat.com/browse/RHIPLAT1-637
-
-    Try to navigate by specifying invalid values for page number. Expect 400 status code.
-
-    metadata:
-        assignee: fstavela
-        importance: low
-        title: Inventory: Test Pagination with Invalid Page Number Values
-    """
-    pg = host_inventory.apis.hosts.get_host_pagination_info()
-
-    with raises_apierror(400):
-        host_inventory.apis.hosts.get_hosts_response(
-            per_page=pg.per_page, page=invalid_page_number
-        )
 
 
 @pytest.mark.smoke
@@ -311,44 +250,6 @@ def out_of_order(sort_order, result1, result2, results_page):
 @pytest.mark.smoke
 @pytest.mark.core
 @pytest.mark.qa
-def test_unique_results_by_display_name(host_inventory, hbi_setup_hosts_for_pagination):
-    """
-    Test Paginated Results By display_name are Unique.
-
-    Confirm paginated results are unique when filtered by display_name.
-
-    metadata:
-        assignee: fstavela
-        importance: critical
-        title: Inventory: Paginated Results By display_name are Unique
-    """
-    response = host_inventory.apis.hosts.get_hosts_response(display_name="pagination")
-    assert response is not None
-
-    total_matching_hosts = response.total
-
-    assert total_matching_hosts > 0
-
-    random_start, end = rand_start_end(total_matching_hosts, 10)
-
-    all_hosts: set[str] = set()
-    total_paged_hosts = 0
-    for i in range(random_start, end):
-        response = host_inventory.apis.hosts.get_hosts_response(
-            per_page=1, page=i, display_name="pagination"
-        )
-
-        assert response is not None
-
-        all_hosts.update(x.id for x in response.results)
-        total_paged_hosts = total_paged_hosts + len(response.results)
-
-    assert total_paged_hosts == len(all_hosts)
-
-
-@pytest.mark.smoke
-@pytest.mark.core
-@pytest.mark.qa
 def test_unique_results_for_id_list(host_inventory, hbi_setup_hosts_for_pagination):
     """
     Test Pagination of Multi-Host Request Contains Unique Results.
@@ -508,28 +409,3 @@ def test_pagination_of_tags(
         paged_tags.add(convert_tag_to_string(response["results"][0]["tag"]))
 
     assert num_iterations == len(paged_tags), str(paged_tags)
-
-
-@pytest.mark.parametrize("tags_per_page", [5, 10, 15, 25, 50, 100])
-def test_pagination_tags_number_of_records(
-    hbi_setup_hosts_for_pagination, host_inventory: ApplicationHostInventory, tags_per_page
-):
-    """
-    Test Paginated Results of GET for tags return the correct amount of tags.
-
-    JIRA: https://projects.engineering.redhat.com/browse/RHCLOUD-5676
-
-    metadata:
-        assignee: fstavela
-        importance: high
-        title: Inventory: Paginated Results of GET for tags return
-            the correct amount of tags
-    """
-    response = acceptance(
-        host_inventory.apis.tags.get_tags_json,
-        per_page=tags_per_page,
-        criteria=[(criterion_count_eq, tags_per_page)],
-    )
-
-    assert "results" in response, "Response for page {} was not good"
-    assert response["count"] == tags_per_page

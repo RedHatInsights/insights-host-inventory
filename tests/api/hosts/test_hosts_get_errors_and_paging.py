@@ -128,6 +128,22 @@ def test_query_invalid_paging_parameters(mq_create_three_specific_hosts, api_get
 
     api_pagination_invalid_parameters_test(api_get, subtests, url)
 
+    for page in ("?", "-1", ".", "1.", "x"):
+        with subtests.test(page=page):
+            status, data = api_get(build_hosts_url(), query_parameters={"per_page": 1, "page": page})
+            assert status == 400
+            assert "page" in str(data).lower() or "integer" in str(data).lower()
+
+
+def test_order_direction_requires_column(db_create_host, api_get, subtests):
+    host_id = str(db_create_host().id)
+    for url in (HOST_URL, build_hosts_url(host_id), build_system_profile_url(host_id)):
+        for direction in ("ASC", "DESC"):
+            with subtests.test(url=url, direction=direction):
+                status, data = api_get(url, query_parameters={"order_how": direction})
+                assert status == 400
+                assert "order_by" in data["detail"]
+
 
 @pytest.mark.parametrize("invalid_uuid", INVALID_UUIDS)
 def test_query_with_invalid_insights_id(api_get, invalid_uuid):

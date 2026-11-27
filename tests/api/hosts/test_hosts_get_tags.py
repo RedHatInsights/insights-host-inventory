@@ -1,9 +1,31 @@
+from urllib.parse import urlencode
+
 import pytest
 
 from tests.helpers.api_utils import api_pagination_test
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.test_utils import minimal_host
+
+
+def test_filter_hosts_by_invalid_tag(api_get, subtests):
+    for tag, reason in (
+        ("k" * 256, "key"),
+        ("key=" + "v" * 256, "value"),
+        ("n" * 256 + "/key=value", "namespace"),
+        ("", "pattern"),
+        ("namespace/=", "pattern"),
+        ("namespace//=value", "pattern"),
+        ("/key==value", "pattern"),
+        ("namespace/=value", "pattern"),
+        ("namespace//==value", "pattern"),
+    ):
+        with subtests.test(tag=tag):
+            status, response = api_get(build_hosts_url(query="?" + urlencode({"tags": tag})))
+            assert status == 400
+            assert reason in response["detail"]
+            if reason == "pattern":
+                assert repr(tag) in response["detail"]
 
 
 @pytest.mark.parametrize(

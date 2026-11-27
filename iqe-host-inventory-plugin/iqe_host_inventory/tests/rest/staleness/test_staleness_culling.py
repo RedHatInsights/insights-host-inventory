@@ -18,11 +18,9 @@ from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
-from iqe_host_inventory.utils.staleness_utils import STALENESS_LIMITS
 from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning
 from iqe_host_inventory.utils.staleness_utils import create_hosts_in_state
 from iqe_host_inventory.utils.staleness_utils import set_staleness
-from iqe_host_inventory.utils.staleness_utils import validate_staleness_response
 from iqe_host_inventory.utils.tag_utils import assert_tags_found
 from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
 from iqe_host_inventory.utils.tag_utils import convert_tag_to_string
@@ -309,88 +307,6 @@ def test_default_staleness_filter_hosts_and_tags(host_inventory: ApplicationHost
     }
     assert set(found_tags.keys()) == expected_tags
     assert set(found_tags.values()) == {1}
-
-
-@pytest.mark.ephemeral
-def test_staleness_filter_max_delta(
-    host_inventory: ApplicationHostInventory,
-    hbi_staleness_defaults: dict[str, int],
-) -> None:
-    """
-    https://issues.redhat.com/browse/RHINENG-8730
-
-    metadata:
-      assignee: fstavela
-      importance: high
-      title: Create staleness settings with max allowed deltas and get hosts by staleness filter
-    """
-
-    logger.info(f"Creating account record with:\n{STALENESS_LIMITS}")
-    host_inventory.apis.account_staleness.create_staleness(**STALENESS_LIMITS)
-    staleness_response = host_inventory.apis.account_staleness.get_staleness()
-    validate_staleness_response(staleness_response, hbi_staleness_defaults, STALENESS_LIMITS)
-
-    host_data = host_inventory.datagen.create_host_data()
-    host_inventory.kafka.create_host(host_data)
-
-    response = host_inventory.apis.hosts.get_hosts_response()  # Using default staleness
-    assert response
-
-    staleness_options = ["fresh", "stale", "stale_warning"]
-    for staleness in staleness_options:
-        response = host_inventory.apis.hosts.get_hosts_response(staleness=[staleness])
-        assert response
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_get_culled_hosts(
-    host_inventory: ApplicationHostInventory,
-) -> None:
-    """
-    https://issues.redhat.com/browse/RHINENG-17845
-
-    Culled hosts must not appear in API responses, even if their 'updated'
-    timestamp is recent (e.g. from a PATCH).  The API uses 'last_check_in'
-    to determine staleness, not 'updated'.
-
-    metadata:
-        assignee: fstavela
-        importance: medium
-        title: Test that culled hosts are not returned by API, even if patched
-    """
-    culled_hosts = host_inventory.kafka.create_random_hosts(4)
-    logger.info("Sleeping 15 seconds to let the hosts age")
-    sleep(15)
-
-    # Patch 2 hosts — updates 'updated' timestamp, but not 'last_check_in'
-    patched_hosts = culled_hosts[:2]
-    host_inventory.apis.hosts.patch_hosts(patched_hosts, display_name=generate_display_name())
-
-    host_inventory.kafka.wait_for_filtered_host_messages(
-        HostWrapper.insights_id, [host.insights_id for host in patched_hosts]
-    )
-
-    # Set tight staleness deltas so all old hosts become culled
-    host_inventory.apis.account_staleness.create_staleness(
-        conventional_time_to_stale=13,
-        conventional_time_to_stale_warning=14,
-        conventional_time_to_delete=15,
-    )
-
-    fresh_hosts = host_inventory.kafka.create_random_hosts(2)
-
-    fresh_hosts_ids = {host.id for host in fresh_hosts}
-    patched_hosts_ids = {host.id for host in patched_hosts}
-    culled_hosts_ids = {host.id for host in culled_hosts[2:]}
-
-    response = host_inventory.apis.hosts.get_hosts_response()
-    assert response.count >= 2
-
-    found_host_ids = {host.id for host in response.results}
-    assert len(found_host_ids.intersection(culled_hosts_ids)) == 0
-    assert len(found_host_ids.intersection(patched_hosts_ids)) == 0
-    assert found_host_ids.intersection(fresh_hosts_ids) == set(fresh_hosts_ids)
 
 
 @pytest.mark.usefixtures("hbi_staleness_cleanup")

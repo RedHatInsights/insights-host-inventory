@@ -1,28 +1,36 @@
 import pytest
 
-from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
-from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
-from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from tests.helpers.api_utils import _INPUT_DATA
 from tests.helpers.api_utils import STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.api_utils import run_rbac_test
 from tests.helpers.staleness_test_constants import AT_EXACTLY_ONE_HOUR
 from tests.helpers.staleness_test_constants import CUSTOM_STALENESS
 from tests.helpers.staleness_test_constants import JUST_UNDER_ONE_HOUR
 from tests.helpers.staleness_test_constants import assert_staleness_row_matches_triple
+from tests.helpers.test_utils import USER_IDENTITY
 
 
-def test_create_staleness(api_create_staleness, db_get_staleness_culling):
-    response_status, response_data = api_create_staleness(CUSTOM_STALENESS)
+@pytest.mark.parametrize(
+    "input_data", (CUSTOM_STALENESS, {"conventional_time_to_stale": 100, "conventional_time_to_stale_warning": 200})
+)
+def test_create_staleness(api_create_staleness, api_get, db_get_staleness_culling, input_data):
+    expected = {**_INPUT_DATA, **input_data}
+    response_status, response_data = api_create_staleness(input_data)
     assert_response_status(response_status, 201)
+    assert {field: response_data[field] for field in expected} == expected
+
+    response_status, response_data = api_get(build_staleness_url())
+    assert_response_status(response_status, 200)
+    assert {field: response_data[field] for field in expected} == expected
 
     saved_org_id = response_data["org_id"]
     saved_data = db_get_staleness_culling(saved_org_id)
 
     assert saved_data is not None
-    assert_staleness_row_matches_triple(saved_data, CUSTOM_STALENESS)
+    assert_staleness_row_matches_triple(saved_data, expected)
 
 
 def test_create_staleness_at_defaults_does_not_persist_row(api_create_staleness, db_get_staleness_culling):
@@ -74,19 +82,21 @@ def test_create_staleness_at_defaults_replaces_custom_row(
     assert db_get_staleness_culling(response_data["org_id"]) is None
 
 
-def test_create_staleness_with_only_one_data(api_create_staleness, db_get_staleness_culling):
-    input_data = {
-        "conventional_time_to_stale": 1,
-    }
+@pytest.mark.parametrize("input_data", ({"conventional_time_to_stale": 1}, {"conventional_time_to_delete": 63072000}))
+def test_create_staleness_with_only_one_data(api_create_staleness, api_get, db_get_staleness_culling, input_data):
+    expected = {**_INPUT_DATA, **input_data}
     response_status, response_data = api_create_staleness(input_data)
     assert_response_status(response_status, 201)
+    assert {field: response_data[field] for field in expected} == expected
 
     saved_org_id = response_data["org_id"]
     saved_data = db_get_staleness_culling(saved_org_id)
 
-    assert saved_data.conventional_time_to_stale == input_data["conventional_time_to_stale"]
-    assert saved_data.conventional_time_to_stale_warning == CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
-    assert saved_data.conventional_time_to_delete == CONVENTIONAL_TIME_TO_DELETE_SECONDS
+    assert_staleness_row_matches_triple(saved_data, expected)
+
+    response_status, response_data = api_get(build_staleness_url())
+    assert_response_status(response_status, 200)
+    assert {field: response_data[field] for field in expected} == expected
 
 
 def test_create_same_staleness(api_create_staleness):
@@ -95,6 +105,8 @@ def test_create_same_staleness(api_create_staleness):
 
     response_status, response_data = api_create_staleness(CUSTOM_STALENESS)
     assert_response_status(response_status, 400)
+    assert "already exists" in response_data["detail"]
+    assert USER_IDENTITY["org_id"] in response_data["detail"]
 
 
 def test_create_staleness_with_wrong_input(api_create_staleness):
@@ -119,30 +131,56 @@ def test_create_staleness_rbac_denied(subtests, mocker, api_create_staleness):
     )
 
 
-@pytest.mark.parametrize(
-    "input_data",
-    (
-        {
-            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
-            "conventional_time_to_stale_warning": 1,
-            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
-        },
-        {
-            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
-            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
-            "conventional_time_to_delete": 1,
-        },
-        {
-            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
-            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 1,
-            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
-        },
-    ),
-)
-def test_create_improper_staleness(api_create_staleness, input_data):
-    """Test that invalid conventional staleness values are rejected."""
-    response_status, _ = api_create_staleness(input_data)
+def test_create_improper_staleness(api_create_staleness, subtests):
+    """Reject ordering inversions, including partial payloads merged with defaults."""
+    fields = ("conventional_time_to_stale", "conventional_time_to_stale_warning", "conventional_time_to_delete")
+    payloads = [
+        {fields[0]: 604800, fields[1]: 1},
+        {fields[2]: 1},
+        dict(zip(fields, (1, 3, 2), strict=True)),
+        dict(zip(fields, (2, 1, 3), strict=True)),
+        dict(zip(fields, (2, 3, 1), strict=True)),
+    ]
+    for input_data in payloads:
+        with subtests.test(input_data=input_data):
+            response_status, response_data = api_create_staleness(input_data)
+            assert_response_status(response_status, 400)
+            assert "must be lower than" in response_data["detail"]
+            assert "conventional_time_to_" in response_data["detail"]
+
+
+def test_create_staleness_invalid_values(api_create_staleness, subtests):
+    limits = {
+        "conventional_time_to_stale": 604800,
+        "conventional_time_to_stale_warning": 15552000,
+        "conventional_time_to_delete": 63072000,
+    }
+    for field, maximum in limits.items():
+        for value in (0, "abc", -1, 3.5, [], {}, maximum + 1):
+            with subtests.test(field=field, value=value):
+                response_status, response_data = api_create_staleness({field: value})
+                assert_response_status(response_status, 400)
+                detail = response_data["detail"]
+                assert field in detail
+                if not isinstance(value, int):
+                    assert "integer" in detail
+                elif value <= 0:
+                    assert "minimum" in detail
+                else:
+                    assert str(maximum) in detail
+
+
+def test_create_staleness_with_unknown_field(api_create_staleness, api_get):
+    """Unknown input is rejected, and raw GET must not expose it (IQE only checks omission)."""
+    response_status, response_data = api_create_staleness({"conventional_time_to_stale": 86400, "bad_field": 86400})
     assert_response_status(response_status, 400)
+    assert "bad_field" in response_data["detail"]
+    assert "unknown" in response_data["detail"].lower()
+
+    response_status, response_data = api_get(build_staleness_url())
+    assert_response_status(response_status, 200)
+    assert "bad_field" not in response_data
+    assert {field: response_data[field] for field in _INPUT_DATA} == _INPUT_DATA
 
 
 @pytest.mark.parametrize(

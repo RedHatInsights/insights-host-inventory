@@ -293,7 +293,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
 
 class Host(LimitedHost):
     reporter = db.Column(db.String(255), nullable=False)
-    per_reporter_staleness = db.Column(JSONB, nullable=False)
+    per_reporter_staleness = db.Column(JSONB, nullable=False, server_default="{}")
     reporters = db.Column(ARRAY(db.String(255)), nullable=False, server_default="{}")
     display_name_reporter = db.Column(db.String(255))
 
