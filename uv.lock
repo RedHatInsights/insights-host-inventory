@@ -922,7 +922,7 @@ requires-dist = [
     { name = "flask-sqlalchemy", specifier = "~=3.1.1" },
     { name = "flask-unleash" },
     { name = "gunicorn", specifier = "~=26.2.0" },
-    { name = "kessel-sdk", extras = ["auth"], specifier = "~=2.10.0" },
+    { name = "kessel-sdk", extras = ["auth"], specifier = "~=2.11.1" },
     { name = "logstash-formatter", specifier = "~=0.5.17" },
     { name = "marshmallow", specifier = "~=4.4.0" },
     { name = "openapi-schema-validator", specifier = "==0.9.0" },
@@ -1054,16 +1054,16 @@ wheels = [
 
 [[package]]
 name = "kessel-sdk"
-version = "2.10.0"
+version = "2.11.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "grpcio" },
     { name = "protobuf" },
     { name = "types-protobuf" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/7f/85257932632ae450b4ad113390f1e293bfe9240b63e178d2f15e1ce72da4/kessel_sdk-2.10.0.tar.gz", hash = "sha256:a38fa0ce6d904cffaee96a15e0637f99ce17310279ecaa5201842d506b8c0f97", size = 109284, upload-time = "2026-09-29T18:38:12.323Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/10/92/f413805bb3b39116c4b542af50eb7d183d0c48ec260361e0287ec16b0c30/kessel_sdk-2.11.1.tar.gz", hash = "sha256:c1c1b8ff9ca31c8179f768ab797ad9f59b599c31aec9115ef8a4395a9b173693", size = 114314, upload-time = "2026-11-12T21:16:27.089Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d7/97/b5bc847f67199fd4ce35a6f7cfeb58f0795bb3e24a25f1f2f9587e74cffc/kessel_sdk-2.10.0-py3-none-any.whl", hash = "sha256:40d2614eee0e611d27be6855e8c9fa8424dc9ee11ba2b5e1dd53a2eab189603c", size = 221981, upload-time = "2026-09-29T18:38:11.071Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/83/59a12988e624e78e526bd0c709b2b67ac9639a10567d84b5b6028cebf3cd/kessel_sdk-2.11.1-py3-none-any.whl", hash = "sha256:f38b4cf2259768367cb1e939b3df1730beb95aa04b14a27785dc6ba77f5ea6b6", size = 232920, upload-time = "2026-11-12T21:16:25.595Z" },
 ]
 
 [package.optional-dependencies]
